@@ -5,26 +5,28 @@ import (
 	"fmt"
 	"strings"
 
-	"kube-bloodhound/internal/collector"
-	"kube-bloodhound/internal/logger"
-	"kube-bloodhound/internal/writer"
+	"bloodhound-kube/internal/collector"
+	"bloodhound-kube/internal/logger"
+	"bloodhound-kube/internal/writer"
 
 	"github.com/spf13/cobra"
 )
 
 var (
 	namespace     string
+	allNamespaces bool
 	logLevel      string
 	outputPath    string
 	resourceTypes []string
 )
 
-var allResourceTypes = []string{"secrets", "services", "ingresses", "gateways", "rbac"}
+var allResourceTypes = []string{"secrets", "services", "ingresses", "gateways", "rbac", "nodes"}
 
 type CollectionResult struct {
-	Namespace string         `json:"namespace"`
-	Resources map[string]any `json:"resources"`
-	Counts    map[string]int `json:"counts"`
+	Namespace  string         `json:"namespace,omitempty"`
+	Namespaces []string       `json:"namespaces,omitempty"`
+	Resources  map[string]any `json:"resources"`
+	Counts     map[string]int `json:"counts"`
 }
 
 var collectCmd = &cobra.Command{
@@ -34,13 +36,15 @@ var collectCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		log := logger.New(logLevel)
 
-		// Use all resource types if none specified
+		if allNamespaces && cmd.Flags().Changed("namespace") {
+			return fmt.Errorf("cannot use -A (all namespaces) and -n (namespace) flags together")
+		}
+
 		typesToCollect := resourceTypes
 		if len(typesToCollect) == 0 {
 			typesToCollect = allResourceTypes
 		}
 
-		// Validate resource types
 		for _, rt := range typesToCollect {
 			found := false
 			for _, valid := range allResourceTypes {
@@ -54,23 +58,46 @@ var collectCmd = &cobra.Command{
 			}
 		}
 
-		filename := writer.GenerateFilename(namespace + "-" + strings.Join(typesToCollect, "-"))
-		asyncWriter, err := writer.NewAsyncWriter(outputPath, filename, log)
-		if err != nil {
-			return fmt.Errorf("failed to create async writer: %w", err)
-		}
-		defer asyncWriter.Close()
-
 		c, err := collector.New(log)
 		if err != nil {
 			return fmt.Errorf("failed to create collector: %w", err)
 		}
 
 		ctx := context.Background()
+
+		var namespacesToCollect []string
+		if allNamespaces {
+			namespacesToCollect, err = c.ListNamespaces(ctx)
+			if err != nil {
+				return fmt.Errorf("failed to list namespaces: %w", err)
+			}
+		} else {
+			namespacesToCollect = []string{namespace}
+		}
+
+		var filenamePrefix string
+		if allNamespaces {
+			filenamePrefix = "all-namespaces"
+		} else {
+			filenamePrefix = namespace
+		}
+		filename := writer.GenerateFilename(filenamePrefix + "-" + strings.Join(typesToCollect, "-"))
+
+		asyncWriter, err := writer.NewAsyncWriter(outputPath, filename, log)
+		if err != nil {
+			return fmt.Errorf("failed to create async writer: %w", err)
+		}
+		defer asyncWriter.Close()
+
 		result := CollectionResult{
-			Namespace: namespace,
 			Resources: make(map[string]any),
 			Counts:    make(map[string]int),
+		}
+
+		if allNamespaces {
+			result.Namespaces = namespacesToCollect
+		} else {
+			result.Namespace = namespace
 		}
 
 		totalCollected := 0
@@ -79,52 +106,109 @@ var collectCmd = &cobra.Command{
 			log.Info("Collecting resource type", "type", resourceType)
 
 			switch resourceType {
-			case "secrets":
-				secrets, err := c.CollectSecrets(ctx, namespace)
+			case "nodes":
+				nodes, err := c.CollectNodes(ctx)
 				if err != nil {
-					return fmt.Errorf("failed to collect secrets: %w", err)
+					return fmt.Errorf("failed to collect nodes: %w", err)
 				}
-				result.Resources["secrets"] = secrets
-				result.Counts["secrets"] = len(secrets)
-				totalCollected += len(secrets)
+				result.Resources["nodes"] = nodes
+				result.Counts["nodes"] = len(nodes)
+				totalCollected += len(nodes)
 
-			case "services":
-				services, err := c.CollectServices(ctx, namespace)
-				if err != nil {
-					return fmt.Errorf("failed to collect services: %w", err)
+			case "secrets", "services", "ingresses", "gateways", "rbac":
+				var allResources []any
+				totalCount := 0
+
+				for _, ns := range namespacesToCollect {
+					switch resourceType {
+					case "secrets":
+						secrets, err := c.CollectSecrets(ctx, ns)
+						if err != nil {
+							log.Error("Failed to collect secrets from namespace", "namespace", ns, "error", err)
+							continue
+						}
+						for _, secret := range secrets {
+							allResources = append(allResources, secret)
+						}
+						totalCount += len(secrets)
+
+					case "services":
+						services, err := c.CollectServices(ctx, ns)
+						if err != nil {
+							log.Error("Failed to collect services from namespace", "namespace", ns, "error", err)
+							continue
+						}
+						for _, service := range services {
+							allResources = append(allResources, service)
+						}
+						totalCount += len(services)
+
+					case "ingresses":
+						ingresses, err := c.CollectIngresses(ctx, ns)
+						if err != nil {
+							log.Error("Failed to collect ingresses from namespace", "namespace", ns, "error", err)
+							continue
+						}
+						for _, ingress := range ingresses {
+							allResources = append(allResources, ingress)
+						}
+						totalCount += len(ingresses)
+
+					case "gateways":
+						gateways, err := c.CollectGateways(ctx, ns)
+						if err != nil {
+							log.Error("Failed to collect gateways from namespace", "namespace", ns, "error", err)
+							continue
+						}
+						for _, gateway := range gateways {
+							allResources = append(allResources, gateway)
+						}
+						totalCount += len(gateways)
+
+					case "rbac":
+						rbac, err := c.CollectRBAC(ctx, ns)
+						if err != nil {
+							log.Error("Failed to collect RBAC resources from namespace", "namespace", ns, "error", err)
+							continue
+						}
+
+						if result.Resources["rbac"] == nil {
+							result.Resources["rbac"] = map[string]interface{}{
+								"roles":                 []any{},
+								"role_bindings":         []any{},
+								"cluster_roles":         []any{},
+								"cluster_role_bindings": []any{},
+								"service_accounts":      []any{},
+							}
+						}
+						rbacResult := result.Resources["rbac"].(map[string]any)
+
+						for _, role := range rbac.Roles {
+							rbacResult["roles"] = append(rbacResult["roles"].([]any), role)
+						}
+						for _, rb := range rbac.RoleBindings {
+							rbacResult["role_bindings"] = append(rbacResult["role_bindings"].([]any), rb)
+						}
+						for _, cr := range rbac.ClusterRoles {
+							rbacResult["cluster_roles"] = append(rbacResult["cluster_roles"].([]any), cr)
+						}
+						for _, crb := range rbac.ClusterRoleBindings {
+							rbacResult["cluster_role_bindings"] = append(rbacResult["cluster_role_bindings"].([]any), crb)
+						}
+						for _, sa := range rbac.ServiceAccounts {
+							rbacResult["service_accounts"] = append(rbacResult["service_accounts"].([]any), sa)
+						}
+
+						rbacCount := len(rbac.Roles) + len(rbac.RoleBindings) + len(rbac.ClusterRoles) + len(rbac.ClusterRoleBindings) + len(rbac.ServiceAccounts)
+						totalCount += rbacCount
+					}
 				}
-				result.Resources["services"] = services
-				result.Counts["services"] = len(services)
-				totalCollected += len(services)
-				
-			case "ingresses":
-				ingresses, err := c.CollectIngresses(ctx, namespace)
-				if err != nil {
-					return fmt.Errorf("failed to collect ingresses: %w", err)
+
+				if resourceType != "rbac" {
+					result.Resources[resourceType] = allResources
 				}
-				result.Resources["ingresses"] = ingresses
-				result.Counts["ingresses"] = len(ingresses)
-				totalCollected += len(ingresses)
-				
-			case "gateways":
-				gateways, err := c.CollectGateways(ctx, namespace)
-				if err != nil {
-					return fmt.Errorf("failed to collect gateways: %w", err)
-				}
-				result.Resources["gateways"] = gateways
-				result.Counts["gateways"] = len(gateways)
-				totalCollected += len(gateways)
-				
-			case "rbac":
-				rbac, err := c.CollectRBAC(ctx, namespace)
-				if err != nil {
-					return fmt.Errorf("failed to collect RBAC resources: %w", err)
-				}
-				result.Resources["rbac"] = rbac
-				// For RBAC, count all sub-resources
-				rbacCount := len(rbac.Roles) + len(rbac.RoleBindings) + len(rbac.ClusterRoles) + len(rbac.ClusterRoleBindings) + len(rbac.ServiceAccounts)
-				result.Counts["rbac"] = rbacCount
-				totalCollected += rbacCount
+				result.Counts[resourceType] = totalCount
+				totalCollected += totalCount
 			}
 		}
 
@@ -136,10 +220,16 @@ var collectCmd = &cobra.Command{
 			return fmt.Errorf("failed to flush output: %w", err)
 		}
 
-		fmt.Printf("Successfully collected %d resources (%s) from namespace %s and wrote to %s\n",
-			totalCollected, strings.Join(typesToCollect, ", "), namespace, filename)
+		var scopeMsg string
+		if allNamespaces {
+			scopeMsg = fmt.Sprintf("from all namespaces (%d namespaces)", len(namespacesToCollect))
+		} else {
+			scopeMsg = fmt.Sprintf("from namespace %s", namespace)
+		}
 
-		// Print counts by type
+		fmt.Printf("Collected %d resources (%s) %s and wrote to %s\n",
+			totalCollected, strings.Join(typesToCollect, ", "), scopeMsg, filename)
+
 		for resourceType, count := range result.Counts {
 			fmt.Printf("  - %s: %d\n", resourceType, count)
 		}
@@ -150,9 +240,10 @@ var collectCmd = &cobra.Command{
 
 func init() {
 	collectCmd.Flags().StringVarP(&namespace, "namespace", "n", "default", "Kubernetes namespace")
+	collectCmd.Flags().BoolVarP(&allNamespaces, "all-namespaces", "A", false, "Collect from all namespaces (cannot be used with -n)")
 	collectCmd.Flags().StringVarP(&logLevel, "log-level", "l", "info", "Log level (debug, info, warn, error)")
-	collectCmd.Flags().StringVarP(&outputPath, "output", "o", ".", "Output directory path (default: current directory)")
-	collectCmd.Flags().StringSliceVarP(&resourceTypes, "type", "t", []string{}, "Resource types to collect (secrets, services, ingresses, gateways, rbac). Default: all types")
+	collectCmd.Flags().StringVarP(&outputPath, "output", "o", ".", "Output directory path")
+	collectCmd.Flags().StringSliceVarP(&resourceTypes, "type", "t", []string{}, "Resource types to collect (secrets, services, ingresses, gateways, rbac, nodes). Default: all types")
 
 	rootCmd.AddCommand(collectCmd)
 }

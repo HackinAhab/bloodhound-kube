@@ -3,7 +3,7 @@ package main
 import (
 	"os"
 
-	"kube-bloodhound/cmd"
+	"bloodhound-kube/cmd"
 )
 
 func main() {

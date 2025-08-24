@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"kube-bloodhound/internal/logger"
+	"bloodhound-kube/internal/logger"
 )
 
 type AsyncWriter struct {
@@ -73,5 +73,5 @@ func (w *AsyncWriter) Close() error {
 
 func GenerateFilename(namespace string) string {
 	timestamp := time.Now().Format("20060102-150405")
-	return fmt.Sprintf("kube-bloodhound-%s-%s.json", namespace, timestamp)
+	return fmt.Sprintf("bloodhound-kube-%s-%s.json", namespace, timestamp)
 }

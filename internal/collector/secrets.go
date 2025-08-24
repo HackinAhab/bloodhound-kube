@@ -25,7 +25,7 @@ func (c *Collector) CollectSecrets(ctx context.Context, namespace string) ([]Sec
 		return nil, fmt.Errorf("failed to list secrets: %w", err)
 	}
 
-	var secrets []Secret
+	secrets := make([]Secret, 0, len(secretList.Items))
 	for _, secret := range secretList.Items {
 		var dataKeys []string
 		for key := range secret.Data {

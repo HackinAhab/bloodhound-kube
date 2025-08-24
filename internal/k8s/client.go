@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"time"
 
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -14,14 +15,13 @@ import (
 func NewClient() (*kubernetes.Clientset, error) {
 	var config *rest.Config
 	var err error
-
 	config, err = rest.InClusterConfig()
 	if err != nil {
 		kubeConfigEnv := os.Getenv("KUBECONFIG")
 		println("KUBECONFIG:", kubeConfigEnv)
 		if kubeConfigEnv != "" {
 			// KUBECONFIG may contain a list of paths separated by the OS path list separator.
-			// Take the first non-empty entry for now.
+			// Takes the first non-empty entry for now.
 			parts := filepath.SplitList(kubeConfigEnv)
 			var chosen string
 			for _, p := range parts {
@@ -63,10 +63,18 @@ func NewClient() (*kubernetes.Clientset, error) {
 		}
 	}
 
+	customClientConfig(config)
+
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create kubernetes client: %w", err)
 	}
 
 	return clientset, nil
+}
+
+func customClientConfig(config *rest.Config) {
+	config.Timeout = 30 * time.Second
+	config.QPS = 100.0
+	config.Burst = 200
 }

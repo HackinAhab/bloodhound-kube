@@ -52,6 +52,34 @@ func (w *AsyncWriter) WriteJSON(data any) error {
 	return nil
 }
 
+func (w *AsyncWriter) WriteNDJSONBatch(data []any) error {
+	w.logger.Debug("Writing NDJSON batch to file", "count", len(data))
+
+	encoder := json.NewEncoder(w.writer)
+	for _, item := range data {
+		if err := encoder.Encode(item); err != nil {
+			return fmt.Errorf("failed to encode NDJSON item: %w", err)
+		}
+	}
+
+	if err := w.writer.Flush(); err != nil {
+		return fmt.Errorf("failed to flush NDJSON batch: %w", err)
+	}
+
+	return nil
+}
+
+func (w *AsyncWriter) WriteNDJSON(data any) error {
+	w.logger.Debug("Writing NDJSON data to file")
+
+	encoder := json.NewEncoder(w.writer)
+	if err := encoder.Encode(data); err != nil {
+		return fmt.Errorf("failed to encode NDJSON: %w", err)
+	}
+
+	return nil
+}
+
 func (w *AsyncWriter) Flush() error {
 	w.logger.Debug("Flushing writer buffer")
 	return w.writer.Flush()
@@ -71,7 +99,7 @@ func (w *AsyncWriter) Close() error {
 	return nil
 }
 
-func GenerateFilename(namespace string) string {
+func GenerateNDJSONFilename(namespace string) string {
 	timestamp := time.Now().Format("20060102-150405")
-	return fmt.Sprintf("bloodhound-kube-%s-%s.json", namespace, timestamp)
+	return fmt.Sprintf("bloodhound-kube-%s-%s.ndjson", namespace, timestamp)
 }

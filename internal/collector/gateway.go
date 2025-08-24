@@ -55,7 +55,7 @@ func (c *Collector) CollectGateways(ctx context.Context, namespace string) ([]Ga
 	result := dynamicClient.Get().
 		AbsPath("/apis", gatewayGVR.Group, gatewayGVR.Version, "namespaces", namespace, gatewayGVR.Resource).
 		Do(ctx)
-	
+
 	rawData, err := result.Raw()
 	if err != nil {
 		c.logger.Debug("Gateway API not available or no gateways found", "error", err)
@@ -88,7 +88,7 @@ func (c *Collector) CollectGateways(ctx context.Context, namespace string) ([]Ga
 			if listenersRaw, found, _ := unstructured.NestedSlice(spec, "listeners"); found {
 				var listeners []GatewayListener
 				for _, listenerRaw := range listenersRaw {
-					if listenerMap, ok := listenerRaw.(map[string]interface{}); ok {
+					if listenerMap, ok := listenerRaw.(map[string]any); ok {
 						listener := GatewayListener{}
 						if name, found, _ := unstructured.NestedString(listenerMap, "name"); found {
 							listener.Name = name
@@ -115,7 +115,7 @@ func (c *Collector) CollectGateways(ctx context.Context, namespace string) ([]Ga
 			if conditionsRaw, found, _ := unstructured.NestedSlice(status, "conditions"); found {
 				var conditions []GatewayCondition
 				for _, conditionRaw := range conditionsRaw {
-					if conditionMap, ok := conditionRaw.(map[string]interface{}); ok {
+					if conditionMap, ok := conditionRaw.(map[string]any); ok {
 						condition := GatewayCondition{}
 						if condType, found, _ := unstructured.NestedString(conditionMap, "type"); found {
 							condition.Type = condType
@@ -135,7 +135,7 @@ func (c *Collector) CollectGateways(ctx context.Context, namespace string) ([]Ga
 			if addressesRaw, found, _ := unstructured.NestedSlice(status, "addresses"); found {
 				var addresses []GatewayAddress
 				for _, addressRaw := range addressesRaw {
-					if addressMap, ok := addressRaw.(map[string]interface{}); ok {
+					if addressMap, ok := addressRaw.(map[string]any); ok {
 						address := GatewayAddress{}
 						if addrType, found, _ := unstructured.NestedString(addressMap, "type"); found {
 							address.Type = addrType

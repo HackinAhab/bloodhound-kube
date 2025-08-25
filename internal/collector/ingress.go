@@ -3,6 +3,7 @@ package collector
 import (
 	"context"
 	"fmt"
+	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -143,4 +144,38 @@ func (c *Collector) CollectIngresses(ctx context.Context, namespace string) ([]I
 
 	c.logger.Info("Successfully collected ingresses", "count", len(ingresses))
 	return ingresses, nil
+}
+
+type IngressesHandler struct {
+	*BaseHandler
+}
+
+func NewIngressesHandler() *IngressesHandler {
+	return &IngressesHandler{
+		BaseHandler: &BaseHandler{
+			name:          "ingresses",
+			clusterScoped: false,
+		},
+	}
+}
+
+func (h *IngressesHandler) Collect(ctx context.Context, c *Collector, namespace string) ([]StreamedResource, error) {
+	ingresses, err := c.CollectIngresses(ctx, namespace)
+	if err != nil {
+		return nil, err
+	}
+
+	timestamp := time.Now().Format(time.RFC3339)
+	batch := make([]StreamedResource, 0, len(ingresses))
+	
+	for _, ingress := range ingresses {
+		batch = append(batch, StreamedResource{
+			Type:      "ingress",
+			Namespace: namespace,
+			Resource:  ingress,
+			Timestamp: timestamp,
+		})
+	}
+
+	return batch, nil
 }

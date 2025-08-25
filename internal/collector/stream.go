@@ -17,8 +17,8 @@ type StreamedResource struct {
 }
 
 type CollectionJob struct {
-	ResourceType string
-	Namespace    string
+	Handler   ResourceHandler
+	Namespace string
 }
 
 func RunCollection(ctx context.Context, c *Collector, w *writer.AsyncWriter, typesToCollect, namespacesToCollect []string, filename string, concurrency int, log *logger.Logger) (time.Duration, map[string]int, int, []error) {
@@ -87,11 +87,17 @@ func RunCollection(ctx context.Context, c *Collector, w *writer.AsyncWriter, typ
 	namespacedJobs := make([]CollectionJob, 0)
 
 	for _, resourceType := range typesToCollect {
-		if resourceType == "nodes" {
-			clusterJobs = append(clusterJobs, CollectionJob{ResourceType: resourceType, Namespace: ""})
+		handler, err := DefaultRegistry.GetHandler(resourceType)
+		if err != nil {
+			log.Error("Unknown resource type", "type", resourceType, "error", err)
+			continue
+		}
+
+		if handler.IsClusterScoped() {
+			clusterJobs = append(clusterJobs, CollectionJob{Handler: handler, Namespace: ""})
 		} else {
 			for _, ns := range namespacesToCollect {
-				namespacedJobs = append(namespacedJobs, CollectionJob{ResourceType: resourceType, Namespace: ns})
+				namespacedJobs = append(namespacedJobs, CollectionJob{Handler: handler, Namespace: ns})
 			}
 		}
 	}
@@ -142,150 +148,23 @@ func collectWorker(ctx context.Context, c *Collector, jobs <-chan CollectionJob,
 		}
 
 		startTime := time.Now()
-		timestamp := startTime.Format(time.RFC3339)
-		batch := make([]StreamedResource, 0, 50)
-
-		switch job.ResourceType {
-		case "nodes":
-			nodes, err := c.CollectNodes(ctx)
-			if err != nil {
-				log.Error("Failed to collect nodes", "error", err, "duration", time.Since(startTime))
-				continue
+		batch, err := job.Handler.Collect(ctx, c, job.Namespace)
+		if err != nil {
+			if job.Namespace != "" {
+				log.Error("Failed to collect resources", "type", job.Handler.GetName(), "namespace", job.Namespace, "error", err, "duration", time.Since(startTime))
+			} else {
+				log.Error("Failed to collect resources", "type", job.Handler.GetName(), "error", err, "duration", time.Since(startTime))
 			}
-			for _, node := range nodes {
-				batch = append(batch, StreamedResource{
-					Type:      "node",
-					Resource:  node,
-					Timestamp: timestamp,
-				})
-			}
-			log.Debug("Collected nodes", "count", len(nodes), "duration", time.Since(startTime))
-
-		case "secrets":
-			secrets, err := c.CollectSecrets(ctx, job.Namespace)
-			if err != nil {
-				log.Error("Failed to collect secrets", "namespace", job.Namespace, "error", err, "duration", time.Since(startTime))
-				continue
-			}
-			for _, secret := range secrets {
-				batch = append(batch, StreamedResource{
-					Type:      "secret",
-					Namespace: job.Namespace,
-					Resource:  secret,
-					Timestamp: timestamp,
-				})
-			}
-			if len(secrets) > 0 {
-				log.Debug("Collected secrets", "namespace", job.Namespace, "count", len(secrets), "duration", time.Since(startTime))
-			}
-
-		case "services":
-			services, err := c.CollectServices(ctx, job.Namespace)
-			if err != nil {
-				log.Error("Failed to collect services", "namespace", job.Namespace, "error", err, "duration", time.Since(startTime))
-				continue
-			}
-			for _, service := range services {
-				batch = append(batch, StreamedResource{
-					Type:      "service",
-					Namespace: job.Namespace,
-					Resource:  service,
-					Timestamp: timestamp,
-				})
-			}
-			if len(services) > 0 {
-				log.Debug("Collected services", "namespace", job.Namespace, "count", len(services), "duration", time.Since(startTime))
-			}
-
-		case "ingresses":
-			ingresses, err := c.CollectIngresses(ctx, job.Namespace)
-			if err != nil {
-				log.Error("Failed to collect ingresses", "namespace", job.Namespace, "error", err, "duration", time.Since(startTime))
-				continue
-			}
-			for _, ingress := range ingresses {
-				batch = append(batch, StreamedResource{
-					Type:      "ingress",
-					Namespace: job.Namespace,
-					Resource:  ingress,
-					Timestamp: timestamp,
-				})
-			}
-			if len(ingresses) > 0 {
-				log.Debug("Collected ingresses", "namespace", job.Namespace, "count", len(ingresses), "duration", time.Since(startTime))
-			}
-
-		case "gateways":
-			gateways, err := c.CollectGateways(ctx, job.Namespace)
-			if err != nil {
-				log.Error("Failed to collect gateways", "namespace", job.Namespace, "error", err, "duration", time.Since(startTime))
-				continue
-			}
-			for _, gateway := range gateways {
-				batch = append(batch, StreamedResource{
-					Type:      "gateway",
-					Namespace: job.Namespace,
-					Resource:  gateway,
-					Timestamp: timestamp,
-				})
-			}
-			if len(gateways) > 0 {
-				log.Debug("Collected gateways", "namespace", job.Namespace, "count", len(gateways), "duration", time.Since(startTime))
-			}
-
-		case "rbac":
-			rbac, err := c.CollectRBAC(ctx, job.Namespace)
-			if err != nil {
-				log.Error("Failed to collect RBAC resources", "namespace", job.Namespace, "error", err, "duration", time.Since(startTime))
-				continue
-			}
-
-			for _, role := range rbac.Roles {
-				batch = append(batch, StreamedResource{
-					Type:      "role",
-					Namespace: job.Namespace,
-					Resource:  role,
-					Timestamp: timestamp,
-				})
-			}
-			for _, rb := range rbac.RoleBindings {
-				batch = append(batch, StreamedResource{
-					Type:      "role_binding",
-					Namespace: job.Namespace,
-					Resource:  rb,
-					Timestamp: timestamp,
-				})
-			}
-			for _, cr := range rbac.ClusterRoles {
-				batch = append(batch, StreamedResource{
-					Type:      "cluster_role",
-					Resource:  cr,
-					Timestamp: timestamp,
-				})
-			}
-			for _, crb := range rbac.ClusterRoleBindings {
-				batch = append(batch, StreamedResource{
-					Type:      "cluster_role_binding",
-					Resource:  crb,
-					Timestamp: timestamp,
-				})
-			}
-			for _, sa := range rbac.ServiceAccounts {
-				batch = append(batch, StreamedResource{
-					Type:      "service_account",
-					Namespace: job.Namespace,
-					Resource:  sa,
-					Timestamp: timestamp,
-				})
-			}
-
-			rbacCount := len(rbac.Roles) + len(rbac.RoleBindings) + len(rbac.ClusterRoles) + len(rbac.ClusterRoleBindings) + len(rbac.ServiceAccounts)
-			if rbacCount > 0 {
-				log.Debug("Collected RBAC resources", "namespace", job.Namespace, "count", rbacCount, "duration", time.Since(startTime))
-			}
+			continue
 		}
 
 		if len(batch) > 0 {
+			if job.Namespace != "" {
+				log.Debug("Collected resources", "type", job.Handler.GetName(), "namespace", job.Namespace, "count", len(batch), "duration", time.Since(startTime))
+			} else {
+				log.Debug("Collected resources", "type", job.Handler.GetName(), "count", len(batch), "duration", time.Since(startTime))
+			}
+
 			select {
 			case results <- batch:
 			case <-ctx.Done():

@@ -3,6 +3,7 @@ package collector
 import (
 	"context"
 	"fmt"
+	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -87,4 +88,38 @@ func (c *Collector) CollectServices(ctx context.Context, namespace string) ([]Se
 
 	c.logger.Info("Successfully collected services", "count", len(services))
 	return services, nil
+}
+
+type ServicesHandler struct {
+	*BaseHandler
+}
+
+func NewServicesHandler() *ServicesHandler {
+	return &ServicesHandler{
+		BaseHandler: &BaseHandler{
+			name:          "services",
+			clusterScoped: false,
+		},
+	}
+}
+
+func (h *ServicesHandler) Collect(ctx context.Context, c *Collector, namespace string) ([]StreamedResource, error) {
+	services, err := c.CollectServices(ctx, namespace)
+	if err != nil {
+		return nil, err
+	}
+
+	timestamp := time.Now().Format(time.RFC3339)
+	batch := make([]StreamedResource, 0, len(services))
+	
+	for _, service := range services {
+		batch = append(batch, StreamedResource{
+			Type:      "service",
+			Namespace: namespace,
+			Resource:  service,
+			Timestamp: timestamp,
+		})
+	}
+
+	return batch, nil
 }

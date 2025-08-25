@@ -3,6 +3,7 @@ package collector
 import (
 	"context"
 	"fmt"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -140,4 +141,37 @@ func (c *Collector) CollectNodes(ctx context.Context) ([]Node, error) {
 
 	c.logger.Info("Successfully collected nodes", "count", len(nodes))
 	return nodes, nil
+}
+
+type NodesHandler struct {
+	*BaseHandler
+}
+
+func NewNodesHandler() *NodesHandler {
+	return &NodesHandler{
+		BaseHandler: &BaseHandler{
+			name:          "nodes",
+			clusterScoped: true,
+		},
+	}
+}
+
+func (h *NodesHandler) Collect(ctx context.Context, c *Collector, namespace string) ([]StreamedResource, error) {
+	nodes, err := c.CollectNodes(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	timestamp := time.Now().Format(time.RFC3339)
+	batch := make([]StreamedResource, 0, len(nodes))
+	
+	for _, node := range nodes {
+		batch = append(batch, StreamedResource{
+			Type:      "node",
+			Resource:  node,
+			Timestamp: timestamp,
+		})
+	}
+
+	return batch, nil
 }

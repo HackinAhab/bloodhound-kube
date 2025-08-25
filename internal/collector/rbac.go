@@ -3,6 +3,7 @@ package collector
 import (
 	"context"
 	"fmt"
+	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -243,4 +244,68 @@ func (c *Collector) CollectRBAC(ctx context.Context, namespace string) (*RBACRes
 		"service_accounts", len(rbac.ServiceAccounts))
 	
 	return rbac, nil
+}
+
+type RbacHandler struct {
+	*BaseHandler
+}
+
+func NewRbacHandler() *RbacHandler {
+	return &RbacHandler{
+		BaseHandler: &BaseHandler{
+			name:          "rbac",
+			clusterScoped: false,
+		},
+	}
+}
+
+func (h *RbacHandler) Collect(ctx context.Context, c *Collector, namespace string) ([]StreamedResource, error) {
+	rbac, err := c.CollectRBAC(ctx, namespace)
+	if err != nil {
+		return nil, err
+	}
+
+	timestamp := time.Now().Format(time.RFC3339)
+	batch := make([]StreamedResource, 0)
+
+	for _, role := range rbac.Roles {
+		batch = append(batch, StreamedResource{
+			Type:      "role",
+			Namespace: namespace,
+			Resource:  role,
+			Timestamp: timestamp,
+		})
+	}
+	for _, rb := range rbac.RoleBindings {
+		batch = append(batch, StreamedResource{
+			Type:      "role_binding",
+			Namespace: namespace,
+			Resource:  rb,
+			Timestamp: timestamp,
+		})
+	}
+	for _, cr := range rbac.ClusterRoles {
+		batch = append(batch, StreamedResource{
+			Type:      "cluster_role",
+			Resource:  cr,
+			Timestamp: timestamp,
+		})
+	}
+	for _, crb := range rbac.ClusterRoleBindings {
+		batch = append(batch, StreamedResource{
+			Type:      "cluster_role_binding",
+			Resource:  crb,
+			Timestamp: timestamp,
+		})
+	}
+	for _, sa := range rbac.ServiceAccounts {
+		batch = append(batch, StreamedResource{
+			Type:      "service_account",
+			Namespace: namespace,
+			Resource:  sa,
+			Timestamp: timestamp,
+		})
+	}
+
+	return batch, nil
 }

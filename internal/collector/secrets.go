@@ -3,6 +3,7 @@ package collector
 import (
 	"context"
 	"fmt"
+	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -45,4 +46,38 @@ func (c *Collector) CollectSecrets(ctx context.Context, namespace string) ([]Sec
 
 	c.logger.Info("Successfully collected secrets", "count", len(secrets))
 	return secrets, nil
+}
+
+type SecretsHandler struct {
+	*BaseHandler
+}
+
+func NewSecretsHandler() *SecretsHandler {
+	return &SecretsHandler{
+		BaseHandler: &BaseHandler{
+			name:          "secrets",
+			clusterScoped: false,
+		},
+	}
+}
+
+func (h *SecretsHandler) Collect(ctx context.Context, c *Collector, namespace string) ([]StreamedResource, error) {
+	secrets, err := c.CollectSecrets(ctx, namespace)
+	if err != nil {
+		return nil, err
+	}
+
+	timestamp := time.Now().Format(time.RFC3339)
+	batch := make([]StreamedResource, 0, len(secrets))
+	
+	for _, secret := range secrets {
+		batch = append(batch, StreamedResource{
+			Type:      "secret",
+			Namespace: namespace,
+			Resource:  secret,
+			Timestamp: timestamp,
+		})
+	}
+
+	return batch, nil
 }

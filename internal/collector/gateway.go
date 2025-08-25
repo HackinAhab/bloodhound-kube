@@ -3,6 +3,7 @@ package collector
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -157,4 +158,38 @@ func (c *Collector) CollectGateways(ctx context.Context, namespace string) ([]Ga
 
 	c.logger.Info("Successfully collected gateways", "count", len(gateways))
 	return gateways, nil
+}
+
+type GatewaysHandler struct {
+	*BaseHandler
+}
+
+func NewGatewaysHandler() *GatewaysHandler {
+	return &GatewaysHandler{
+		BaseHandler: &BaseHandler{
+			name:          "gateways",
+			clusterScoped: false,
+		},
+	}
+}
+
+func (h *GatewaysHandler) Collect(ctx context.Context, c *Collector, namespace string) ([]StreamedResource, error) {
+	gateways, err := c.CollectGateways(ctx, namespace)
+	if err != nil {
+		return nil, err
+	}
+
+	timestamp := time.Now().Format(time.RFC3339)
+	batch := make([]StreamedResource, 0, len(gateways))
+	
+	for _, gateway := range gateways {
+		batch = append(batch, StreamedResource{
+			Type:      "gateway",
+			Namespace: namespace,
+			Resource:  gateway,
+			Timestamp: timestamp,
+		})
+	}
+
+	return batch, nil
 }

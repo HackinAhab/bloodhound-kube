@@ -23,7 +23,7 @@ var (
 	timeout       int
 )
 
-var allResourceTypes = []string{"secrets", "services", "ingresses", "gateways", "rbac", "nodes"}
+var allResourceTypes = collector.DefaultRegistry.GetAllNames()
 
 var collectCmd = &cobra.Command{
 	Use:   "collect",
@@ -41,17 +41,8 @@ var collectCmd = &cobra.Command{
 			typesToCollect = allResourceTypes
 		}
 
-		for _, rt := range typesToCollect {
-			found := false
-			for _, valid := range allResourceTypes {
-				if rt == valid {
-					found = true
-					break
-				}
-			}
-			if !found {
-				return fmt.Errorf("unsupported resource type: %s (supported: %s)", rt, strings.Join(allResourceTypes, ", "))
-			}
+		if err := collector.DefaultRegistry.ValidateTypes(typesToCollect); err != nil {
+			return err
 		}
 
 		c, err := collector.New(log)

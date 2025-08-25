@@ -16,12 +16,8 @@ type Collector struct {
 	logger *logger.Logger
 }
 
-func New(log *logger.Logger) (*Collector, error) {
-	return NewWithConfig(k8s.ClientConfig{}, log)
-}
-
-func NewWithConfig(cfg k8s.ClientConfig, log *logger.Logger) (*Collector, error) {
-	client, err := k8s.NewClientWithConfig(cfg)
+func New(cfg k8s.ClientConfig, log *logger.Logger) (*Collector, error) {
+	client, err := k8s.NewClient(cfg)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create kubernetes client: %w", err)
 	}

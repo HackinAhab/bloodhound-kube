@@ -18,11 +18,7 @@ type ClientConfig struct {
 	Token      string
 }
 
-func NewClient() (*kubernetes.Clientset, error) {
-	return NewClientWithConfig(ClientConfig{})
-}
-
-func NewClientWithConfig(cfg ClientConfig) (*kubernetes.Clientset, error) {
+func NewClient(cfg ClientConfig) (*kubernetes.Clientset, error) {
 	var config *rest.Config
 	var err error
 

@@ -77,7 +77,7 @@ Examples:
 			Token:      token,
 		}
 
-		c, err := collector.NewWithConfig(cfg, log)
+		c, err := collector.New(cfg, log)
 		if err != nil {
 			return fmt.Errorf("failed to create collector: %w", err)
 		}

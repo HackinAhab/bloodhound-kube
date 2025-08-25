@@ -12,53 +12,48 @@ import (
 	"k8s.io/client-go/util/homedir"
 )
 
+type ClientConfig struct {
+	Kubeconfig string
+	Server     string
+	Token      string
+}
+
 func NewClient() (*kubernetes.Clientset, error) {
+	return NewClientWithConfig(ClientConfig{})
+}
+
+func NewClientWithConfig(cfg ClientConfig) (*kubernetes.Clientset, error) {
 	var config *rest.Config
 	var err error
-	config, err = rest.InClusterConfig()
-	if err != nil {
-		kubeConfigEnv := os.Getenv("KUBECONFIG")
-		println("KUBECONFIG:", kubeConfigEnv)
-		if kubeConfigEnv != "" {
-			// KUBECONFIG may contain a list of paths separated by the OS path list separator.
-			// Takes the first non-empty entry for now.
-			parts := filepath.SplitList(kubeConfigEnv)
-			var chosen string
-			for _, p := range parts {
-				if p == "" {
-					continue
-				}
-				// Expand leading ~ to home directory if present
-				if len(p) > 0 && p[0] == '~' {
-					if hd := homedir.HomeDir(); hd != "" {
-						p = filepath.Join(hd, p[1:])
-					}
-				}
-				chosen = p
-				break
-			}
 
-			if chosen != "" {
-				config, err = clientcmd.BuildConfigFromFlags("", chosen)
-				if err != nil {
-					return nil, fmt.Errorf("failed to create kubernetes config from KUBECONFIG %q: %w", chosen, err)
-				}
-			} else {
-				if hd := homedir.HomeDir(); hd != "" {
-					defaultKube := filepath.Join(hd, ".kube", "config")
-					config, err = clientcmd.BuildConfigFromFlags("", defaultKube)
-					if err != nil {
-						return nil, fmt.Errorf("failed to create kubernetes config from default kubeconfig %q: %w", defaultKube, err)
-					}
-				}
-			}
-		} else {
-			if hd := homedir.HomeDir(); hd != "" {
-				defaultKube := filepath.Join(hd, ".kube", "config")
-				config, err = clientcmd.BuildConfigFromFlags("", defaultKube)
-				if err != nil {
-					return nil, fmt.Errorf("failed to create kubernetes config from default kubeconfig %q: %w", defaultKube, err)
-				}
+	// If both server and token are provided, use direct API authentication
+	if cfg.Server != "" && cfg.Token != "" {
+		config = &rest.Config{
+			Host:        cfg.Server,
+			BearerToken: cfg.Token,
+			TLSClientConfig: rest.TLSClientConfig{
+				Insecure: true, // Warning: This disables TLS certificate verification
+				// In production environments, you should:
+				// 1. Set Insecure: false
+				// 2. Provide proper CA certificates via CAFile or CAData
+				// 3. Set ServerName if using custom certificates
+			},
+		}
+	} else if cfg.Kubeconfig != "" {
+		// Use specified kubeconfig file
+		kubeconfigPath := expandTildeInPath(cfg.Kubeconfig)
+		config, err = clientcmd.BuildConfigFromFlags("", kubeconfigPath)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create kubernetes config from kubeconfig %q: %w", kubeconfigPath, err)
+		}
+	} else {
+		// Try in-cluster config first
+		config, err = rest.InClusterConfig()
+		if err != nil {
+			// Fall back to kubeconfig discovery
+			config, err = discoverKubeconfig()
+			if err != nil {
+				return nil, err
 			}
 		}
 	}
@@ -77,4 +72,49 @@ func customClientConfig(config *rest.Config) {
 	config.Timeout = 30 * time.Second
 	config.QPS = 100.0
 	config.Burst = 200
+}
+
+func expandTildeInPath(path string) string {
+	if len(path) > 0 && path[0] == '~' {
+		if hd := homedir.HomeDir(); hd != "" {
+			return filepath.Join(hd, path[1:])
+		}
+	}
+	return path
+}
+
+func discoverKubeconfig() (*rest.Config, error) {
+	kubeConfigEnv := os.Getenv("KUBECONFIG")
+	if kubeConfigEnv != "" {
+		// KUBECONFIG may contain a list of paths separated by the OS path list separator.
+		// Takes the first non-empty entry for now.
+		parts := filepath.SplitList(kubeConfigEnv)
+		var chosen string
+		for _, p := range parts {
+			if p == "" {
+				continue
+			}
+			chosen = expandTildeInPath(p)
+			break
+		}
+
+		if chosen != "" {
+			config, err := clientcmd.BuildConfigFromFlags("", chosen)
+			if err != nil {
+				return nil, fmt.Errorf("failed to create kubernetes config from KUBECONFIG %q: %w", chosen, err)
+			}
+			return config, nil
+		}
+	}
+
+	if hd := homedir.HomeDir(); hd != "" {
+		defaultKube := filepath.Join(hd, ".kube", "config")
+		config, err := clientcmd.BuildConfigFromFlags("", defaultKube)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create kubernetes config from default kubeconfig %q: %w", defaultKube, err)
+		}
+		return config, nil
+	}
+
+	return nil, fmt.Errorf("unable to find kubeconfig file")
 }

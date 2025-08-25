@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"bloodhound-kube/internal/collector"
+	"bloodhound-kube/internal/k8s"
 	"bloodhound-kube/internal/logger"
 	"bloodhound-kube/internal/writer"
 
@@ -21,6 +22,9 @@ var (
 	resourceTypes []string
 	concurrency   int
 	timeout       int
+	kubeconfig    string
+	server        string
+	token         string
 )
 
 var allResourceTypes = collector.DefaultRegistry.GetAllNames()
@@ -28,7 +32,24 @@ var allResourceTypes = collector.DefaultRegistry.GetAllNames()
 var collectCmd = &cobra.Command{
 	Use:   "collect",
 	Short: "Collect Kubernetes resources",
-	Long:  "Collect Kubernetes resources from the cluster and stream as NDJSON",
+	Long: `Collect Kubernetes resources from the cluster and stream as NDJSON
+
+Authentication methods (in order of precedence):
+1. --server and --token flags for direct API access
+2. --kubeconfig flag to specify custom kubeconfig file  
+3. KUBECONFIG environment variable
+4. ~/.kube/config (default kubeconfig location)
+5. In-cluster configuration (when running inside a pod)
+
+Examples:
+  # Use default kubeconfig
+  bloodhound-kube collect
+
+  # Use custom kubeconfig file
+  bloodhound-kube collect --kubeconfig /path/to/config
+
+  # Direct API access with token
+  bloodhound-kube collect --server https://k8s-api.example.com --token eyJhbGciOi...`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		log := logger.New(logLevel)
 
@@ -45,7 +66,18 @@ var collectCmd = &cobra.Command{
 			return err
 		}
 
-		c, err := collector.New(log)
+		// Validate authentication flags
+		if (server != "" && token == "") || (server == "" && token != "") {
+			return fmt.Errorf("--server and --token flags must be used together")
+		}
+
+		cfg := k8s.ClientConfig{
+			Kubeconfig: kubeconfig,
+			Server:     server,
+			Token:      token,
+		}
+
+		c, err := collector.NewWithConfig(cfg, log)
 		if err != nil {
 			return fmt.Errorf("failed to create collector: %w", err)
 		}
@@ -112,6 +144,9 @@ func init() {
 	collectCmd.Flags().StringVarP(&logLevel, "log-level", "l", "info", "Log level (debug, info, warn, error)")
 	collectCmd.Flags().StringVarP(&outputPath, "output", "o", ".", "Output directory path")
 	collectCmd.Flags().StringSliceVarP(&resourceTypes, "type", "t", []string{}, "Resource types to collect (secrets, services, ingresses, gateways, rbac, nodes). Default: all types")
+	collectCmd.Flags().StringVar(&kubeconfig, "kubeconfig", "", "Path to kubeconfig file (overrides KUBECONFIG and ~/.kube/config)")
+	collectCmd.Flags().StringVarP(&server, "server", "s", "", "Kubernetes API server address (requires --token)")
+	collectCmd.Flags().StringVar(&token, "token", "", "Bearer token for authentication (requires --server)")
 
 	rootCmd.AddCommand(collectCmd)
 }

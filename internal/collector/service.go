@@ -10,17 +10,17 @@ import (
 )
 
 type Service struct {
-	Name         string            `json:"name"`
-	Namespace    string            `json:"namespace"`
-	Type         string            `json:"type"`
-	ClusterIP    string            `json:"cluster_ip,omitempty"`
-	ExternalIPs  []string          `json:"external_ips,omitempty"`
+	Name         string             `json:"name"`
+	Namespace    string             `json:"namespace"`
+	Type         string             `json:"type"`
+	ClusterIP    string             `json:"cluster_ip,omitempty"`
+	ExternalIPs  []string           `json:"external_ips,omitempty"`
 	LoadBalancer LoadBalancerStatus `json:"load_balancer,omitempty"`
-	Ports        []ServicePort     `json:"ports,omitempty"`
-	Selector     map[string]string `json:"selector,omitempty"`
-	Labels       map[string]string `json:"labels,omitempty"`
-	Annotations  map[string]string `json:"annotations,omitempty"`
-	CreatedAt    string            `json:"created_at"`
+	Ports        []ServicePort      `json:"ports,omitempty"`
+	Selector     map[string]string  `json:"selector,omitempty"`
+	Labels       map[string]string  `json:"labels,omitempty"`
+	Annotations  map[string]string  `json:"annotations,omitempty"`
+	CreatedAt    string             `json:"created_at"`
 }
 
 type ServicePort struct {
@@ -70,10 +70,10 @@ func (c *Collector) CollectServices(ctx context.Context, namespace string) ([]Se
 		}
 
 		services = append(services, Service{
-			Name:      svc.Name,
-			Namespace: svc.Namespace,
-			Type:      string(svc.Spec.Type),
-			ClusterIP: svc.Spec.ClusterIP,
+			Name:        svc.Name,
+			Namespace:   svc.Namespace,
+			Type:        string(svc.Spec.Type),
+			ClusterIP:   svc.Spec.ClusterIP,
 			ExternalIPs: svc.Spec.ExternalIPs,
 			LoadBalancer: LoadBalancerStatus{
 				Ingress: ingress,
@@ -103,17 +103,17 @@ func NewServicesHandler() *ServicesHandler {
 	}
 }
 
-func (h *ServicesHandler) Collect(ctx context.Context, c *Collector, namespace string) ([]StreamedResource, error) {
+func (h *ServicesHandler) Collect(ctx context.Context, c *Collector, namespace string) ([]Resource, error) {
 	services, err := c.CollectServices(ctx, namespace)
 	if err != nil {
 		return nil, err
 	}
 
 	timestamp := time.Now().Format(time.RFC3339)
-	batch := make([]StreamedResource, 0, len(services))
-	
+	batch := make([]Resource, 0, len(services))
+
 	for _, service := range services {
-		batch = append(batch, StreamedResource{
+		batch = append(batch, Resource{
 			Type:      "service",
 			Namespace: namespace,
 			Resource:  service,

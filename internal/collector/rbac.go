@@ -53,14 +53,14 @@ type ClusterRoleBinding struct {
 }
 
 type ServiceAccount struct {
-	Name                     string            `json:"name"`
-	Namespace                string            `json:"namespace"`
-	Secrets                  []string          `json:"secrets,omitempty"`
-	ImagePullSecrets         []string          `json:"image_pull_secrets,omitempty"`
-	AutomountServiceAccount  bool              `json:"automount_service_account"`
-	Labels                   map[string]string `json:"labels,omitempty"`
-	Annotations              map[string]string `json:"annotations,omitempty"`
-	CreatedAt                string            `json:"created_at"`
+	Name                    string            `json:"name"`
+	Namespace               string            `json:"namespace"`
+	Secrets                 []string          `json:"secrets,omitempty"`
+	ImagePullSecrets        []string          `json:"image_pull_secrets,omitempty"`
+	AutomountServiceAccount bool              `json:"automount_service_account"`
+	Labels                  map[string]string `json:"labels,omitempty"`
+	Annotations             map[string]string `json:"annotations,omitempty"`
+	CreatedAt               string            `json:"created_at"`
 }
 
 type PolicyRule struct {
@@ -236,13 +236,13 @@ func (c *Collector) CollectRBAC(ctx context.Context, namespace string) (*RBACRes
 		})
 	}
 
-	c.logger.Info("Successfully collected RBAC resources", 
-		"roles", len(rbac.Roles), 
-		"role_bindings", len(rbac.RoleBindings), 
-		"cluster_roles", len(rbac.ClusterRoles), 
-		"cluster_role_bindings", len(rbac.ClusterRoleBindings), 
+	c.logger.Info("Successfully collected RBAC resources",
+		"roles", len(rbac.Roles),
+		"role_bindings", len(rbac.RoleBindings),
+		"cluster_roles", len(rbac.ClusterRoles),
+		"cluster_role_bindings", len(rbac.ClusterRoleBindings),
 		"service_accounts", len(rbac.ServiceAccounts))
-	
+
 	return rbac, nil
 }
 
@@ -259,17 +259,17 @@ func NewRbacHandler() *RbacHandler {
 	}
 }
 
-func (h *RbacHandler) Collect(ctx context.Context, c *Collector, namespace string) ([]StreamedResource, error) {
+func (h *RbacHandler) Collect(ctx context.Context, c *Collector, namespace string) ([]Resource, error) {
 	rbac, err := c.CollectRBAC(ctx, namespace)
 	if err != nil {
 		return nil, err
 	}
 
 	timestamp := time.Now().Format(time.RFC3339)
-	batch := make([]StreamedResource, 0)
+	batch := make([]Resource, 0)
 
 	for _, role := range rbac.Roles {
-		batch = append(batch, StreamedResource{
+		batch = append(batch, Resource{
 			Type:      "role",
 			Namespace: namespace,
 			Resource:  role,
@@ -277,7 +277,7 @@ func (h *RbacHandler) Collect(ctx context.Context, c *Collector, namespace strin
 		})
 	}
 	for _, rb := range rbac.RoleBindings {
-		batch = append(batch, StreamedResource{
+		batch = append(batch, Resource{
 			Type:      "role_binding",
 			Namespace: namespace,
 			Resource:  rb,
@@ -285,21 +285,21 @@ func (h *RbacHandler) Collect(ctx context.Context, c *Collector, namespace strin
 		})
 	}
 	for _, cr := range rbac.ClusterRoles {
-		batch = append(batch, StreamedResource{
+		batch = append(batch, Resource{
 			Type:      "cluster_role",
 			Resource:  cr,
 			Timestamp: timestamp,
 		})
 	}
 	for _, crb := range rbac.ClusterRoleBindings {
-		batch = append(batch, StreamedResource{
+		batch = append(batch, Resource{
 			Type:      "cluster_role_binding",
 			Resource:  crb,
 			Timestamp: timestamp,
 		})
 	}
 	for _, sa := range rbac.ServiceAccounts {
-		batch = append(batch, StreamedResource{
+		batch = append(batch, Resource{
 			Type:      "service_account",
 			Namespace: namespace,
 			Resource:  sa,

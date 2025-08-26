@@ -9,14 +9,14 @@ import (
 )
 
 type ConfigMap struct {
-	Name        string            `json:"name"`
-	Namespace   string            `json:"namespace"`
-	Labels      map[string]string `json:"labels,omitempty"`
-	Annotations map[string]string `json:"annotations,omitempty"`
-	CreatedAt   string            `json:"created_at"`
-	DataKeys    []string          `json:"data_keys"`
-	BinaryDataKeys []string       `json:"binary_data_keys,omitempty"`
-	Immutable   bool              `json:"immutable"`
+	Name           string            `json:"name"`
+	Namespace      string            `json:"namespace"`
+	Labels         map[string]string `json:"labels,omitempty"`
+	Annotations    map[string]string `json:"annotations,omitempty"`
+	CreatedAt      string            `json:"created_at"`
+	DataKeys       []string          `json:"data_keys"`
+	BinaryDataKeys []string          `json:"binary_data_keys,omitempty"`
+	Immutable      bool              `json:"immutable"`
 }
 
 func (c *Collector) CollectConfigMaps(ctx context.Context, namespace string) ([]ConfigMap, error) {
@@ -73,17 +73,17 @@ func NewConfigMapsHandler() *ConfigMapsHandler {
 	}
 }
 
-func (h *ConfigMapsHandler) Collect(ctx context.Context, c *Collector, namespace string) ([]StreamedResource, error) {
+func (h *ConfigMapsHandler) Collect(ctx context.Context, c *Collector, namespace string) ([]Resource, error) {
 	configMaps, err := c.CollectConfigMaps(ctx, namespace)
 	if err != nil {
 		return nil, err
 	}
 
 	timestamp := time.Now().Format(time.RFC3339)
-	batch := make([]StreamedResource, 0, len(configMaps))
-	
+	batch := make([]Resource, 0, len(configMaps))
+
 	for _, configMap := range configMaps {
-		batch = append(batch, StreamedResource{
+		batch = append(batch, Resource{
 			Type:      "configmap",
 			Namespace: namespace,
 			Resource:  configMap,

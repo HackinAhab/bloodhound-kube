@@ -9,19 +9,19 @@ import (
 )
 
 type Ingress struct {
-	Name        string           `json:"name"`
-	Namespace   string           `json:"namespace"`
-	Class       string           `json:"class,omitempty"`
-	Rules       []IngressRule    `json:"rules,omitempty"`
-	TLS         []IngressTLS     `json:"tls,omitempty"`
-	Status      IngressStatus    `json:"status,omitempty"`
+	Name        string            `json:"name"`
+	Namespace   string            `json:"namespace"`
+	Class       string            `json:"class,omitempty"`
+	Rules       []IngressRule     `json:"rules,omitempty"`
+	TLS         []IngressTLS      `json:"tls,omitempty"`
+	Status      IngressStatus     `json:"status,omitempty"`
 	Labels      map[string]string `json:"labels,omitempty"`
 	Annotations map[string]string `json:"annotations,omitempty"`
-	CreatedAt   string           `json:"created_at"`
+	CreatedAt   string            `json:"created_at"`
 }
 
 type IngressRule struct {
-	Host string        `json:"host,omitempty"`
+	Host string                `json:"host,omitempty"`
 	HTTP *HTTPIngressRuleValue `json:"http,omitempty"`
 }
 
@@ -30,9 +30,9 @@ type HTTPIngressRuleValue struct {
 }
 
 type HTTPIngressPath struct {
-	Path     string              `json:"path,omitempty"`
-	PathType string              `json:"path_type,omitempty"`
-	Backend  IngressBackend      `json:"backend"`
+	Path     string         `json:"path,omitempty"`
+	PathType string         `json:"path_type,omitempty"`
+	Backend  IngressBackend `json:"backend"`
 }
 
 type IngressBackend struct {
@@ -73,18 +73,18 @@ func (c *Collector) CollectIngresses(ctx context.Context, namespace string) ([]I
 			ingressRule := IngressRule{
 				Host: rule.Host,
 			}
-			
+
 			if rule.HTTP != nil {
 				var paths []HTTPIngressPath
 				for _, path := range rule.HTTP.Paths {
 					ingressPath := HTTPIngressPath{
 						Path: path.Path,
 					}
-					
+
 					if path.PathType != nil {
 						ingressPath.PathType = string(*path.PathType)
 					}
-					
+
 					if path.Backend.Service != nil {
 						ingressPath.Backend.Service = &IngressServiceBackend{
 							Name: path.Backend.Service.Name,
@@ -94,13 +94,13 @@ func (c *Collector) CollectIngresses(ctx context.Context, namespace string) ([]I
 							},
 						}
 					}
-					
+
 					paths = append(paths, ingressPath)
 				}
-				
+
 				ingressRule.HTTP = &HTTPIngressRuleValue{Paths: paths}
 			}
-			
+
 			rules = append(rules, ingressRule)
 		}
 
@@ -159,17 +159,17 @@ func NewIngressesHandler() *IngressesHandler {
 	}
 }
 
-func (h *IngressesHandler) Collect(ctx context.Context, c *Collector, namespace string) ([]StreamedResource, error) {
+func (h *IngressesHandler) Collect(ctx context.Context, c *Collector, namespace string) ([]Resource, error) {
 	ingresses, err := c.CollectIngresses(ctx, namespace)
 	if err != nil {
 		return nil, err
 	}
 
 	timestamp := time.Now().Format(time.RFC3339)
-	batch := make([]StreamedResource, 0, len(ingresses))
-	
+	batch := make([]Resource, 0, len(ingresses))
+
 	for _, ingress := range ingresses {
-		batch = append(batch, StreamedResource{
+		batch = append(batch, Resource{
 			Type:      "ingress",
 			Namespace: namespace,
 			Resource:  ingress,

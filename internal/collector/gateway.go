@@ -173,17 +173,17 @@ func NewGatewaysHandler() *GatewaysHandler {
 	}
 }
 
-func (h *GatewaysHandler) Collect(ctx context.Context, c *Collector, namespace string) ([]StreamedResource, error) {
+func (h *GatewaysHandler) Collect(ctx context.Context, c *Collector, namespace string) ([]Resource, error) {
 	gateways, err := c.CollectGateways(ctx, namespace)
 	if err != nil {
 		return nil, err
 	}
 
 	timestamp := time.Now().Format(time.RFC3339)
-	batch := make([]StreamedResource, 0, len(gateways))
-	
+	batch := make([]Resource, 0, len(gateways))
+
 	for _, gateway := range gateways {
-		batch = append(batch, StreamedResource{
+		batch = append(batch, Resource{
 			Type:      "gateway",
 			Namespace: namespace,
 			Resource:  gateway,

@@ -7,7 +7,7 @@ import (
 type ResourceHandler interface {
 	GetName() string
 	IsClusterScoped() bool
-	Collect(ctx context.Context, c *Collector, namespace string) ([]StreamedResource, error)
+	Collect(ctx context.Context, c *Collector, namespace string) ([]Resource, error)
 }
 
 type BaseHandler struct {

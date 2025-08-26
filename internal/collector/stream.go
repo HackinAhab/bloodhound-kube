@@ -9,7 +9,7 @@ import (
 	"bloodhound-kube/internal/writer"
 )
 
-type StreamedResource struct {
+type Resource struct {
 	Type      string `json:"type"`
 	Namespace string `json:"namespace,omitempty"`
 	Resource  any    `json:"resource"`
@@ -31,7 +31,7 @@ func RunCollection(ctx context.Context, c *Collector, w *writer.AsyncWriter, typ
 	}
 
 	jobs := make(chan CollectionJob, jobBufferSize)
-	results := make(chan []StreamedResource, 200)
+	results := make(chan []Resource, 200)
 
 	var wg sync.WaitGroup
 
@@ -53,7 +53,7 @@ func RunCollection(ctx context.Context, c *Collector, w *writer.AsyncWriter, typ
 					stats.AddError(err)
 				}
 				for _, item := range batchBuffer {
-					if res, ok := item.(StreamedResource); ok {
+					if res, ok := item.(Resource); ok {
 						stats.AddCount(res.Type, 1)
 					}
 				}
@@ -139,7 +139,7 @@ func RunCollection(ctx context.Context, c *Collector, w *writer.AsyncWriter, typ
 	return duration, counts, totalCollected, errors
 }
 
-func collectWorker(ctx context.Context, c *Collector, jobs <-chan CollectionJob, results chan<- []StreamedResource, log *logger.Logger) {
+func collectWorker(ctx context.Context, c *Collector, jobs <-chan CollectionJob, results chan<- []Resource, log *logger.Logger) {
 	for job := range jobs {
 		select {
 		case <-ctx.Done():

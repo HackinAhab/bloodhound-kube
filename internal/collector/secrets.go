@@ -61,17 +61,17 @@ func NewSecretsHandler() *SecretsHandler {
 	}
 }
 
-func (h *SecretsHandler) Collect(ctx context.Context, c *Collector, namespace string) ([]StreamedResource, error) {
+func (h *SecretsHandler) Collect(ctx context.Context, c *Collector, namespace string) ([]Resource, error) {
 	secrets, err := c.CollectSecrets(ctx, namespace)
 	if err != nil {
 		return nil, err
 	}
 
 	timestamp := time.Now().Format(time.RFC3339)
-	batch := make([]StreamedResource, 0, len(secrets))
-	
+	batch := make([]Resource, 0, len(secrets))
+
 	for _, secret := range secrets {
-		batch = append(batch, StreamedResource{
+		batch = append(batch, Resource{
 			Type:      "secret",
 			Namespace: namespace,
 			Resource:  secret,

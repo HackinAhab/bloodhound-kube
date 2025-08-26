@@ -10,26 +10,26 @@ import (
 )
 
 type Node struct {
-	Name                string            `json:"name"`
-	Labels              map[string]string `json:"labels,omitempty"`
-	Annotations         map[string]string `json:"annotations,omitempty"`
-	CreatedAt           string            `json:"created_at"`
-	Ready               bool              `json:"ready"`
-	KubeletVersion      string            `json:"kubelet_version"`
-	ContainerRuntime    string            `json:"container_runtime"`
-	OSImage             string            `json:"os_image"`
-	KernelVersion       string            `json:"kernel_version"`
-	Architecture        string            `json:"architecture"`
-	OperatingSystem     string            `json:"operating_system"`
-	InternalIP          string            `json:"internal_ip,omitempty"`
-	ExternalIP          string            `json:"external_ip,omitempty"`
-	Hostname            string            `json:"hostname,omitempty"`
-	PodCIDR             string            `json:"pod_cidr,omitempty"`
-	Unschedulable       bool              `json:"unschedulable"`
-	Taints              []NodeTaint       `json:"taints,omitempty"`
-	Conditions          []NodeCondition   `json:"conditions,omitempty"`
-	Capacity            ResourceList      `json:"capacity,omitempty"`
-	Allocatable         ResourceList      `json:"allocatable,omitempty"`
+	Name             string            `json:"name"`
+	Labels           map[string]string `json:"labels,omitempty"`
+	Annotations      map[string]string `json:"annotations,omitempty"`
+	CreatedAt        string            `json:"created_at"`
+	Ready            bool              `json:"ready"`
+	KubeletVersion   string            `json:"kubelet_version"`
+	ContainerRuntime string            `json:"container_runtime"`
+	OSImage          string            `json:"os_image"`
+	KernelVersion    string            `json:"kernel_version"`
+	Architecture     string            `json:"architecture"`
+	OperatingSystem  string            `json:"operating_system"`
+	InternalIP       string            `json:"internal_ip,omitempty"`
+	ExternalIP       string            `json:"external_ip,omitempty"`
+	Hostname         string            `json:"hostname,omitempty"`
+	PodCIDR          string            `json:"pod_cidr,omitempty"`
+	Unschedulable    bool              `json:"unschedulable"`
+	Taints           []NodeTaint       `json:"taints,omitempty"`
+	Conditions       []NodeCondition   `json:"conditions,omitempty"`
+	Capacity         ResourceList      `json:"capacity,omitempty"`
+	Allocatable      ResourceList      `json:"allocatable,omitempty"`
 }
 
 type NodeTaint struct {
@@ -156,17 +156,17 @@ func NewNodesHandler() *NodesHandler {
 	}
 }
 
-func (h *NodesHandler) Collect(ctx context.Context, c *Collector, namespace string) ([]StreamedResource, error) {
+func (h *NodesHandler) Collect(ctx context.Context, c *Collector, namespace string) ([]Resource, error) {
 	nodes, err := c.CollectNodes(ctx)
 	if err != nil {
 		return nil, err
 	}
 
 	timestamp := time.Now().Format(time.RFC3339)
-	batch := make([]StreamedResource, 0, len(nodes))
-	
+	batch := make([]Resource, 0, len(nodes))
+
 	for _, node := range nodes {
-		batch = append(batch, StreamedResource{
+		batch = append(batch, Resource{
 			Type:      "node",
 			Resource:  node,
 			Timestamp: timestamp,

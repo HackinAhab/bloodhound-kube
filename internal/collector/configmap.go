@@ -1,0 +1,95 @@
+package collector
+
+import (
+	"context"
+	"fmt"
+	"time"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+)
+
+type ConfigMap struct {
+	Name        string            `json:"name"`
+	Namespace   string            `json:"namespace"`
+	Labels      map[string]string `json:"labels,omitempty"`
+	Annotations map[string]string `json:"annotations,omitempty"`
+	CreatedAt   string            `json:"created_at"`
+	DataKeys    []string          `json:"data_keys"`
+	BinaryDataKeys []string       `json:"binary_data_keys,omitempty"`
+	Immutable   bool              `json:"immutable"`
+}
+
+func (c *Collector) CollectConfigMaps(ctx context.Context, namespace string) ([]ConfigMap, error) {
+	c.logger.Info("Collecting configmaps", "namespace", namespace)
+
+	configMapList, err := c.client.CoreV1().ConfigMaps(namespace).List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to list configmaps: %w", err)
+	}
+
+	configMaps := make([]ConfigMap, 0, len(configMapList.Items))
+	for _, cm := range configMapList.Items {
+		var dataKeys []string
+		for key := range cm.Data {
+			dataKeys = append(dataKeys, key)
+		}
+
+		var binaryDataKeys []string
+		for key := range cm.BinaryData {
+			binaryDataKeys = append(binaryDataKeys, key)
+		}
+
+		immutable := false
+		if cm.Immutable != nil {
+			immutable = *cm.Immutable
+		}
+
+		configMaps = append(configMaps, ConfigMap{
+			Name:           cm.Name,
+			Namespace:      cm.Namespace,
+			Labels:         cm.Labels,
+			Annotations:    cm.Annotations,
+			CreatedAt:      cm.CreationTimestamp.Format("2006-01-02T15:04:05Z"),
+			DataKeys:       dataKeys,
+			BinaryDataKeys: binaryDataKeys,
+			Immutable:      immutable,
+		})
+	}
+
+	c.logger.Info("Successfully collected configmaps", "count", len(configMaps))
+	return configMaps, nil
+}
+
+type ConfigMapsHandler struct {
+	*BaseHandler
+}
+
+func NewConfigMapsHandler() *ConfigMapsHandler {
+	return &ConfigMapsHandler{
+		BaseHandler: &BaseHandler{
+			name:          "configmaps",
+			clusterScoped: false,
+		},
+	}
+}
+
+func (h *ConfigMapsHandler) Collect(ctx context.Context, c *Collector, namespace string) ([]StreamedResource, error) {
+	configMaps, err := c.CollectConfigMaps(ctx, namespace)
+	if err != nil {
+		return nil, err
+	}
+
+	timestamp := time.Now().Format(time.RFC3339)
+	batch := make([]StreamedResource, 0, len(configMaps))
+	
+	for _, configMap := range configMaps {
+		batch = append(batch, StreamedResource{
+			Type:      "configmap",
+			Namespace: namespace,
+			Resource:  configMap,
+			Timestamp: timestamp,
+		})
+	}
+
+	return batch, nil
+}

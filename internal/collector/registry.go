@@ -26,6 +26,7 @@ func (r *ResourceRegistry) registerDefaults() {
 	r.Register(NewIngressesHandler())
 	r.Register(NewGatewaysHandler())
 	r.Register(NewRbacHandler())
+	r.Register(NewConfigMapsHandler())
 }
 
 func (r *ResourceRegistry) Register(handler ResourceHandler) {

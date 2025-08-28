@@ -143,7 +143,7 @@ func init() {
 	collectCmd.Flags().IntVarP(&timeout, "timeout", "", 300, "Timeout in seconds for the entire collection")
 	collectCmd.Flags().StringVarP(&logLevel, "log-level", "l", "info", "Log level (debug, info, warn, error)")
 	collectCmd.Flags().StringVarP(&outputPath, "output", "o", ".", "Output directory path")
-	collectCmd.Flags().StringSliceVarP(&resourceTypes, "type", "t", []string{}, "Resource types to collect (configmaps, secrets, services, ingresses, gateways, rbac, nodes). Default: all types")
+	collectCmd.Flags().StringSliceVarP(&resourceTypes, "type", "t", []string{}, "Resource types to collect (configmaps, networkpolicies, secrets, services, ingresses, gateways, rbac, nodes). Default: all types")
 	collectCmd.Flags().StringVar(&kubeconfig, "kubeconfig", "", "Path to kubeconfig file (overrides KUBECONFIG and ~/.kube/config)")
 	collectCmd.Flags().StringVarP(&server, "server", "s", "", "Kubernetes API server address (requires --token)")
 	collectCmd.Flags().StringVar(&token, "token", "", "Bearer token for authentication (requires --server)")

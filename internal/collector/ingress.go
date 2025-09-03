@@ -61,7 +61,7 @@ type IngressStatus struct {
 func (c *Collector) CollectIngresses(ctx context.Context, namespace string) ([]Ingress, error) {
 	c.logger.Info("Collecting ingresses", "namespace", namespace)
 
-	ingressList, err := c.client.NetworkingV1().Ingresses(namespace).List(ctx, metav1.ListOptions{})
+	ingressList, err := c.clients.Kubernetes.NetworkingV1().Ingresses(namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to list ingresses: %w", err)
 	}

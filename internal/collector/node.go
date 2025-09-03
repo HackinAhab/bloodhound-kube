@@ -55,7 +55,7 @@ type ResourceList struct {
 func (c *Collector) CollectNodes(ctx context.Context) ([]Node, error) {
 	c.logger.Info("Collecting nodes")
 
-	nodeList, err := c.client.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
+	nodeList, err := c.clients.Kubernetes.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to list nodes: %w", err)
 	}

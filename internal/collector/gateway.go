@@ -52,7 +52,7 @@ func (c *Collector) CollectGateways(ctx context.Context, namespace string) ([]Ga
 		Resource: "gateways",
 	}
 
-	dynamicClient := c.client.Discovery().RESTClient()
+	dynamicClient := c.clients.Kubernetes.Discovery().RESTClient()
 	result := dynamicClient.Get().
 		AbsPath("/apis", gatewayGVR.Group, gatewayGVR.Version, "namespaces", namespace, gatewayGVR.Resource).
 		Do(ctx)

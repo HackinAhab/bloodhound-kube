@@ -89,7 +89,7 @@ func (c *Collector) CollectRBAC(ctx context.Context, namespace string) (*RBACRes
 
 	rbac := &RBACResources{}
 
-	roleList, err := c.client.RbacV1().Roles(namespace).List(ctx, metav1.ListOptions{})
+	roleList, err := c.clients.Kubernetes.RbacV1().Roles(namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to list roles: %w", err)
 	}
@@ -116,7 +116,7 @@ func (c *Collector) CollectRBAC(ctx context.Context, namespace string) (*RBACRes
 		})
 	}
 
-	roleBindingList, err := c.client.RbacV1().RoleBindings(namespace).List(ctx, metav1.ListOptions{})
+	roleBindingList, err := c.clients.Kubernetes.RbacV1().RoleBindings(namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to list role bindings: %w", err)
 	}
@@ -147,7 +147,7 @@ func (c *Collector) CollectRBAC(ctx context.Context, namespace string) (*RBACRes
 		})
 	}
 
-	clusterRoleList, err := c.client.RbacV1().ClusterRoles().List(ctx, metav1.ListOptions{})
+	clusterRoleList, err := c.clients.Kubernetes.RbacV1().ClusterRoles().List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to list cluster roles: %w", err)
 	}
@@ -173,7 +173,7 @@ func (c *Collector) CollectRBAC(ctx context.Context, namespace string) (*RBACRes
 		})
 	}
 
-	clusterRoleBindingList, err := c.client.RbacV1().ClusterRoleBindings().List(ctx, metav1.ListOptions{})
+	clusterRoleBindingList, err := c.clients.Kubernetes.RbacV1().ClusterRoleBindings().List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to list cluster role bindings: %w", err)
 	}
@@ -203,7 +203,7 @@ func (c *Collector) CollectRBAC(ctx context.Context, namespace string) (*RBACRes
 		})
 	}
 
-	serviceAccountList, err := c.client.CoreV1().ServiceAccounts(namespace).List(ctx, metav1.ListOptions{})
+	serviceAccountList, err := c.clients.Kubernetes.CoreV1().ServiceAccounts(namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to list service accounts: %w", err)
 	}

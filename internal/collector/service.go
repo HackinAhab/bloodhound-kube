@@ -43,7 +43,7 @@ type LoadBalancerIngress struct {
 func (c *Collector) CollectServices(ctx context.Context, namespace string) ([]Service, error) {
 	c.logger.Info("Collecting services", "namespace", namespace)
 
-	serviceList, err := c.client.CoreV1().Services(namespace).List(ctx, metav1.ListOptions{})
+	serviceList, err := c.clients.Kubernetes.CoreV1().Services(namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to list services: %w", err)
 	}

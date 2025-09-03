@@ -25,9 +25,11 @@ func (r *ResourceRegistry) registerDefaults() {
 	r.Register(NewServicesHandler())
 	r.Register(NewIngressesHandler())
 	r.Register(NewGatewaysHandler())
+	r.Register(NewRoutesHandler())
 	r.Register(NewRbacHandler())
 	r.Register(NewConfigMapsHandler())
 	r.Register(NewNetworkPoliciesHandler())
+	r.Register(NewCRDHandler())
 }
 
 func (r *ResourceRegistry) Register(handler ResourceHandler) {

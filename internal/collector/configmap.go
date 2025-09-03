@@ -22,7 +22,7 @@ type ConfigMap struct {
 func (c *Collector) CollectConfigMaps(ctx context.Context, namespace string) ([]ConfigMap, error) {
 	c.logger.Info("Collecting configmaps", "namespace", namespace)
 
-	configMapList, err := c.client.CoreV1().ConfigMaps(namespace).List(ctx, metav1.ListOptions{})
+	configMapList, err := c.clients.Kubernetes.CoreV1().ConfigMaps(namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to list configmaps: %w", err)
 	}

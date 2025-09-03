@@ -21,7 +21,7 @@ type Secret struct {
 func (c *Collector) CollectSecrets(ctx context.Context, namespace string) ([]Secret, error) {
 	c.logger.Info("Collecting secrets", "namespace", namespace)
 
-	secretList, err := c.client.CoreV1().Secrets(namespace).List(ctx, metav1.ListOptions{})
+	secretList, err := c.clients.Kubernetes.CoreV1().Secrets(namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to list secrets: %w", err)
 	}

@@ -5,33 +5,32 @@ import (
 	"fmt"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
 
 	"bloodhound-kube/internal/k8s"
 	"bloodhound-kube/internal/logger"
 )
 
 type Collector struct {
-	client *kubernetes.Clientset
-	logger *logger.Logger
+	clients *k8s.Clients
+	logger  *logger.Logger
 }
 
 func New(cfg k8s.ClientConfig, log *logger.Logger) (*Collector, error) {
-	client, err := k8s.NewClient(cfg)
+	clients, err := k8s.NewClient(cfg)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create kubernetes client: %w", err)
+		return nil, fmt.Errorf("failed to create kubernetes clients: %w", err)
 	}
 
 	return &Collector{
-		client: client,
-		logger: log,
+		clients: clients,
+		logger:  log,
 	}, nil
 }
 
 func (c *Collector) ListNamespaces(ctx context.Context) ([]string, error) {
 	c.logger.Info("Listing all namespaces")
 
-	namespaceList, err := c.client.CoreV1().Namespaces().List(ctx, metav1.ListOptions{})
+	namespaceList, err := c.clients.Kubernetes.CoreV1().Namespaces().List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to list namespaces: %w", err)
 	}

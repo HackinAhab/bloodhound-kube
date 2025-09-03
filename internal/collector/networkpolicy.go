@@ -61,7 +61,7 @@ type NetworkPolicyIPBlock struct {
 func (c *Collector) CollectNetworkPolicies(ctx context.Context, namespace string) ([]NetworkPolicy, error) {
 	c.logger.Info("Collecting networkpolicies", "namespace", namespace)
 
-	networkPolicyList, err := c.client.NetworkingV1().NetworkPolicies(namespace).List(ctx, metav1.ListOptions{})
+	networkPolicyList, err := c.clients.Kubernetes.NetworkingV1().NetworkPolicies(namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to list networkpolicies: %w", err)
 	}

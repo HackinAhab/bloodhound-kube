@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"time"
 
+	apiextensionsclientset "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -18,35 +19,32 @@ type ClientConfig struct {
 	Token      string
 }
 
-func NewClient(cfg ClientConfig) (*kubernetes.Clientset, error) {
+type Clients struct {
+	Kubernetes    *kubernetes.Clientset
+	ApiExtensions *apiextensionsclientset.Clientset
+}
+
+func NewClient(cfg ClientConfig) (*Clients, error) {
 	var config *rest.Config
 	var err error
 
-	// If both server and token are provided, use direct API authentication
 	if cfg.Server != "" && cfg.Token != "" {
 		config = &rest.Config{
 			Host:        cfg.Server,
 			BearerToken: cfg.Token,
 			TLSClientConfig: rest.TLSClientConfig{
-				Insecure: true, // Warning: This disables TLS certificate verification
-				// In production environments, you should:
-				// 1. Set Insecure: false
-				// 2. Provide proper CA certificates via CAFile or CAData
-				// 3. Set ServerName if using custom certificates
+				Insecure: true,
 			},
 		}
 	} else if cfg.Kubeconfig != "" {
-		// Use specified kubeconfig file
 		kubeconfigPath := expandTildeInPath(cfg.Kubeconfig)
 		config, err = clientcmd.BuildConfigFromFlags("", kubeconfigPath)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create kubernetes config from kubeconfig %q: %w", kubeconfigPath, err)
 		}
 	} else {
-		// Try in-cluster config first
 		config, err = rest.InClusterConfig()
 		if err != nil {
-			// Fall back to kubeconfig discovery
 			config, err = discoverKubeconfig()
 			if err != nil {
 				return nil, err
@@ -61,7 +59,15 @@ func NewClient(cfg ClientConfig) (*kubernetes.Clientset, error) {
 		return nil, fmt.Errorf("failed to create kubernetes client: %w", err)
 	}
 
-	return clientset, nil
+	apiExtensionsClient, err := apiextensionsclientset.NewForConfig(config)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create apiextensions client: %w", err)
+	}
+
+	return &Clients{
+		Kubernetes:    clientset,
+		ApiExtensions: apiExtensionsClient,
+	}, nil
 }
 
 func customClientConfig(config *rest.Config) {

@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+
+	"bloodhound-kube/internal/k8s"
 )
 
 type ResourceRegistry struct {
@@ -30,6 +32,18 @@ func (r *ResourceRegistry) registerDefaults() {
 	r.Register(NewConfigMapsHandler())
 	r.Register(NewNetworkPoliciesHandler())
 	r.Register(NewCRDHandler())
+}
+
+func (r *ResourceRegistry) RegisterOpenShiftResources() {
+	r.Register(NewProjectsHandler())
+	r.Register(NewImagesHandler())
+}
+
+func (r *ResourceRegistry) InitializeForCluster(clusterType k8s.ClusterType) {
+	r.registerDefaults()
+	if clusterType == k8s.ClusterTypeOpenShift {
+		r.RegisterOpenShiftResources()
+	}
 }
 
 func (r *ResourceRegistry) Register(handler ResourceHandler) {

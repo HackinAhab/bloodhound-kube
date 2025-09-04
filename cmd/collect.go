@@ -25,9 +25,11 @@ var (
 	kubeconfig    string
 	server        string
 	token         string
+	clusterType   string
 )
 
-var allResourceTypes = collector.DefaultRegistry.GetAllNames()
+// allResourceTypes will be populated after cluster detection
+var allResourceTypes []string
 
 var collectCmd = &cobra.Command{
 	Use:   "collect",
@@ -49,7 +51,10 @@ Examples:
   bloodhound-kube collect --kubeconfig /path/to/config
 
   # Direct API access with token
-  bloodhound-kube collect --server https://k8s-api.example.com --token eyJhbGciOi...`,
+  bloodhound-kube collect --server https://k8s-api.example.com --token eyJhbGciOi...
+
+  # Specify cluster type (auto-detects by default)
+  bloodhound-kube collect --cluster-type openshift`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		log := logger.New(logLevel)
 
@@ -70,16 +75,32 @@ Examples:
 			return fmt.Errorf("--server and --token flags must be used together")
 		}
 
+		var clusterTypeEnum k8s.ClusterType
+		switch clusterType {
+		case "kubernetes", "k8s":
+			clusterTypeEnum = k8s.ClusterTypeKubernetes
+		case "openshift", "ocp":
+			clusterTypeEnum = k8s.ClusterTypeOpenShift
+		case "auto", "":
+			clusterTypeEnum = k8s.ClusterTypeAuto
+		default:
+			return fmt.Errorf("invalid cluster type %q, must be one of: kubernetes, openshift, auto", clusterType)
+		}
+
 		cfg := k8s.ClientConfig{
-			Kubeconfig: kubeconfig,
-			Server:     server,
-			Token:      token,
+			Kubeconfig:  kubeconfig,
+			Server:      server,
+			Token:       token,
+			ClusterType: clusterTypeEnum,
 		}
 
 		c, err := collector.New(cfg, log)
 		if err != nil {
 			return fmt.Errorf("failed to create collector: %w", err)
 		}
+
+		collector.DefaultRegistry.InitializeForCluster(c.GetClusterType())
+		allResourceTypes = collector.DefaultRegistry.GetAllNames()
 
 		ctx, cancel := context.WithTimeout(context.Background(), time.Duration(timeout)*time.Second)
 		defer cancel()
@@ -117,8 +138,8 @@ Examples:
 			scopeMsg = fmt.Sprintf("from namespace %s", namespacesToCollect[0])
 		}
 
-		fmt.Printf("Collected %d resources (%s) %s in %v and wrote to %s\n",
-			totalCollected, strings.Join(typesToCollect, ", "), scopeMsg, duration, filename)
+		fmt.Printf("Collected %d resources (%s) %s from %s cluster in %v and wrote to %s\n",
+			totalCollected, strings.Join(typesToCollect, ", "), scopeMsg, c.GetPlatform(), duration, filename)
 
 		resourcesPerSecond := float64(totalCollected) / duration.Seconds()
 		fmt.Printf("Performance: %.1f resources/sec with %d workers\n", resourcesPerSecond, concurrency)
@@ -142,10 +163,11 @@ func init() {
 	collectCmd.Flags().IntVarP(&timeout, "timeout", "", 300, "Timeout in seconds for the entire collection")
 	collectCmd.Flags().StringVarP(&logLevel, "log-level", "l", "info", "Log level (debug, info, warn, error)")
 	collectCmd.Flags().StringVarP(&outputPath, "output", "o", ".", "Output directory path")
-	collectCmd.Flags().StringSliceVarP(&resourceTypes, "type", "t", []string{}, "Resource types to collect (configmaps, networkpolicies, secrets, services, ingresses, gateways, routes, rbac, nodes, crds). Default: all types")
+	collectCmd.Flags().StringSliceVarP(&resourceTypes, "type", "t", []string{}, "Resource types to collect (configmaps, networkpolicies, secrets, services, ingresses, gateways, routes, rbac, nodes, crds, projects*, images*). *OpenShift only. Default: all types")
 	collectCmd.Flags().StringVar(&kubeconfig, "kubeconfig", "", "Path to kubeconfig file (overrides KUBECONFIG and ~/.kube/config)")
 	collectCmd.Flags().StringVarP(&server, "server", "s", "", "Kubernetes API server address (requires --token)")
 	collectCmd.Flags().StringVar(&token, "token", "", "Bearer token for authentication (requires --server)")
+	collectCmd.Flags().StringVarP(&clusterType, "cluster-type", "T", "auto", "Cluster type: kubernetes, openshift, or auto (auto-detect)")
 
 	rootCmd.AddCommand(collectCmd)
 }

@@ -43,3 +43,15 @@ func (c *Collector) ListNamespaces(ctx context.Context) ([]string, error) {
 	c.logger.Info("Successfully listed namespaces", "count", len(namespaces))
 	return namespaces, nil
 }
+
+func (c *Collector) IsOpenShift() bool {
+	return c.clients.IsOpenShift()
+}
+
+func (c *Collector) GetPlatform() string {
+	return c.clients.GetPlatform()
+}
+
+func (c *Collector) GetClusterType() k8s.ClusterType {
+	return c.clients.ClusterType
+}

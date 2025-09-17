@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"sync"
+	"time"
 )
 
 func GenerateObjectID(resourceType, namespace, name string) string {
@@ -65,17 +67,194 @@ func CreateNodeWithConfig(config ResourceConfig, resourceType, namespace, name s
 	return CreateNodeFromResource(kinds, resourceType, namespace, name, properties), nil
 }
 
-func CreateEdge(sourceID, targetID, label string, properties map[string]any) BloodHoundEdge {
+func CreateEdge(sourceID, targetID, kind string, properties map[string]any) BloodHoundEdge {
 	if properties == nil {
 		properties = make(map[string]any)
 	}
 
 	return BloodHoundEdge{
-		Source:     sourceID,
-		Target:     targetID,
-		Label:      SanitizeLabel(label),
+		Start: BloodHoundEdgeRef{
+			MatchBy: "id",
+			Value:   sourceID,
+		},
+		End: BloodHoundEdgeRef{
+			MatchBy: "id",
+			Value:   targetID,
+		},
+		Kind:       SanitizePascalCase(kind),
 		Properties: properties,
 	}
+}
+
+// SanitizePascalCase converts edge kinds to PascalCase without dashes
+func SanitizePascalCase(input string) string {
+	words := strings.FieldsFunc(input, func(r rune) bool {
+		return r == '-' || r == '_' || r == ' '
+	})
+
+	var result strings.Builder
+	for _, word := range words {
+		if len(word) > 0 {
+			result.WriteString(strings.ToUpper(word[:1]) + strings.ToLower(word[1:]))
+		}
+	}
+	return result.String()
+}
+
+// FlattenProperties converts nested objects to primitive key-value pairs
+func FlattenProperties(input map[string]any, prefix string) map[string]any {
+	result := make(map[string]any)
+
+	for key, value := range input {
+		flatKey := key
+		if prefix != "" {
+			flatKey = prefix + "_" + key
+		}
+
+		switch v := value.(type) {
+		case map[string]any:
+			// Recursively flatten nested objects
+			nested := FlattenProperties(v, flatKey)
+			for k, val := range nested {
+				result[k] = val
+			}
+		case []any:
+			// Convert object arrays to primitive arrays or flatten if needed
+			if len(v) > 0 {
+				if isObjectArray(v) {
+					result[flatKey] = convertObjectArrayToPrimitives(v)
+				} else {
+					result[flatKey] = v
+				}
+			}
+		default:
+			result[flatKey] = value
+		}
+	}
+
+	return result
+}
+
+// Helper function to check if array contains objects
+func isObjectArray(arr []any) bool {
+	if len(arr) == 0 {
+		return false
+	}
+	_, isObj := arr[0].(map[string]any)
+	return isObj
+}
+
+// Helper function to convert object arrays to string arrays
+func convertObjectArrayToPrimitives(arr []any) []string {
+	result := make([]string, 0, len(arr))
+	for _, item := range arr {
+		if obj, ok := item.(map[string]any); ok {
+			// Extract a meaningful string representation
+			if name, exists := obj["name"]; exists {
+				if nameStr, ok := name.(string); ok {
+					result = append(result, nameStr)
+				}
+			} else if id, exists := obj["id"]; exists {
+				if idStr, ok := id.(string); ok {
+					result = append(result, idStr)
+				}
+			}
+		}
+	}
+	return result
+}
+
+// ConvertToBloodHoundResult creates a BloodHound-compliant result with metadata
+func ConvertToBloodHoundResult(ndjsonData []byte, clusterName string) (*BloodHoundResult, error) {
+	resources, err := ParseFromNDJSON(ndjsonData)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse NDJSON: %w", err)
+	}
+
+	parsed, err := DefaultRegistry.ParseBatch(resources)
+	if err != nil {
+		return nil, err
+	}
+
+	return &BloodHoundResult{
+		Metadata: &BloodHoundMetadata{
+			SourceKind:          "KubeBase",
+			ClusterName:         clusterName,
+			CollectionTimestamp: time.Now().UTC().Format(time.RFC3339),
+			Version:             "1.0",
+		},
+		Graph: BloodHoundGraph{
+			Nodes: parsed.Nodes,
+			Edges: parsed.Edges,
+		},
+	}, nil
+}
+
+// ConcurrentParseProcessor handles large-scale parsing with concurrency
+func ConcurrentParseProcessor(resources []ResourceData, workerCount int) (*BloodHoundResult, error) {
+	if workerCount <= 0 {
+		workerCount = 10 // Default worker count
+	}
+
+	resourceChan := make(chan ResourceData, len(resources))
+	resultChan := make(chan *ParsedResult, len(resources))
+	errorChan := make(chan error, len(resources))
+
+	// Start workers
+	var wg sync.WaitGroup
+	for i := 0; i < workerCount; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for resource := range resourceChan {
+				result, err := DefaultRegistry.ParseResource(resource)
+				if err != nil {
+					errorChan <- err
+					return
+				}
+				resultChan <- result
+			}
+		}()
+	}
+
+	// Send resources to workers
+	go func() {
+		defer close(resourceChan)
+		for _, resource := range resources {
+			resourceChan <- resource
+		}
+	}()
+
+	// Wait for all workers to complete
+	go func() {
+		wg.Wait()
+		close(resultChan)
+		close(errorChan)
+	}()
+
+	// Collect results
+	concurrentResult := NewConcurrentResult()
+	for result := range resultChan {
+		concurrentResult.AddNodes(result.Nodes...)
+		concurrentResult.AddEdges(result.Edges...)
+	}
+
+	// Check for errors
+	select {
+	case err := <-errorChan:
+		return nil, err
+	default:
+	}
+
+	finalGraph := concurrentResult.GetResult()
+	return &BloodHoundResult{
+		Metadata: &BloodHoundMetadata{
+			SourceKind:          "KubeBase",
+			CollectionTimestamp: time.Now().UTC().Format(time.RFC3339),
+			Version:             "1.0",
+		},
+		Graph: finalGraph,
+	}, nil
 }
 
 func ParseFromNDJSON(ndjsonData []byte) ([]ResourceData, error) {

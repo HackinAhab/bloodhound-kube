@@ -1,21 +1,101 @@
 package bloodhound
 
+import (
+	"sync"
+	"time"
+)
+
 type BloodHoundNode struct {
 	ID         string         `json:"id"`
 	Kinds      []string       `json:"kinds"`
 	Properties map[string]any `json:"properties,omitempty"`
 }
 
-type BloodHoundEdge struct {
-	Source     string         `json:"Source"`
-	Target     string         `json:"Target"`
-	Label      string         `json:"Label"`
-	Properties map[string]any `json:"Properties,omitempty"`
+type BloodHoundEdgeRef struct {
+	MatchBy string `json:"match_by,omitempty"`
+	Value   string `json:"value"`
+	Kind    string `json:"kind,omitempty"`
 }
 
+type BloodHoundEdge struct {
+	Start      BloodHoundEdgeRef `json:"start"`
+	End        BloodHoundEdgeRef `json:"end"`
+	Kind       string            `json:"kind"`
+	Properties map[string]any    `json:"properties,omitempty"`
+}
+
+type BloodHoundMetadata struct {
+	SourceKind          string `json:"source_kind,omitempty"`
+	ClusterName         string `json:"cluster_name,omitempty"`
+	CollectionTimestamp string `json:"collection_timestamp,omitempty"`
+	Version             string `json:"version,omitempty"`
+}
+
+type BloodHoundGraph struct {
+	Nodes []BloodHoundNode `json:"nodes"`
+	Edges []BloodHoundEdge `json:"edges"`
+}
+
+type BloodHoundResult struct {
+	Metadata *BloodHoundMetadata `json:"metadata,omitempty"`
+	Graph    BloodHoundGraph     `json:"graph"`
+}
+
+// Thread-safe result accumulator for concurrent processing
+type ConcurrentResult struct {
+	mu    sync.RWMutex
+	nodes []BloodHoundNode
+	edges []BloodHoundEdge
+}
+
+func NewConcurrentResult() *ConcurrentResult {
+	return &ConcurrentResult{
+		nodes: make([]BloodHoundNode, 0),
+		edges: make([]BloodHoundEdge, 0),
+	}
+}
+
+func (cr *ConcurrentResult) AddNodes(nodes ...BloodHoundNode) {
+	cr.mu.Lock()
+	defer cr.mu.Unlock()
+	cr.nodes = append(cr.nodes, nodes...)
+}
+
+func (cr *ConcurrentResult) AddEdges(edges ...BloodHoundEdge) {
+	cr.mu.Lock()
+	defer cr.mu.Unlock()
+	cr.edges = append(cr.edges, edges...)
+}
+
+func (cr *ConcurrentResult) GetResult() BloodHoundGraph {
+	cr.mu.RLock()
+	defer cr.mu.RUnlock()
+	return BloodHoundGraph{
+		Nodes: append([]BloodHoundNode(nil), cr.nodes...),
+		Edges: append([]BloodHoundEdge(nil), cr.edges...),
+	}
+}
+
+// Legacy type for backwards compatibility
 type ParsedResult struct {
 	Nodes []BloodHoundNode `json:"nodes"`
 	Edges []BloodHoundEdge `json:"edges"`
+}
+
+// Convert legacy ParsedResult to new structure
+func (pr *ParsedResult) ToBloodHoundResult(clusterName string) *BloodHoundResult {
+	return &BloodHoundResult{
+		Metadata: &BloodHoundMetadata{
+			SourceKind:          "KubeBase",
+			ClusterName:         clusterName,
+			CollectionTimestamp: time.Now().UTC().Format(time.RFC3339),
+			Version:             "1.0",
+		},
+		Graph: BloodHoundGraph{
+			Nodes: pr.Nodes,
+			Edges: pr.Edges,
+		},
+	}
 }
 
 type ResourceData struct {

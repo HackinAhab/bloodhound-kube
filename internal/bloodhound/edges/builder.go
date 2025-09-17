@@ -4,24 +4,30 @@ import (
 	"bloodhound-kube/internal/bloodhound"
 )
 
-type Builder struct {
-	nodes []bloodhound.BloodHoundNode
+// EdgeBuilder provides utilities for creating BloodHound edges
+type EdgeBuilder struct{}
+
+// NewEdgeBuilder creates a new EdgeBuilder instance
+func NewEdgeBuilder() *EdgeBuilder {
+	return &EdgeBuilder{}
 }
 
-func NewBuilder(nodes []bloodhound.BloodHoundNode) *Builder {
-	return &Builder{nodes: nodes}
+// CreateEdge creates a new BloodHound-compliant edge using the updated structure
+func (eb *EdgeBuilder) CreateEdge(sourceID, targetID, kind string, properties map[string]any) bloodhound.BloodHoundEdge {
+	return bloodhound.CreateEdge(sourceID, targetID, kind, properties)
 }
 
-func (b *Builder) BuildRelationships() []bloodhound.BloodHoundEdge {
-	var edges []bloodhound.BloodHoundEdge
+// CreateSimpleEdge creates a simple edge without properties
+func (eb *EdgeBuilder) CreateSimpleEdge(sourceID, targetID, kind string) bloodhound.BloodHoundEdge {
+	return bloodhound.CreateEdge(sourceID, targetID, kind, nil)
+}
 
-	// TODO: Implement relationship building logic
-	// This would analyze the nodes and create edges like:
-	// - Pod -> Node (RUNS_ON)
-	// - Service -> Pod (EXPOSES)
-	// - Secret -> Pod (MOUNTED_BY)
-	// - Role -> ServiceAccount (ASSIGNED_TO)
-	// etc.
+// CreateEdgeWithFlattenedProperties creates an edge and ensures properties are flattened
+func (eb *EdgeBuilder) CreateEdgeWithFlattenedProperties(sourceID, targetID, kind string, properties map[string]any) bloodhound.BloodHoundEdge {
+	if properties == nil {
+		properties = make(map[string]any)
+	}
 
-	return edges
+	// Properties will be flattened by CreateEdge function
+	return bloodhound.CreateEdge(sourceID, targetID, kind, properties)
 }

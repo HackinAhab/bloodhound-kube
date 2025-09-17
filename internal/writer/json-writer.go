@@ -18,19 +18,38 @@ type AsyncWriter struct {
 }
 
 func NewAsyncWriter(outputPath, filename string, log *logger.Logger) (*AsyncWriter, error) {
+	return newAsyncWriter(outputPath, filename, log, false)
+}
+
+func NewAsyncWriterAppend(outputPath, filename string, log *logger.Logger) (*AsyncWriter, error) {
+	return newAsyncWriter(outputPath, filename, log, true)
+}
+
+func newAsyncWriter(outputPath, filename string, log *logger.Logger, appendMode bool) (*AsyncWriter, error) {
 	if err := os.MkdirAll(outputPath, 0755); err != nil {
 		return nil, fmt.Errorf("failed to create output directory: %w", err)
 	}
 
 	filePath := filepath.Join(outputPath, filename)
-	file, err := os.Create(filePath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create output file: %w", err)
+	
+	var file *os.File
+	var err error
+	
+	if appendMode {
+		file, err = os.OpenFile(filePath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+		if err != nil {
+			return nil, fmt.Errorf("failed to open output file for append: %w", err)
+		}
+		log.Info("Opened output file for append", "path", filePath)
+	} else {
+		file, err = os.Create(filePath)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create output file: %w", err)
+		}
+		log.Info("Created output file", "path", filePath)
 	}
 
 	writer := bufio.NewWriter(file)
-
-	log.Info("Created output file", "path", filePath)
 
 	return &AsyncWriter{
 		file:   file,

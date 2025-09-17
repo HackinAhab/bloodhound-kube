@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -15,21 +16,49 @@ import (
 )
 
 var (
-	namespace     string
-	allNamespaces bool
-	logLevel      string
-	outputPath    string
-	resourceTypes []string
-	concurrency   int
-	timeout       int
-	kubeconfig    string
-	server        string
-	token         string
-	clusterType   string
+	namespace       string
+	allNamespaces   bool
+	logLevel        string
+	output          string
+	resourceTypes   []string
+	concurrency     int
+	timeout         int
+	kubeconfig      string
+	server          string
+	token           string
+	clusterType     string
+	resume          bool
+	checkpointFile  string
 )
 
 // allResourceTypes will be populated after cluster detection
 var allResourceTypes []string
+
+func generateDefaultOutput() string {
+	timestamp := time.Now().Format("2006-01-02-150405")
+	return fmt.Sprintf("bloodhound-kube-%s.ndjson", timestamp)
+}
+
+func parseOutputPath(output string) (dir, filename string) {
+	if output == "" {
+		return ".", generateDefaultOutput()
+	}
+	
+	// If output is just a directory (ends with / or is a known directory)
+	if strings.HasSuffix(output, "/") || output == "." || output == ".." {
+		return output, generateDefaultOutput()
+	}
+	
+	dir = filepath.Dir(output)
+	filename = filepath.Base(output)
+	
+	// If no directory specified, use current directory
+	if dir == "." && !strings.Contains(output, "/") {
+		dir = "."
+	}
+	
+	return dir, filename
+}
 
 var collectCmd = &cobra.Command{
 	Use:   "collect",
@@ -53,8 +82,23 @@ Examples:
   # Direct API access with token
   bloodhound-kube collect --server https://k8s-api.example.com --token eyJhbGciOi...
 
-  # Specify cluster type (auto-detects by default)
-  bloodhound-kube collect --cluster-type openshift`,
+  # Specify cluster type (auto-detects by default)  
+  bloodhound-kube collect --cluster-type openshift
+
+  # Resume interrupted collection
+  bloodhound-kube collect --resume
+
+  # Resume with custom checkpoint file
+  bloodhound-kube collect --resume --checkpoint-file /path/to/checkpoint.json
+
+  # Specify custom output filename
+  bloodhound-kube collect --output my-collection.ndjson
+
+  # Specify output to a different directory
+  bloodhound-kube collect --output /tmp/
+
+  # Specify full path with directory and filename
+  bloodhound-kube collect --output /tmp/my-collection.ndjson`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		log := logger.New(logLevel)
 
@@ -102,6 +146,35 @@ Examples:
 		collector.DefaultRegistry.InitializeForCluster(c.GetClusterType())
 		allResourceTypes = collector.DefaultRegistry.GetAllNames()
 
+		var existingCheckpoint *collector.Checkpoint
+		var resumeFilename string
+
+		if resume {
+			var defaultCheckpointPath string
+			if checkpointFile == "" {
+				outputDir, outputFilename := parseOutputPath(output)
+				defaultCheckpointPath = collector.DefaultCheckpointPath(outputDir, outputFilename)
+			} else {
+				defaultCheckpointPath = checkpointFile
+			}
+
+			if !collector.CheckpointExists(defaultCheckpointPath) {
+				return fmt.Errorf("checkpoint file not found: %s", defaultCheckpointPath)
+			}
+
+			existingCheckpoint, err = collector.LoadCheckpoint(defaultCheckpointPath)
+			if err != nil {
+				return fmt.Errorf("failed to load checkpoint: %w", err)
+			}
+
+			resumeFilename = existingCheckpoint.OutputFile
+			checkpointFile = defaultCheckpointPath
+
+			log.Info("Resuming collection", "checkpoint", checkpointFile, "output", resumeFilename)
+			completed, total, pct := existingCheckpoint.GetProgress()
+			log.Info("Previous progress", "completed", completed, "total", total, "percentage", fmt.Sprintf("%.1f%%", pct))
+		}
+
 		ctx, cancel := context.WithTimeout(context.Background(), time.Duration(timeout)*time.Second)
 		defer cancel()
 
@@ -115,21 +188,35 @@ Examples:
 			namespacesToCollect = []string{namespace}
 		}
 
-		var filenamePrefix string
-		if allNamespaces {
-			filenamePrefix = "all-namespaces"
+		var outputDir, filename string
+		if resume && resumeFilename != "" {
+			// When resuming, use the filename from checkpoint but parse the output for directory
+			outputDir, _ = parseOutputPath(output)
+			filename = resumeFilename
 		} else {
-			filenamePrefix = namespace
+			outputDir, filename = parseOutputPath(output)
 		}
 
-		filename := writer.GenerateNDJSONFilename(filenamePrefix + "-" + strings.Join(typesToCollect, "-"))
-		asyncWriter, err := writer.NewAsyncWriter(outputPath, filename, log)
-		if err != nil {
-			return fmt.Errorf("failed to create async writer: %w", err)
+		if checkpointFile == "" {
+			checkpointFile = collector.DefaultCheckpointPath(outputDir, filename)
+		}
+
+		var asyncWriter *writer.AsyncWriter
+		if resume {
+			asyncWriter, err = writer.NewAsyncWriterAppend(outputDir, filename, log)
+			if err != nil {
+				return fmt.Errorf("failed to create async writer for append: %w", err)
+			}
+			log.Info("Resuming collection, appending to existing file", "file", filename)
+		} else {
+			asyncWriter, err = writer.NewAsyncWriter(outputDir, filename, log)
+			if err != nil {
+				return fmt.Errorf("failed to create async writer: %w", err)
+			}
 		}
 		defer asyncWriter.Close()
 
-		duration, counts, totalCollected, errors := collector.RunCollection(ctx, c, asyncWriter, typesToCollect, namespacesToCollect, filename, concurrency, log)
+		duration, counts, totalCollected, errors := collector.RunCollectionWithCheckpoint(ctx, c, asyncWriter, typesToCollect, namespacesToCollect, filename, concurrency, log, existingCheckpoint, checkpointFile)
 
 		var scopeMsg string
 		if len(namespacesToCollect) > 1 {
@@ -162,12 +249,14 @@ func init() {
 	collectCmd.Flags().IntVarP(&concurrency, "concurrency", "c", 10, "Number of concurrent workers for streaming collection")
 	collectCmd.Flags().IntVarP(&timeout, "timeout", "", 300, "Timeout in seconds for the entire collection")
 	collectCmd.Flags().StringVarP(&logLevel, "log-level", "l", "info", "Log level (debug, info, warn, error)")
-	collectCmd.Flags().StringVarP(&outputPath, "output", "o", ".", "Output directory path")
+	collectCmd.Flags().StringVarP(&output, "output", "o", "", "Output file path (can be directory, filename, or full path). Defaults to bloodhound-kube-YYYY-MM-DD-HHMMSS.ndjson in current directory")
 	collectCmd.Flags().StringSliceVarP(&resourceTypes, "type", "t", []string{}, "Resource types to collect (configmaps, networkpolicies, secrets, services, ingresses, gateways, routes, rbac, nodes, crds, projects*, images*). *OpenShift only. Default: all types")
 	collectCmd.Flags().StringVar(&kubeconfig, "kubeconfig", "", "Path to kubeconfig file (overrides KUBECONFIG and ~/.kube/config)")
 	collectCmd.Flags().StringVarP(&server, "server", "s", "", "Kubernetes API server address (requires --token)")
 	collectCmd.Flags().StringVar(&token, "token", "", "Bearer token for authentication (requires --server)")
 	collectCmd.Flags().StringVarP(&clusterType, "cluster-type", "T", "auto", "Cluster type: kubernetes, openshift, or auto (auto-detect)")
+	collectCmd.Flags().BoolVar(&resume, "resume", false, "Resume from previous interrupted collection")
+	collectCmd.Flags().StringVar(&checkpointFile, "checkpoint-file", "", "Path to checkpoint file (auto-generated if not specified)")
 
 	rootCmd.AddCommand(collectCmd)
 }

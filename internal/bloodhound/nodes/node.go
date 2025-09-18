@@ -37,10 +37,8 @@ func (m *NodePropertyMapper) MapProperties(resource any) (map[string]any, error)
 		"kernel_version":    node.KernelVersion,
 		"architecture":      node.Architecture,
 		"operating_system":  node.OperatingSystem,
-
-		"ready":         node.Ready,
-		"unschedulable": node.Unschedulable,
-		"created_at":    node.CreatedAt,
+		"unschedulable":     node.Unschedulable,
+		"created_at":        node.CreatedAt,
 
 		"cpu_capacity":                  getResourceValue(node.Capacity.CPU),
 		"memory_capacity":               getResourceValue(node.Capacity.Memory),
@@ -154,96 +152,23 @@ func (m *NodePropertyMapper) MapProperties(resource any) (map[string]any, error)
 		properties["blocks_scheduling"] = hasNoSchedule
 		properties["evicts_pods"] = hasNoExecute
 	}
-
-	properties["node_ready"] = false
-	properties["disk_pressure"] = false
-	properties["memory_pressure"] = false
-	properties["pid_pressure"] = false
-	properties["network_unavailable"] = false
-
-	var conditionDetails []map[string]any
-	var problemConditions []string
-
-	if len(node.Conditions) > 0 {
-		for _, condition := range node.Conditions {
-			conditionInfo := map[string]any{
-				"type":    condition.Type,
-				"status":  condition.Status,
-				"reason":  condition.Reason,
-				"message": condition.Message,
-			}
-			conditionDetails = append(conditionDetails, conditionInfo)
-
-			switch condition.Type {
-			case "Ready":
-				isReady := condition.Status == "True"
-				properties["node_ready"] = isReady
-				if !isReady {
-					problemConditions = append(problemConditions, "not_ready")
-				}
-			case "DiskPressure":
-				hasDiskPressure := condition.Status == "True"
-				properties["disk_pressure"] = hasDiskPressure
-				if hasDiskPressure {
-					problemConditions = append(problemConditions, "disk_pressure")
-				}
-			case "MemoryPressure":
-				hasMemoryPressure := condition.Status == "True"
-				properties["memory_pressure"] = hasMemoryPressure
-				if hasMemoryPressure {
-					problemConditions = append(problemConditions, "memory_pressure")
-				}
-			case "PIDPressure":
-				hasPIDPressure := condition.Status == "True"
-				properties["pid_pressure"] = hasPIDPressure
-				if hasPIDPressure {
-					problemConditions = append(problemConditions, "pid_pressure")
-				}
-			case "NetworkUnavailable":
-				isNetworkUnavailable := condition.Status == "True"
-				properties["network_unavailable"] = isNetworkUnavailable
-				if isNetworkUnavailable {
-					problemConditions = append(problemConditions, "network_unavailable")
-				}
-			}
-		}
-
-		properties["condition_details"] = conditionDetails
-		properties["conditions_count"] = len(node.Conditions)
-
-		if len(problemConditions) > 0 {
-			properties["problem_conditions"] = problemConditions
-			properties["has_problems"] = true
-		} else {
-			properties["has_problems"] = false
-		}
-	}
-
-	securityScore := 0
 	var securityIssues []string
 
 	if properties["is_control_plane"] == true {
-		securityScore += 10
 		securityIssues = append(securityIssues, "control_plane_node")
 	}
 
 	if properties["external_ip"] != nil && properties["external_ip"] != "" {
-		securityScore += 5
 		securityIssues = append(securityIssues, "externally_accessible")
 	}
 
 	if properties["has_problems"] == true {
-		securityScore += 3
 		securityIssues = append(securityIssues, "operational_problems")
 	}
 
 	if properties["blocks_scheduling"] != true {
-		securityScore += 2
 		securityIssues = append(securityIssues, "accepts_workloads")
 	}
-
-	properties["security_score"] = securityScore
-	properties["is_high_value_target"] = securityScore >= 10
 
 	if len(securityIssues) > 0 {
 		properties["security_issues"] = securityIssues
@@ -316,13 +241,4 @@ func getResourceValue(value string) string {
 		return "0"
 	}
 	return value
-}
-
-// sanitizePropertyKey ensures property keys are valid for BloodHound
-func sanitizePropertyKey(key string) string {
-	sanitized := key
-	sanitized = strings.ReplaceAll(sanitized, ".", "_")
-	sanitized = strings.ReplaceAll(sanitized, "/", "_")
-	sanitized = strings.ReplaceAll(sanitized, "-", "_")
-	return sanitized
 }

@@ -22,7 +22,6 @@ type CRD struct {
 	ShortNames  []string          `json:"short_names,omitempty"`
 	Categories  []string          `json:"categories,omitempty"`
 	Versions    []CRDVersion      `json:"versions,omitempty"`
-	Conditions  []CRDCondition    `json:"conditions,omitempty"`
 }
 
 type CRDVersion struct {
@@ -56,17 +55,6 @@ func (c *Collector) CollectCRDs(ctx context.Context) ([]CRD, error) {
 				Storage: version.Storage,
 			})
 		}
-
-		var conditions []CRDCondition
-		for _, condition := range crd.Status.Conditions {
-			conditions = append(conditions, CRDCondition{
-				Type:    string(condition.Type),
-				Status:  string(condition.Status),
-				Reason:  condition.Reason,
-				Message: condition.Message,
-			})
-		}
-
 		preferredVersion := crd.Spec.Versions[0].Name
 		for _, version := range crd.Spec.Versions {
 			if version.Storage {
@@ -88,7 +76,7 @@ func (c *Collector) CollectCRDs(ctx context.Context) ([]CRD, error) {
 		crds = append(crds, CRD{
 			Name:        crd.Name,
 			Labels:      crd.Labels,
-			Annotations: crd.Annotations,
+			Annotations: AnnotationsCleaner(crd.Annotations),
 			CreatedAt:   crd.CreationTimestamp.Format("2006-01-02T15:04:05Z"),
 			Group:       crd.Spec.Group,
 			Version:     preferredVersion,
@@ -99,7 +87,6 @@ func (c *Collector) CollectCRDs(ctx context.Context) ([]CRD, error) {
 			ShortNames:  shortNames,
 			Categories:  categories,
 			Versions:    versions,
-			Conditions:  conditions,
 		})
 	}
 

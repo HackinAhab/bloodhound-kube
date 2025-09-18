@@ -299,6 +299,15 @@ func RunCollectionWithCheckpoint(ctx context.Context, c *Collector, w *writer.As
 	completed, total, pct := checkpoint.GetProgress()
 	log.Info("Final progress", "completed", completed, "total", total, "percentage", fmt.Sprintf("%.1f%%", pct))
 
+	// Remove checkpoint file after successful collection completion
+	if len(errors) == 0 && completed == total {
+		if err := RemoveCheckpoint(checkpointFile); err != nil {
+			log.Warn("Failed to remove checkpoint file after successful collection", "error", err, "checkpoint_file", checkpointFile)
+		} else {
+			log.Debug("Removed checkpoint file after successful collection", "checkpoint_file", checkpointFile)
+		}
+	}
+
 	return duration, counts, totalCollected, errors
 }
 

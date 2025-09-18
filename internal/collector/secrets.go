@@ -38,7 +38,7 @@ func (c *Collector) CollectSecrets(ctx context.Context, namespace string) ([]Sec
 			Namespace:   secret.Namespace,
 			Type:        string(secret.Type),
 			Labels:      secret.Labels,
-			Annotations: secret.Annotations,
+			Annotations: AnnotationsCleaner(secret.Annotations),
 			CreatedAt:   secret.CreationTimestamp.Format("2006-01-02T15:04:05Z"),
 			DataKeys:    dataKeys,
 		})

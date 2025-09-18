@@ -16,19 +16,19 @@ import (
 )
 
 var (
-	namespace       string
-	allNamespaces   bool
-	logLevel        string
-	output          string
-	resourceTypes   []string
-	concurrency     int
-	timeout         int
-	kubeconfig      string
-	server          string
-	token           string
-	clusterType     string
-	resume          bool
-	checkpointFile  string
+	namespace      string
+	allNamespaces  bool
+	logLevel       string
+	output         string
+	resourceTypes  []string
+	concurrency    int
+	timeout        int
+	kubeconfig     string
+	server         string
+	token          string
+	clusterType    string
+	resume         bool
+	checkpointFile string
 )
 
 // allResourceTypes will be populated after cluster detection
@@ -43,20 +43,20 @@ func parseOutputPath(output string) (dir, filename string) {
 	if output == "" {
 		return ".", generateDefaultOutput()
 	}
-	
+
 	// If output is just a directory (ends with / or is a known directory)
 	if strings.HasSuffix(output, "/") || output == "." || output == ".." {
 		return output, generateDefaultOutput()
 	}
-	
+
 	dir = filepath.Dir(output)
 	filename = filepath.Base(output)
-	
+
 	// If no directory specified, use current directory
 	if dir == "." && !strings.Contains(output, "/") {
 		dir = "."
 	}
-	
+
 	return dir, filename
 }
 
@@ -106,15 +106,6 @@ Examples:
 			return fmt.Errorf("cannot use -A (all namespaces) and -n (namespace) flags together")
 		}
 
-		typesToCollect := resourceTypes
-		if len(typesToCollect) == 0 {
-			typesToCollect = allResourceTypes
-		}
-
-		if err := collector.DefaultRegistry.ValidateTypes(typesToCollect); err != nil {
-			return err
-		}
-
 		if (server != "" && token == "") || (server == "" && token != "") {
 			return fmt.Errorf("--server and --token flags must be used together")
 		}
@@ -145,6 +136,20 @@ Examples:
 
 		collector.DefaultRegistry.InitializeForCluster(c.GetClusterType())
 		allResourceTypes = collector.DefaultRegistry.GetAllNames()
+
+		log.Debug("Resource type selection", "inputResourceTypes", resourceTypes, "allResourceTypes", allResourceTypes)
+
+		typesToCollect := resourceTypes
+		if len(typesToCollect) == 0 {
+			typesToCollect = allResourceTypes
+			log.Debug("No specific types provided, using all available types", "typesToCollect", typesToCollect)
+		} else {
+			log.Debug("Using specific types provided", "typesToCollect", typesToCollect)
+		}
+
+		if err := collector.DefaultRegistry.ValidateTypes(typesToCollect); err != nil {
+			return err
+		}
 
 		var existingCheckpoint *collector.Checkpoint
 		var resumeFilename string
@@ -244,13 +249,22 @@ Examples:
 }
 
 func init() {
+	// Initialize registry to get available resource types
+	registry := collector.NewResourceRegistry()
+	// Initialize with Kubernetes defaults first
+	registry.InitializeForCluster(k8s.ClusterTypeKubernetes)
+	availableTypes := registry.GetAllNames()
+
+	// Create help text with dynamic resource types list
+	resourceTypeHelp := fmt.Sprintf("Resource types to collect (%s, projects*, images*). *OpenShift only. Default: all types", strings.Join(availableTypes, ", "))
+
 	collectCmd.Flags().StringVarP(&namespace, "namespace", "n", "default", "Kubernetes namespace")
 	collectCmd.Flags().BoolVarP(&allNamespaces, "all-namespaces", "A", false, "Collect from all namespaces (cannot be used with -n)")
 	collectCmd.Flags().IntVarP(&concurrency, "concurrency", "c", 10, "Number of concurrent workers for streaming collection")
 	collectCmd.Flags().IntVarP(&timeout, "timeout", "", 300, "Timeout in seconds for the entire collection")
 	collectCmd.Flags().StringVarP(&logLevel, "log-level", "l", "info", "Log level (debug, info, warn, error)")
 	collectCmd.Flags().StringVarP(&output, "output", "o", "", "Output file path (can be directory, filename, or full path). Defaults to bloodhound-kube-YYYY-MM-DD-HHMMSS.ndjson in current directory")
-	collectCmd.Flags().StringSliceVarP(&resourceTypes, "type", "t", []string{}, "Resource types to collect (configmaps, networkpolicies, secrets, services, ingresses, gateways, routes, rbac, nodes, crds, projects*, images*). *OpenShift only. Default: all types")
+	collectCmd.Flags().StringSliceVarP(&resourceTypes, "type", "t", []string{}, resourceTypeHelp)
 	collectCmd.Flags().StringVar(&kubeconfig, "kubeconfig", "", "Path to kubeconfig file (overrides KUBECONFIG and ~/.kube/config)")
 	collectCmd.Flags().StringVarP(&server, "server", "s", "", "Kubernetes API server address (requires --token)")
 	collectCmd.Flags().StringVar(&token, "token", "", "Bearer token for authentication (requires --server)")

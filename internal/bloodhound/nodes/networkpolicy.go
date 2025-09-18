@@ -22,16 +22,12 @@ func (m *NetworkPolicyPropertyMapper) MapProperties(resource any) (map[string]an
 
 	properties := map[string]any{}
 
-	spec, _ := policy["spec"].(map[string]any)
-	if spec == nil {
-		return properties, nil
-	}
-
-	if podSelector, ok := spec["podSelector"].(map[string]any); ok {
-		if matchLabels, ok := podSelector["matchLabels"].(map[string]any); ok {
+	// The data is directly in the policy object, not under "spec"
+	if podSelector, ok := policy["pod_selector"].(map[string]any); ok {
+		if matchLabels, ok := podSelector["match_labels"].(map[string]any); ok {
 			properties["pod_selector_labels_count"] = len(matchLabels)
 			properties["has_pod_selector"] = len(matchLabels) > 0
-			
+
 			if len(matchLabels) == 0 {
 				properties["applies_to_all_pods"] = true
 			}
@@ -40,31 +36,14 @@ func (m *NetworkPolicyPropertyMapper) MapProperties(resource any) (map[string]an
 			properties["has_pod_selector"] = false
 		}
 	}
-
-	if policyTypes, ok := spec["policyTypes"].([]any); ok {
+	if policyTypes, ok := policy["policy_types"].([]any); ok {
 		properties["policy_types_count"] = len(policyTypes)
-		
-		hasIngress := false
-		hasEgress := false
-		for _, policyType := range policyTypes {
-			if typeStr, ok := policyType.(string); ok {
-				if typeStr == "Ingress" {
-					hasIngress = true
-				} else if typeStr == "Egress" {
-					hasEgress = true
-				}
-			}
-		}
-		
-		properties["controls_ingress"] = hasIngress
-		properties["controls_egress"] = hasEgress
-		properties["is_bidirectional"] = hasIngress && hasEgress
 	}
 
-	if ingress, ok := spec["ingress"].([]any); ok {
+	if ingress, ok := policy["ingress"].([]any); ok {
 		properties["ingress_rules_count"] = len(ingress)
 		properties["has_ingress_rules"] = len(ingress) > 0
-		
+
 		if len(ingress) == 0 {
 			if properties["controls_ingress"] == true {
 				properties["denies_all_ingress"] = true
@@ -73,58 +52,56 @@ func (m *NetworkPolicyPropertyMapper) MapProperties(resource any) (map[string]an
 			fromRulesCount := 0
 			portRulesCount := 0
 			allowsFromAll := false
-			
+
 			for _, rule := range ingress {
 				if ruleMap, ok := rule.(map[string]any); ok {
 					if from, ok := ruleMap["from"].([]any); ok {
 						fromRulesCount += len(from)
-						
+
 						if len(from) == 0 {
 							allowsFromAll = true
 						}
 					}
-					
+
 					if ports, ok := ruleMap["ports"].([]any); ok {
 						portRulesCount += len(ports)
 					}
 				}
 			}
-			
+
 			properties["ingress_from_rules_total"] = fromRulesCount
 			properties["ingress_port_rules_total"] = portRulesCount
 			properties["allows_ingress_from_all"] = allowsFromAll
 		}
 	}
 
-	if egress, ok := spec["egress"].([]any); ok {
+	if egress, ok := policy["egress"].([]any); ok {
 		properties["egress_rules_count"] = len(egress)
 		properties["has_egress_rules"] = len(egress) > 0
-		
+
 		if len(egress) == 0 {
-			if properties["controls_egress"] == true {
-				properties["denies_all_egress"] = true
-			}
+			properties["denies_all_egress"] = true
 		} else {
 			toRulesCount := 0
 			portRulesCount := 0
 			allowsToAll := false
-			
+
 			for _, rule := range egress {
 				if ruleMap, ok := rule.(map[string]any); ok {
 					if to, ok := ruleMap["to"].([]any); ok {
 						toRulesCount += len(to)
-						
+
 						if len(to) == 0 {
 							allowsToAll = true
 						}
 					}
-					
+
 					if ports, ok := ruleMap["ports"].([]any); ok {
 						portRulesCount += len(ports)
 					}
 				}
 			}
-			
+
 			properties["egress_to_rules_total"] = toRulesCount
 			properties["egress_port_rules_total"] = portRulesCount
 			properties["allows_egress_to_all"] = allowsToAll
@@ -135,7 +112,7 @@ func (m *NetworkPolicyPropertyMapper) MapProperties(resource any) (map[string]an
 	deniesAllEgress := properties["denies_all_egress"] == true
 	allowsIngressFromAll := properties["allows_ingress_from_all"] == true
 	allowsEgressToAll := properties["allows_egress_to_all"] == true
-	
+
 	properties["is_restrictive"] = deniesAllIngress || deniesAllEgress
 	properties["is_permissive"] = allowsIngressFromAll || allowsEgressToAll
 	properties["is_default_deny"] = deniesAllIngress && deniesAllEgress
@@ -151,7 +128,7 @@ func NewNetworkPolicyParser() *NetworkPolicyParser {
 	return &NetworkPolicyParser{
 		config: bloodhound.ResourceConfig{
 			ResourceType:   "networkpolicy",
-			PrimaryKind:    "NetworkPolicy",
+			PrimaryKind:    "KubeNetworkPolicy",
 			SecondaryKinds: []string{},
 			PropertyMapper: &NetworkPolicyPropertyMapper{},
 		},
@@ -183,8 +160,8 @@ func (p *NetworkPolicyParser) Parse(resource bloodhound.ResourceData) (*bloodhou
 	}
 
 	var name string
-	if metadata, ok := policy["metadata"].(map[string]any); ok && metadata != nil {
-		name, _ = metadata["name"].(string)
+	if nameValue, ok := policy["name"].(string); ok {
+		name = nameValue
 	}
 
 	bhNode, err := bloodhound.CreateNodeWithConfig(

@@ -81,7 +81,7 @@ func (c *Collector) CollectServices(ctx context.Context, namespace string) ([]Se
 			Ports:       ports,
 			Selector:    svc.Spec.Selector,
 			Labels:      svc.Labels,
-			Annotations: svc.Annotations,
+			Annotations: AnnotationsCleaner(svc.Annotations),
 			CreatedAt:   svc.CreationTimestamp.Format("2006-01-02T15:04:05Z"),
 		})
 	}

@@ -168,7 +168,7 @@ func (c *Collector) collectRoutesByKind(ctx context.Context, namespace, kind, re
 			Namespace:   item.GetNamespace(),
 			Kind:        kind,
 			Labels:      item.GetLabels(),
-			Annotations: item.GetAnnotations(),
+			Annotations: AnnotationsCleaner(item.GetAnnotations()),
 		}
 
 		if creationTime := item.GetCreationTimestamp(); !creationTime.IsZero() {

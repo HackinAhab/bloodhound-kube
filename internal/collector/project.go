@@ -55,7 +55,7 @@ func (c *Collector) CollectProjects(ctx context.Context) ([]Project, error) {
 		project := Project{
 			Name:        item.GetName(),
 			Labels:      item.GetLabels(),
-			Annotations: item.GetAnnotations(),
+			Annotations: AnnotationsCleaner(item.GetAnnotations()),
 		}
 
 		if creationTime := item.GetCreationTimestamp(); !creationTime.IsZero() {

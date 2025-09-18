@@ -16,7 +16,7 @@ func NewResourceRegistry() *ResourceRegistry {
 	registry := &ResourceRegistry{
 		handlers: make(map[string]ResourceHandler),
 	}
-	
+
 	registry.registerDefaults()
 	return registry
 }
@@ -32,6 +32,8 @@ func (r *ResourceRegistry) registerDefaults() {
 	r.Register(NewConfigMapsHandler())
 	r.Register(NewNetworkPoliciesHandler())
 	r.Register(NewCRDHandler())
+	r.Register(NewDeploymentsHandler())
+	r.Register(NewDaemonSetsHandler())
 }
 
 func (r *ResourceRegistry) RegisterOpenShiftResources() {
@@ -94,13 +96,13 @@ func (r *ResourceRegistry) ValidateTypes(types []string) error {
 			invalid = append(invalid, t)
 		}
 	}
-	
+
 	if len(invalid) > 0 {
 		available := strings.Join(r.GetAllNames(), ", ")
-		return fmt.Errorf("unsupported resource types: %s (available: %s)", 
+		return fmt.Errorf("unsupported resource types: %s (available: %s)",
 			strings.Join(invalid, ", "), available)
 	}
-	
+
 	return nil
 }
 

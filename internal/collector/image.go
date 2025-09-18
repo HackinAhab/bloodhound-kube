@@ -10,26 +10,26 @@ import (
 )
 
 type Image struct {
-	Name              string            `json:"name"`
-	Namespace         string            `json:"namespace"`
-	Labels            map[string]string `json:"labels,omitempty"`
-	Annotations       map[string]string `json:"annotations,omitempty"`
-	CreatedAt         string            `json:"created_at"`
-	DockerImageRepo   string            `json:"docker_image_repo"`
-	Tags              []ImageTag        `json:"tags,omitempty"`
-	LookupPolicy      string            `json:"lookup_policy,omitempty"`
-	ImportPolicy      bool              `json:"import_policy"`
-	ReferencePolicy   string            `json:"reference_policy,omitempty"`
+	Name            string            `json:"name"`
+	Namespace       string            `json:"namespace"`
+	Labels          map[string]string `json:"labels,omitempty"`
+	Annotations     map[string]string `json:"annotations,omitempty"`
+	CreatedAt       string            `json:"created_at"`
+	DockerImageRepo string            `json:"docker_image_repo"`
+	Tags            []ImageTag        `json:"tags,omitempty"`
+	LookupPolicy    string            `json:"lookup_policy,omitempty"`
+	ImportPolicy    bool              `json:"import_policy"`
+	ReferencePolicy string            `json:"reference_policy,omitempty"`
 }
 
 type ImageTag struct {
-	Name            string                 `json:"name"`
-	DockerImageRef  string                 `json:"docker_image_ref,omitempty"`
-	Generation      int64                  `json:"generation,omitempty"`
-	ImportPolicy    bool                   `json:"import_policy"`
-	ReferencePolicy string                 `json:"reference_policy,omitempty"`
-	From            *ImageTagImportSource  `json:"from,omitempty"`
-	Conditions      []ImageTagCondition    `json:"conditions,omitempty"`
+	Name            string                `json:"name"`
+	DockerImageRef  string                `json:"docker_image_ref,omitempty"`
+	Generation      int64                 `json:"generation,omitempty"`
+	ImportPolicy    bool                  `json:"import_policy"`
+	ReferencePolicy string                `json:"reference_policy,omitempty"`
+	From            *ImageTagImportSource `json:"from,omitempty"`
+	Conditions      []ImageTagCondition   `json:"conditions,omitempty"`
 }
 
 type ImageTagImportSource struct {
@@ -81,7 +81,7 @@ func (c *Collector) CollectImages(ctx context.Context, namespace string) ([]Imag
 			Name:        item.GetName(),
 			Namespace:   item.GetNamespace(),
 			Labels:      item.GetLabels(),
-			Annotations: item.GetAnnotations(),
+			Annotations: AnnotationsCleaner(item.GetAnnotations()),
 		}
 
 		if creationTime := item.GetCreationTimestamp(); !creationTime.IsZero() {

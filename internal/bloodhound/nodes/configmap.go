@@ -101,12 +101,6 @@ func (m *ConfigMapPropertyMapper) MapProperties(resource any) (map[string]any, e
 		properties["binary_data_keys_count"] = 0
 	}
 
-	if immutable, ok := configMap["immutable"].(bool); ok {
-		properties["is_immutable"] = immutable
-	} else {
-		properties["is_immutable"] = false
-	}
-
 	if metadata, ok := configMap["metadata"].(map[string]any); ok {
 		if annotations, ok := metadata["annotations"].(map[string]any); ok {
 			properties["annotations_count"] = len(annotations)

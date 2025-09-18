@@ -137,7 +137,7 @@ func (c *Collector) CollectIngresses(ctx context.Context, namespace string) ([]I
 				},
 			},
 			Labels:      ing.Labels,
-			Annotations: ing.Annotations,
+			Annotations: AnnotationsCleaner(ing.Annotations),
 			CreatedAt:   ing.CreationTimestamp.Format("2006-01-02T15:04:05Z"),
 		})
 	}

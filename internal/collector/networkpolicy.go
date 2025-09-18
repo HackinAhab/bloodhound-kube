@@ -211,7 +211,7 @@ func (c *Collector) CollectNetworkPolicies(ctx context.Context, namespace string
 			Name:        np.Name,
 			Namespace:   np.Namespace,
 			Labels:      np.Labels,
-			Annotations: np.Annotations,
+			Annotations: AnnotationsCleaner(np.Annotations),
 			CreatedAt:   np.CreationTimestamp.Format("2006-01-02T15:04:05Z"),
 			PodSelector: podSelector,
 			PolicyTypes: policyTypes,

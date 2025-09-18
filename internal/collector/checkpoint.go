@@ -11,15 +11,15 @@ import (
 )
 
 type Checkpoint struct {
-	Version      string          `json:"version"`
-	Timestamp    string          `json:"timestamp"`
-	Cluster      ClusterInfo     `json:"cluster"`
-	CollectionID string          `json:"collection_id"`
-	OutputFile   string          `json:"output_file"`
+	Version       string         `json:"version"`
+	Timestamp     string         `json:"timestamp"`
+	Cluster       ClusterInfo    `json:"cluster"`
+	CollectionID  string         `json:"collection_id"`
+	OutputFile    string         `json:"output_file"`
 	CompletedJobs []CompletedJob `json:"completed_jobs"`
-	FailedJobs    []FailedJob     `json:"failed_jobs"`
-	TotalJobs     int             `json:"total_jobs"`
-	JobsRemaining int             `json:"jobs_remaining"`
+	FailedJobs    []FailedJob    `json:"failed_jobs"`
+	TotalJobs     int            `json:"total_jobs"`
+	JobsRemaining int            `json:"jobs_remaining"`
 }
 
 type ClusterInfo struct {
@@ -49,7 +49,7 @@ func NewCheckpoint(collectionID, outputFile string, clusterType k8s.ClusterType,
 		Type:     string(clusterType),
 		Platform: clusterInfo.Platform,
 	}
-	
+
 	if clusterInfo.Version != nil {
 		cluster.Version = clusterInfo.Version.GitVersion
 	}
@@ -75,7 +75,7 @@ func (c *Checkpoint) AddCompletedJob(jobType, namespace string, count int, durat
 		Duration:  duration.String(),
 		Timestamp: time.Now().Format(time.RFC3339),
 	}
-	
+
 	c.CompletedJobs = append(c.CompletedJobs, job)
 	c.JobsRemaining--
 	if c.JobsRemaining < 0 {
@@ -128,7 +128,7 @@ func (c *Checkpoint) GetProgress() (completed, total int, percentage float64) {
 
 func (c *Checkpoint) Save(checkpointFile string) error {
 	c.Timestamp = time.Now().Format(time.RFC3339)
-	
+
 	data, err := json.MarshalIndent(c, "", "  ")
 	if err != nil {
 		return fmt.Errorf("failed to marshal checkpoint: %w", err)
@@ -176,4 +176,11 @@ func DefaultCheckpointPath(outputDir, filename string) string {
 func CheckpointExists(checkpointFile string) bool {
 	_, err := os.Stat(checkpointFile)
 	return err == nil
+}
+
+func RemoveCheckpoint(checkpointFile string) error {
+	if err := os.Remove(checkpointFile); err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("failed to remove checkpoint file: %w", err)
+	}
+	return nil
 }

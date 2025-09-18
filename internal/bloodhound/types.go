@@ -2,7 +2,6 @@ package bloodhound
 
 import (
 	"sync"
-	"time"
 )
 
 type BloodHoundNode struct {
@@ -25,10 +24,7 @@ type BloodHoundEdge struct {
 }
 
 type BloodHoundMetadata struct {
-	SourceKind          string `json:"source_kind,omitempty"`
-	ClusterName         string `json:"cluster_name,omitempty"`
-	CollectionTimestamp string `json:"collection_timestamp,omitempty"`
-	Version             string `json:"version,omitempty"`
+	SourceKind string `json:"source_kind,omitempty"`
 }
 
 type BloodHoundGraph struct {
@@ -86,10 +82,7 @@ type ParsedResult struct {
 func (pr *ParsedResult) ToBloodHoundResult(clusterName string) *BloodHoundResult {
 	return &BloodHoundResult{
 		Metadata: &BloodHoundMetadata{
-			SourceKind:          "KubeBase",
-			ClusterName:         clusterName,
-			CollectionTimestamp: time.Now().UTC().Format(time.RFC3339),
-			Version:             "1.0",
+			SourceKind: "Kubernetes",
 		},
 		Graph: BloodHoundGraph{
 			Nodes: pr.Nodes,
@@ -126,6 +119,12 @@ type Parser interface {
 	GetConfig() ResourceConfig
 }
 
+// MultiTypeParser interface for parsers that handle multiple resource types
+type MultiTypeParser interface {
+	Parser
+	GetSupportedResourceTypes() []string
+}
+
 type ParseRegistry struct {
 	parsers map[string]Parser
 }
@@ -138,7 +137,15 @@ func NewParseRegistry() *ParseRegistry {
 }
 
 func (r *ParseRegistry) Register(parser Parser) {
+	// Register parser for its primary resource type
 	r.parsers[parser.GetResourceType()] = parser
+
+	// If it's a MultiTypeParser, also register for all supported resource types
+	if multiParser, ok := parser.(MultiTypeParser); ok {
+		for _, resourceType := range multiParser.GetSupportedResourceTypes() {
+			r.parsers[resourceType] = parser
+		}
+	}
 }
 
 func (r *ParseRegistry) GetParser(resourceType string) (Parser, bool) {

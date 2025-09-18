@@ -111,7 +111,7 @@ func (c *Collector) CollectRBAC(ctx context.Context, namespace string) (*RBACRes
 			Namespace:   role.Namespace,
 			Rules:       rules,
 			Labels:      role.Labels,
-			Annotations: role.Annotations,
+			Annotations: AnnotationsCleaner(role.Annotations),
 			CreatedAt:   role.CreationTimestamp.Format("2006-01-02T15:04:05Z"),
 		})
 	}
@@ -142,7 +142,7 @@ func (c *Collector) CollectRBAC(ctx context.Context, namespace string) (*RBACRes
 			},
 			Subjects:    subjects,
 			Labels:      rb.Labels,
-			Annotations: rb.Annotations,
+			Annotations: AnnotationsCleaner(rb.Annotations),
 			CreatedAt:   rb.CreationTimestamp.Format("2006-01-02T15:04:05Z"),
 		})
 	}
@@ -168,7 +168,7 @@ func (c *Collector) CollectRBAC(ctx context.Context, namespace string) (*RBACRes
 			Name:        cr.Name,
 			Rules:       rules,
 			Labels:      cr.Labels,
-			Annotations: cr.Annotations,
+			Annotations: AnnotationsCleaner(cr.Annotations),
 			CreatedAt:   cr.CreationTimestamp.Format("2006-01-02T15:04:05Z"),
 		})
 	}
@@ -198,7 +198,7 @@ func (c *Collector) CollectRBAC(ctx context.Context, namespace string) (*RBACRes
 			},
 			Subjects:    subjects,
 			Labels:      crb.Labels,
-			Annotations: crb.Annotations,
+			Annotations: AnnotationsCleaner(crb.Annotations),
 			CreatedAt:   crb.CreationTimestamp.Format("2006-01-02T15:04:05Z"),
 		})
 	}
@@ -231,7 +231,7 @@ func (c *Collector) CollectRBAC(ctx context.Context, namespace string) (*RBACRes
 			ImagePullSecrets:        imagePullSecrets,
 			AutomountServiceAccount: automount,
 			Labels:                  sa.Labels,
-			Annotations:             sa.Annotations,
+			Annotations:             AnnotationsCleaner(sa.Annotations),
 			CreatedAt:               sa.CreationTimestamp.Format("2006-01-02T15:04:05Z"),
 		})
 	}

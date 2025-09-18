@@ -21,29 +21,66 @@ func (m *RBACPropertyMapper) MapProperties(resource any) (map[string]any, error)
 		return nil, fmt.Errorf("failed to unmarshal RBAC resource: %w", err)
 	}
 
-	properties := map[string]any{}
+	// Check for resource type in the data structure
+	var resourceType string
+	if rt, ok := rbacResource["resource_type"].(string); ok {
+		resourceType = rt
+	}
 
-	kind, _ := rbacResource["kind"].(string)
+	// If we can't determine from the resource itself, we need to inspect the structure
+	if resourceType == "" {
+		// Check for kind field (legacy "rbac" type resources)
+		if kind, ok := rbacResource["kind"].(string); ok {
+			switch kind {
+			case "Role":
+				resourceType = "role"
+			case "ClusterRole":
+				resourceType = "cluster_role"
+			case "RoleBinding":
+				resourceType = "role_binding"
+			case "ClusterRoleBinding":
+				resourceType = "cluster_role_binding"
+			case "ServiceAccount":
+				resourceType = "service_account"
+			}
+		} else {
+			// Check for fields that identify the type (new format)
+			if _, hasRules := rbacResource["rules"]; hasRules {
+				if _, hasNamespace := rbacResource["namespace"]; hasNamespace {
+					resourceType = "role"
+				} else {
+					resourceType = "cluster_role"
+				}
+			} else if _, hasRoleRef := rbacResource["role_ref"]; hasRoleRef {
+				if _, hasNamespace := rbacResource["namespace"]; hasNamespace {
+					resourceType = "role_binding"
+				} else {
+					resourceType = "cluster_role_binding"
+				}
+			} else if _, hasAutomount := rbacResource["automount_service_account"]; hasAutomount {
+				resourceType = "service_account"
+			}
+		}
+	}
 
-	switch kind {
-	case "Role", "ClusterRole":
-		return m.extractRoleProperties(rbacResource)
-	case "RoleBinding", "ClusterRoleBinding":
-		return m.extractBindingProperties(rbacResource)
-	case "ServiceAccount":
+	switch resourceType {
+	case "role", "cluster_role":
+		return m.extractRoleProperties(rbacResource, resourceType)
+	case "role_binding", "cluster_role_binding":
+		return m.extractBindingProperties(rbacResource, resourceType)
+	case "service_account":
 		return m.extractServiceAccountProperties(rbacResource)
 	}
 
-	return properties, nil
+	return map[string]any{}, nil
 }
 
-func (m *RBACPropertyMapper) extractRoleProperties(role map[string]any) (map[string]any, error) {
+func (m *RBACPropertyMapper) extractRoleProperties(role map[string]any, resourceType string) (map[string]any, error) {
 	properties := map[string]any{
 		"rbac_type": "role",
 	}
 
-	kind, _ := role["kind"].(string)
-	properties["is_cluster_role"] = kind == "ClusterRole"
+	properties["is_cluster_role"] = resourceType == "cluster_role"
 
 	if rules, ok := role["rules"].([]any); ok {
 		highRiskPerms := []string{}
@@ -52,11 +89,27 @@ func (m *RBACPropertyMapper) extractRoleProperties(role map[string]any) (map[str
 		canEscalatePrivileges := false
 		canImpersonate := false
 
+		// Collect all API groups, resources, and verbs from all rules
+		allAPIGroups := []string{}
+		allResources := []string{}
+		allVerbs := []string{}
+
 		for _, rule := range rules {
 			if ruleMap, ok := rule.(map[string]any); ok {
+				// Extract and collect API groups
+				if apiGroups, ok := ruleMap["api_groups"].([]any); ok {
+					for _, group := range apiGroups {
+						if groupStr, ok := group.(string); ok {
+							allAPIGroups = append(allAPIGroups, groupStr)
+						}
+					}
+				}
+
+				// Extract and collect verbs
 				if verbs, ok := ruleMap["verbs"].([]any); ok {
 					for _, verb := range verbs {
 						if verbStr, ok := verb.(string); ok {
+							allVerbs = append(allVerbs, verbStr)
 							switch verbStr {
 							case "*":
 								hasWildcardVerbs = true
@@ -72,9 +125,11 @@ func (m *RBACPropertyMapper) extractRoleProperties(role map[string]any) (map[str
 					}
 				}
 
+				// Extract and collect resources
 				if resources, ok := ruleMap["resources"].([]any); ok {
 					for _, resource := range resources {
 						if resourceStr, ok := resource.(string); ok {
+							allResources = append(allResources, resourceStr)
 							if resourceStr == "*" {
 								hasWildcardResources = true
 								highRiskPerms = append(highRiskPerms, "wildcard-resources")
@@ -85,6 +140,17 @@ func (m *RBACPropertyMapper) extractRoleProperties(role map[string]any) (map[str
 					}
 				}
 			}
+		}
+
+		// Add the collected data to properties
+		if len(allAPIGroups) > 0 {
+			properties["api_groups"] = allAPIGroups
+		}
+		if len(allResources) > 0 {
+			properties["resources"] = allResources
+		}
+		if len(allVerbs) > 0 {
+			properties["verbs"] = allVerbs
 		}
 
 		properties["has_wildcard_verbs"] = hasWildcardVerbs
@@ -101,13 +167,12 @@ func (m *RBACPropertyMapper) extractRoleProperties(role map[string]any) (map[str
 	return properties, nil
 }
 
-func (m *RBACPropertyMapper) extractBindingProperties(binding map[string]any) (map[string]any, error) {
+func (m *RBACPropertyMapper) extractBindingProperties(binding map[string]any, resourceType string) (map[string]any, error) {
 	properties := map[string]any{
 		"rbac_type": "binding",
 	}
 
-	kind, _ := binding["kind"].(string)
-	properties["is_cluster_binding"] = kind == "ClusterRoleBinding"
+	properties["is_cluster_binding"] = resourceType == "cluster_role_binding"
 
 	if roleRef, ok := binding["roleRef"].(map[string]any); ok {
 		if roleName, ok := roleRef["name"].(string); ok {
@@ -199,6 +264,10 @@ func (p *RBACParser) GetResourceType() string {
 	return p.config.ResourceType
 }
 
+func (p *RBACParser) GetSupportedResourceTypes() []string {
+	return []string{"rbac", "role", "role_binding", "cluster_role", "cluster_role_binding", "service_account"}
+}
+
 func (p *RBACParser) GetSupportedKinds() []string {
 	kinds := []string{p.config.PrimaryKind}
 	return append(kinds, p.config.SecondaryKinds...)
@@ -219,11 +288,38 @@ func (p *RBACParser) Parse(resource bloodhound.ResourceData) (*bloodhound.Parsed
 		return nil, fmt.Errorf("failed to unmarshal RBAC resource: %w", err)
 	}
 
+	// Extract name from the resource data
 	var name string
-	if metadata, ok := rbacResource["metadata"].(map[string]any); ok && metadata != nil {
-		name, _ = metadata["name"].(string)
+	if resourceName, ok := rbacResource["name"].(string); ok {
+		name = resourceName
 	}
-	kind, _ := rbacResource["kind"].(string)
+
+	// Determine the kind based on resource type or existing kind field
+	var kind string
+	if resource.Type == "rbac" {
+		// For legacy "rbac" type, use the kind field from the resource
+		if resourceKind, ok := rbacResource["kind"].(string); ok {
+			kind = resourceKind
+		} else {
+			kind = "Role" // fallback
+		}
+	} else {
+		// For new specific types, map to the appropriate kind
+		switch resource.Type {
+		case "cluster_role":
+			kind = "ClusterRole"
+		case "role":
+			kind = "Role"
+		case "cluster_role_binding":
+			kind = "ClusterRoleBinding"
+		case "role_binding":
+			kind = "RoleBinding"
+		case "service_account":
+			kind = "ServiceAccount"
+		default:
+			kind = "Role" // fallback
+		}
+	}
 
 	bhNode, err := bloodhound.CreateNodeWithConfig(
 		p.config,
@@ -236,18 +332,7 @@ func (p *RBACParser) Parse(resource bloodhound.ResourceData) (*bloodhound.Parsed
 		return nil, fmt.Errorf("failed to create RBAC node: %w", err)
 	}
 
-	switch kind {
-	case "ClusterRole":
-		bhNode.Kinds = []string{"ClusterRole"}
-	case "RoleBinding":
-		bhNode.Kinds = []string{"RoleBinding"}
-	case "ClusterRoleBinding":
-		bhNode.Kinds = []string{"ClusterRoleBinding"}
-	case "ServiceAccount":
-		bhNode.Kinds = []string{"ServiceAccount"}
-	default:
-		bhNode.Kinds = []string{"Role"}
-	}
+	bhNode.Kinds = []string{kind}
 
 	result := &bloodhound.ParsedResult{
 		Nodes: []bloodhound.BloodHoundNode{bhNode},

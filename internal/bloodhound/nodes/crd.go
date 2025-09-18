@@ -38,7 +38,7 @@ func (m *CRDPropertyMapper) MapProperties(resource any) (map[string]any, error) 
 		"is_cluster_scoped":   crd.Scope == "Cluster",
 		"is_namespace_scoped": crd.Scope == "Namespaced",
 
-		"versions_count":     len(crd.Versions),
+		"versions_count":        len(crd.Versions),
 		"has_multiple_versions": len(crd.Versions) > 1,
 	}
 
@@ -55,19 +55,19 @@ func (m *CRDPropertyMapper) MapProperties(resource any) (map[string]any, error) 
 		properties["categories"] = crd.Categories
 		properties["has_categories"] = true
 		properties["categories_count"] = len(crd.Categories)
-		
+
 		var highPrivCategories []string
 		for _, category := range crd.Categories {
 			lowerCat := strings.ToLower(category)
 			if strings.Contains(lowerCat, "admin") ||
-			   strings.Contains(lowerCat, "security") ||
-			   strings.Contains(lowerCat, "policy") ||
-			   strings.Contains(lowerCat, "rbac") ||
-			   strings.Contains(lowerCat, "auth") {
+				strings.Contains(lowerCat, "security") ||
+				strings.Contains(lowerCat, "policy") ||
+				strings.Contains(lowerCat, "rbac") ||
+				strings.Contains(lowerCat, "auth") {
 				highPrivCategories = append(highPrivCategories, category)
 			}
 		}
-		
+
 		if len(highPrivCategories) > 0 {
 			properties["high_privilege_categories"] = highPrivCategories
 			properties["has_high_privilege_categories"] = true
@@ -80,24 +80,24 @@ func (m *CRDPropertyMapper) MapProperties(resource any) (map[string]any, error) 
 	var activeVersions []string
 	var storageVersions []string
 	var deprecatedVersions []string
-	
+
 	for _, version := range crd.Versions {
 		if version.Served {
 			activeVersions = append(activeVersions, version.Name)
 		} else {
 			deprecatedVersions = append(deprecatedVersions, version.Name)
 		}
-		
+
 		if version.Storage {
 			storageVersions = append(storageVersions, version.Name)
 		}
 	}
-	
+
 	properties["active_versions"] = activeVersions
 	properties["active_versions_count"] = len(activeVersions)
 	properties["storage_versions"] = storageVersions
 	properties["storage_versions_count"] = len(storageVersions)
-	
+
 	if len(deprecatedVersions) > 0 {
 		properties["deprecated_versions"] = deprecatedVersions
 		properties["has_deprecated_versions"] = true
@@ -107,44 +107,44 @@ func (m *CRDPropertyMapper) MapProperties(resource any) (map[string]any, error) 
 	if crd.Labels != nil {
 		labelCount := len(crd.Labels)
 		properties["labels_count"] = labelCount
-		
+
 		var securityLabels []string
 		var operatorLabels []string
 		var vendorLabels []string
-		
+
 		for key, value := range crd.Labels {
 			lowerKey := strings.ToLower(key)
 			lowerValue := strings.ToLower(value)
-			
+
 			if strings.Contains(lowerKey, "security") ||
-			   strings.Contains(lowerKey, "policy") ||
-			   strings.Contains(lowerKey, "rbac") ||
-			   strings.Contains(lowerKey, "auth") {
+				strings.Contains(lowerKey, "policy") ||
+				strings.Contains(lowerKey, "rbac") ||
+				strings.Contains(lowerKey, "auth") {
 				securityLabels = append(securityLabels, key+"="+value)
 			}
-			
+
 			if strings.Contains(lowerKey, "operator") ||
-			   strings.Contains(lowerValue, "operator") {
+				strings.Contains(lowerValue, "operator") {
 				operatorLabels = append(operatorLabels, key+"="+value)
 			}
-			
+
 			if strings.Contains(lowerKey, "vendor") ||
-			   strings.Contains(lowerKey, "app.kubernetes.io/managed-by") ||
-			   strings.Contains(lowerKey, "helm.sh") {
+				strings.Contains(lowerKey, "app.kubernetes.io/managed-by") ||
+				strings.Contains(lowerKey, "helm.sh") {
 				vendorLabels = append(vendorLabels, key+"="+value)
 			}
 		}
-		
+
 		if len(securityLabels) > 0 {
 			properties["security_labels"] = securityLabels
 			properties["has_security_labels"] = true
 		}
-		
+
 		if len(operatorLabels) > 0 {
 			properties["operator_labels"] = operatorLabels
 			properties["is_operator_managed"] = true
 		}
-		
+
 		if len(vendorLabels) > 0 {
 			properties["vendor_labels"] = vendorLabels
 			properties["has_vendor_info"] = true
@@ -154,91 +154,46 @@ func (m *CRDPropertyMapper) MapProperties(resource any) (map[string]any, error) 
 	if crd.Annotations != nil {
 		annotationCount := len(crd.Annotations)
 		properties["annotations_count"] = annotationCount
-		
+
 		securityAnnotations := make(map[string]any)
 		var certManagerAnnotations []string
 		var helmAnnotations []string
-		
+
 		for key, value := range crd.Annotations {
 			lowerKey := strings.ToLower(key)
-			
+
 			if strings.Contains(lowerKey, "security") ||
-			   strings.Contains(lowerKey, "policy") ||
-			   strings.Contains(lowerKey, "rbac") {
+				strings.Contains(lowerKey, "policy") ||
+				strings.Contains(lowerKey, "rbac") {
 				securityAnnotations[key] = value
 			}
-			
+
 			if strings.Contains(lowerKey, "cert-manager") ||
-			   strings.Contains(lowerKey, "certificate") {
+				strings.Contains(lowerKey, "certificate") {
 				certManagerAnnotations = append(certManagerAnnotations, key+"="+value)
 			}
-			
+
 			if strings.Contains(lowerKey, "helm.sh") ||
-			   strings.Contains(lowerKey, "meta.helm.sh") {
+				strings.Contains(lowerKey, "meta.helm.sh") {
 				helmAnnotations = append(helmAnnotations, key+"="+value)
 			}
 		}
-		
+
 		if len(securityAnnotations) > 0 {
 			properties["security_annotations"] = securityAnnotations
 			properties["has_security_annotations"] = true
 		}
-		
+
 		if len(certManagerAnnotations) > 0 {
 			properties["cert_manager_annotations"] = certManagerAnnotations
 			properties["manages_certificates"] = true
 		}
-		
+
 		if len(helmAnnotations) > 0 {
 			properties["helm_annotations"] = helmAnnotations
 			properties["is_helm_managed"] = true
 		}
 	}
-
-	if len(crd.Conditions) > 0 {
-		var conditionDetails []map[string]any
-		var problemConditions []string
-		var establishedCondition bool
-		var namesAcceptedCondition bool
-		
-		for _, condition := range crd.Conditions {
-			conditionInfo := map[string]any{
-				"type":    condition.Type,
-				"status":  condition.Status,
-				"reason":  condition.Reason,
-				"message": condition.Message,
-			}
-			conditionDetails = append(conditionDetails, conditionInfo)
-			
-			switch condition.Type {
-			case "Established":
-				isEstablished := condition.Status == "True"
-				establishedCondition = isEstablished
-				if !isEstablished {
-					problemConditions = append(problemConditions, "not_established")
-				}
-			case "NamesAccepted":
-				namesAccepted := condition.Status == "True"
-				namesAcceptedCondition = namesAccepted
-				if !namesAccepted {
-					problemConditions = append(problemConditions, "names_not_accepted")
-				}
-			}
-		}
-		
-		properties["condition_details"] = conditionDetails
-		properties["conditions_count"] = len(crd.Conditions)
-		properties["is_established"] = establishedCondition
-		properties["names_accepted"] = namesAcceptedCondition
-		
-		if len(problemConditions) > 0 {
-			properties["problem_conditions"] = problemConditions
-			properties["has_problems"] = true
-		} else {
-			properties["has_problems"] = false
-		}
-	}
-
 	securityScore := 0
 	var securityIssues []string
 	var attackSurface []string
@@ -306,16 +261,16 @@ func (m *CRDPropertyMapper) MapProperties(resource any) (map[string]any, error) 
 	var kubectlCommands []string
 	baseCmd := fmt.Sprintf("kubectl get %s", crd.Plural)
 	kubectlCommands = append(kubectlCommands, baseCmd)
-	
+
 	if crd.Scope == "Namespaced" {
 		kubectlCommands = append(kubectlCommands, baseCmd+" -A")
 		kubectlCommands = append(kubectlCommands, baseCmd+" -n <namespace>")
 	}
-	
+
 	if len(crd.ShortNames) > 0 {
 		kubectlCommands = append(kubectlCommands, fmt.Sprintf("kubectl get %s", crd.ShortNames[0]))
 	}
-	
+
 	properties["kubectl_commands"] = kubectlCommands
 
 	return properties, nil
@@ -330,7 +285,7 @@ func NewCRDParser() *CRDParser {
 		config: bloodhound.ResourceConfig{
 			ResourceType:   "crd",
 			PrimaryKind:    "CustomResourceDefinition",
-			SecondaryKinds: []string{"CRD", "APIExtension"},
+			SecondaryKinds: []string{"CRD"},
 			PropertyMapper: &CRDPropertyMapper{},
 		},
 	}

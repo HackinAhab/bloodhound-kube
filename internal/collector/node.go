@@ -71,24 +71,6 @@ func (c *Collector) CollectNodes(ctx context.Context) ([]Node, error) {
 			})
 		}
 
-		var conditions []NodeCondition
-		for _, condition := range node.Status.Conditions {
-			conditions = append(conditions, NodeCondition{
-				Type:    string(condition.Type),
-				Status:  string(condition.Status),
-				Reason:  condition.Reason,
-				Message: condition.Message,
-			})
-		}
-
-		ready := false
-		for _, condition := range node.Status.Conditions {
-			if condition.Type == corev1.NodeReady {
-				ready = condition.Status == corev1.ConditionTrue
-				break
-			}
-		}
-
 		var internalIP, externalIP, hostname string
 		for _, addr := range node.Status.Addresses {
 			switch addr.Type {
@@ -118,9 +100,8 @@ func (c *Collector) CollectNodes(ctx context.Context) ([]Node, error) {
 		nodes = append(nodes, Node{
 			Name:             node.Name,
 			Labels:           node.Labels,
-			Annotations:      node.Annotations,
+			Annotations:      AnnotationsCleaner(node.Annotations),
 			CreatedAt:        node.CreationTimestamp.Format("2006-01-02T15:04:05Z"),
-			Ready:            ready,
 			KubeletVersion:   node.Status.NodeInfo.KubeletVersion,
 			ContainerRuntime: node.Status.NodeInfo.ContainerRuntimeVersion,
 			OSImage:          node.Status.NodeInfo.OSImage,
@@ -133,7 +114,6 @@ func (c *Collector) CollectNodes(ctx context.Context) ([]Node, error) {
 			PodCIDR:          node.Spec.PodCIDR,
 			Unschedulable:    node.Spec.Unschedulable,
 			Taints:           taints,
-			Conditions:       conditions,
 			Capacity:         capacity,
 			Allocatable:      allocatable,
 		})

@@ -4,9 +4,9 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"strings"
 	"sync"
-	"time"
 )
 
 func GenerateObjectID(resourceType, namespace, name string) string {
@@ -115,9 +115,7 @@ func FlattenProperties(input map[string]any, prefix string) map[string]any {
 		case map[string]any:
 			// Recursively flatten nested objects
 			nested := FlattenProperties(v, flatKey)
-			for k, val := range nested {
-				result[k] = val
-			}
+			maps.Copy(result, nested)
 		case []any:
 			// Convert object arrays to primitive arrays or flatten if needed
 			if len(v) > 0 {
@@ -178,10 +176,7 @@ func ConvertToBloodHoundResult(ndjsonData []byte, clusterName string) (*BloodHou
 
 	return &BloodHoundResult{
 		Metadata: &BloodHoundMetadata{
-			SourceKind:          "KubeBase",
-			ClusterName:         clusterName,
-			CollectionTimestamp: time.Now().UTC().Format(time.RFC3339),
-			Version:             "1.0",
+			SourceKind: "Kubernetes",
 		},
 		Graph: BloodHoundGraph{
 			Nodes: parsed.Nodes,
@@ -203,9 +198,7 @@ func ConcurrentParseProcessor(resources []ResourceData, workerCount int) (*Blood
 	// Start workers
 	var wg sync.WaitGroup
 	for i := 0; i < workerCount; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			for resource := range resourceChan {
 				result, err := DefaultRegistry.ParseResource(resource)
 				if err != nil {
@@ -214,7 +207,7 @@ func ConcurrentParseProcessor(resources []ResourceData, workerCount int) (*Blood
 				}
 				resultChan <- result
 			}
-		}()
+		})
 	}
 
 	// Send resources to workers
@@ -249,9 +242,7 @@ func ConcurrentParseProcessor(resources []ResourceData, workerCount int) (*Blood
 	finalGraph := concurrentResult.GetResult()
 	return &BloodHoundResult{
 		Metadata: &BloodHoundMetadata{
-			SourceKind:          "KubeBase",
-			CollectionTimestamp: time.Now().UTC().Format(time.RFC3339),
-			Version:             "1.0",
+			SourceKind: "Kubernetes",
 		},
 		Graph: finalGraph,
 	}, nil

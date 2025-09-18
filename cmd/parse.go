@@ -67,8 +67,6 @@ Examples:
 			if err != nil {
 				return fmt.Errorf("failed to process data concurrently: %w", err)
 			}
-			// Set cluster name in metadata
-			result.Metadata.ClusterName = clusterName
 		} else {
 			// Use regular processing for smaller datasets
 			result, err = bloodhound.ConvertToBloodHoundResult(data, clusterName)

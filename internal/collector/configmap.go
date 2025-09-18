@@ -13,10 +13,8 @@ type ConfigMap struct {
 	Namespace      string            `json:"namespace"`
 	Labels         map[string]string `json:"labels,omitempty"`
 	Annotations    map[string]string `json:"annotations,omitempty"`
-	CreatedAt      string            `json:"created_at"`
 	DataKeys       []string          `json:"data_keys"`
 	BinaryDataKeys []string          `json:"binary_data_keys,omitempty"`
-	Immutable      bool              `json:"immutable"`
 }
 
 func (c *Collector) CollectConfigMaps(ctx context.Context, namespace string) ([]ConfigMap, error) {
@@ -39,20 +37,13 @@ func (c *Collector) CollectConfigMaps(ctx context.Context, namespace string) ([]
 			binaryDataKeys = append(binaryDataKeys, key)
 		}
 
-		immutable := false
-		if cm.Immutable != nil {
-			immutable = *cm.Immutable
-		}
-
 		configMaps = append(configMaps, ConfigMap{
 			Name:           cm.Name,
 			Namespace:      cm.Namespace,
 			Labels:         cm.Labels,
 			Annotations:    cm.Annotations,
-			CreatedAt:      cm.CreationTimestamp.Format("2006-01-02T15:04:05Z"),
 			DataKeys:       dataKeys,
 			BinaryDataKeys: binaryDataKeys,
-			Immutable:      immutable,
 		})
 	}
 

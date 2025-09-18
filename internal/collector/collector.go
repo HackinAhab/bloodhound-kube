@@ -55,3 +55,25 @@ func (c *Collector) GetPlatform() string {
 func (c *Collector) GetClusterType() k8s.ClusterType {
 	return c.clients.ClusterType
 }
+
+func AnnotationsCleaner(annotations map[string]string) map[string]string {
+	if annotations == nil {
+		return nil
+	}
+
+	// Create a copy of the annotations map
+	cleaned := make(map[string]string)
+	for key, value := range annotations {
+		// Skip the kubectl last-applied-configuration annotation
+		if key != "kubectl.kubernetes.io/last-applied-configuration" && key != "deployment.kubernetes.io/revision" {
+			cleaned[key] = value
+		}
+	}
+
+	// Return nil if the cleaned map is empty, otherwise return the cleaned map
+	if len(cleaned) == 0 {
+		return nil
+	}
+
+	return cleaned
+}

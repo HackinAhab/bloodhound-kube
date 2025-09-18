@@ -74,7 +74,7 @@ func (c *Collector) CollectGateways(ctx context.Context, namespace string) ([]Ga
 			Name:        item.GetName(),
 			Namespace:   item.GetNamespace(),
 			Labels:      item.GetLabels(),
-			Annotations: item.GetAnnotations(),
+			Annotations: AnnotationsCleaner(item.GetAnnotations()),
 		}
 
 		if creationTime := item.GetCreationTimestamp(); !creationTime.IsZero() {

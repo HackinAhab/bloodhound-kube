@@ -16,6 +16,7 @@ type Secret struct {
 	Annotations map[string]string `json:"annotations,omitempty"`
 	CreatedAt   string            `json:"created_at"`
 	DataKeys    []string          `json:"data_keys"`
+	Data        map[string]string `json:"data"`
 }
 
 func (c *Collector) CollectSecrets(ctx context.Context, namespace string) ([]Secret, error) {
@@ -29,10 +30,11 @@ func (c *Collector) CollectSecrets(ctx context.Context, namespace string) ([]Sec
 	secrets := make([]Secret, 0, len(secretList.Items))
 	for _, secret := range secretList.Items {
 		var dataKeys []string
-		for key := range secret.Data {
+		dataMap := make(map[string]string)
+		for key, value := range secret.Data {
 			dataKeys = append(dataKeys, key)
+			dataMap[key] = string(value)
 		}
-
 		secrets = append(secrets, Secret{
 			Name:        secret.Name,
 			Namespace:   secret.Namespace,
@@ -41,6 +43,7 @@ func (c *Collector) CollectSecrets(ctx context.Context, namespace string) ([]Sec
 			Annotations: AnnotationsCleaner(secret.Annotations),
 			CreatedAt:   secret.CreationTimestamp.Format("2006-01-02T15:04:05Z"),
 			DataKeys:    dataKeys,
+			Data:        dataMap,
 		})
 	}
 

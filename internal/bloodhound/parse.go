@@ -64,6 +64,9 @@ func CreateNodeWithConfig(config ResourceConfig, resourceType, namespace, name s
 		return BloodHoundNode{}, fmt.Errorf("failed to map properties: %w", err)
 	}
 
+	// Flatten nested objects to ensure BloodHound schema compliance
+	properties = FlattenProperties(properties, "")
+
 	return CreateNodeFromResource(kinds, resourceType, namespace, name, properties), nil
 }
 
@@ -174,6 +177,10 @@ func ConvertToBloodHoundResult(ndjsonData []byte, clusterName string) (*BloodHou
 		return nil, err
 	}
 
+	// Process RBAC edges after all resources are parsed
+	rbacEdges := ProcessGlobalRBACEdges(resources)
+	parsed.Edges = append(parsed.Edges, rbacEdges...)
+
 	return &BloodHoundResult{
 		Metadata: &BloodHoundMetadata{
 			SourceKind: "Kubernetes",
@@ -198,7 +205,9 @@ func ConcurrentParseProcessor(resources []ResourceData, workerCount int) (*Blood
 	// Start workers
 	var wg sync.WaitGroup
 	for i := 0; i < workerCount; i++ {
-		wg.Go(func() {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
 			for resource := range resourceChan {
 				result, err := DefaultRegistry.ParseResource(resource)
 				if err != nil {
@@ -207,7 +216,7 @@ func ConcurrentParseProcessor(resources []ResourceData, workerCount int) (*Blood
 				}
 				resultChan <- result
 			}
-		})
+		}()
 	}
 
 	// Send resources to workers
@@ -286,3 +295,230 @@ func ConvertToBloodHoundJSON(ndjsonData []byte) ([]byte, error) {
 
 	return json.MarshalIndent(result, "", "  ")
 }
+
+// ProcessGlobalRBACEdges creates direct edges for RBAC resources following the pattern:
+// ClusterRole -> ServiceAccount/Group/User (via ClusterRoleBinding)
+// Role -> ServiceAccount/Group/User (via RoleBinding)
+func ProcessGlobalRBACEdges(resources []ResourceData) []BloodHoundEdge {
+	var edges []BloodHoundEdge
+
+	// Separate resources by type for easier processing
+	var roleBindings []ResourceData
+	var clusterRoleBindings []ResourceData
+
+	for _, resource := range resources {
+		switch resource.Type {
+		case "role_binding":
+			roleBindings = append(roleBindings, resource)
+		case "cluster_role_binding":
+			clusterRoleBindings = append(clusterRoleBindings, resource)
+		}
+	}
+
+	// Create direct Role -> Subject edges via RoleBindings
+	for _, binding := range roleBindings {
+		bindingData, err := extractRBACResource(binding.Resource)
+		if err != nil {
+			continue
+		}
+
+		roleRef, exists := bindingData["role_ref"].(map[string]any)
+		if !exists {
+			if roleRef, exists = bindingData["roleRef"].(map[string]any); !exists {
+				continue
+			}
+		}
+
+		roleKind, _ := roleRef["kind"].(string)
+		roleName, _ := roleRef["name"].(string)
+
+		if roleKind == "" || roleName == "" {
+			continue
+		}
+
+		// Create source node ID based on role type
+		var sourceNodeID string
+
+		switch roleKind {
+		case "ClusterRole":
+			sourceNodeID = GenerateNodeID("ClusterRole", "cluster_role", "", roleName)
+		case "Role":
+			sourceNodeID = GenerateNodeID("Role", "role", binding.Namespace, roleName)
+		default:
+			continue
+		}
+
+		// Create direct edges from Role/ClusterRole to subjects
+		if subjects, exists := bindingData["subjects"].([]any); exists {
+			bindingName := ""
+			if name, ok := bindingData["name"].(string); ok {
+				bindingName = name
+			}
+
+			for _, subject := range subjects {
+				if subjectMap, ok := subject.(map[string]any); ok {
+					subjectEdge := createRoleToSubjectEdge(sourceNodeID, subjectMap, binding.Namespace, roleKind, roleName, bindingName)
+					if subjectEdge != nil {
+						edges = append(edges, *subjectEdge)
+					}
+				}
+			}
+		}
+	}
+
+	// Create direct ClusterRole -> Subject edges via ClusterRoleBindings
+	for _, binding := range clusterRoleBindings {
+		bindingData, err := extractRBACResource(binding.Resource)
+		if err != nil {
+			continue
+		}
+
+		roleRef, exists := bindingData["role_ref"].(map[string]any)
+		if !exists {
+			if roleRef, exists = bindingData["roleRef"].(map[string]any); !exists {
+				continue
+			}
+		}
+
+		roleKind, _ := roleRef["kind"].(string)
+		roleName, _ := roleRef["name"].(string)
+
+		if roleKind == "" || roleName == "" {
+			continue
+		}
+
+		// Create source node ID - should be ClusterRole
+		var sourceNodeID string
+
+		if roleKind == "ClusterRole" {
+			sourceNodeID = GenerateNodeID("ClusterRole", "cluster_role", "", roleName)
+		} else {
+			continue
+		}
+
+		// Create direct edges from ClusterRole to subjects
+		if subjects, exists := bindingData["subjects"].([]any); exists {
+			bindingName := ""
+			if name, ok := bindingData["name"].(string); ok {
+				bindingName = name
+			}
+
+			for _, subject := range subjects {
+				if subjectMap, ok := subject.(map[string]any); ok {
+					subjectEdge := createRoleToSubjectEdge(sourceNodeID, subjectMap, "", roleKind, roleName, bindingName)
+					if subjectEdge != nil {
+						edges = append(edges, *subjectEdge)
+					}
+				}
+			}
+		}
+	}
+
+	return edges
+}
+
+// Helper function to extract RBAC resource data
+func extractRBACResource(resource any) (map[string]any, error) {
+	resourceData, err := json.Marshal(resource)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal RBAC resource: %w", err)
+	}
+
+	var rbacResource map[string]any
+	if err := json.Unmarshal(resourceData, &rbacResource); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal RBAC resource: %w", err)
+	}
+
+	return rbacResource, nil
+}
+
+// Helper function to create role to subject edges
+func createRoleToSubjectEdge(roleNodeID string, subject map[string]any, defaultNamespace, roleKind, roleName, bindingName string) *BloodHoundEdge {
+	subjectKind, _ := subject["kind"].(string)
+	subjectName, _ := subject["name"].(string)
+
+	if subjectKind == "" || subjectName == "" {
+		return nil
+	}
+
+	var targetNodeID string
+
+	switch subjectKind {
+	case "ServiceAccount":
+		subjectNamespace, _ := subject["namespace"].(string)
+		if subjectNamespace == "" {
+			subjectNamespace = defaultNamespace
+		}
+		if subjectNamespace == "" {
+			return nil // ServiceAccount must have a namespace
+		}
+		targetNodeID = GenerateNodeID("ServiceAccount", "service_account", subjectNamespace, subjectName)
+	case "User":
+		targetNodeID = GenerateNodeID("User", "user", "", subjectName)
+	case "Group":
+		targetNodeID = GenerateNodeID("Group", "group", "", subjectName)
+	default:
+		return nil
+	}
+
+	properties := map[string]any{
+		"role_kind":    roleKind,
+		"role_name":    roleName,
+		"binding_name": bindingName,
+		"subject_kind": subjectKind,
+		"subject_name": subjectName,
+	}
+
+	if subjectNamespace, exists := subject["namespace"].(string); exists && subjectNamespace != "" {
+		properties["subject_namespace"] = subjectNamespace
+	}
+
+	edge := CreateEdge(roleNodeID, targetNodeID, "HasRole", properties)
+	return &edge
+}
+
+// // Helper function to create binding to subject edges
+// func createBindingToSubjectEdge(bindingNodeID string, subject map[string]any, defaultNamespace, bindingType string) *BloodHoundEdge {
+// 	subjectKind, _ := subject["kind"].(string)
+// 	subjectName, _ := subject["name"].(string)
+
+// 	if subjectKind == "" || subjectName == "" {
+// 		return nil
+// 	}
+
+// 	var targetNodeID string
+// 	var edgeType string
+
+// 	switch subjectKind {
+// 	case "ServiceAccount":
+// 		subjectNamespace, _ := subject["namespace"].(string)
+// 		if subjectNamespace == "" {
+// 			subjectNamespace = defaultNamespace
+// 		}
+// 		if subjectNamespace == "" {
+// 			return nil // ServiceAccount must have a namespace
+// 		}
+// 		targetNodeID = GenerateNodeID("ServiceAccount", "service_account", subjectNamespace, subjectName)
+// 		edgeType = bindingType + "ToServiceAccount"
+// 	case "User":
+// 		targetNodeID = GenerateNodeID("User", "user", "", subjectName)
+// 		edgeType = bindingType + "ToUser"
+// 	case "Group":
+// 		targetNodeID = GenerateNodeID("Group", "group", "", subjectName)
+// 		edgeType = bindingType + "ToGroup"
+// 	default:
+// 		return nil
+// 	}
+
+// 	properties := map[string]any{
+// 		"subject_kind": subjectKind,
+// 		"subject_name": subjectName,
+// 	}
+
+// 	if subjectNamespace, exists := subject["namespace"].(string); exists && subjectNamespace != "" {
+// 		properties["subject_namespace"] = subjectNamespace
+// 	}
+
+// 	edge := CreateEdge(bindingNodeID, targetNodeID, edgeType, properties)
+// 	return &edge
+// }

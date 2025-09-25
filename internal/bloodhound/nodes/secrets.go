@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
+	"maps"
 	"strings"
 	"time"
 
@@ -38,12 +39,8 @@ func (m *SecretPropertyMapper) MapProperties(resource any) (map[string]any, erro
 
 		"is_service_account_token": secret.Type == "kubernetes.io/service-account-token",
 		"is_tls_secret":            secret.Type == "kubernetes.io/tls",
-		"is_docker_registry":       secret.Type == "kubernetes.io/dockercfg" || secret.Type == "kubernetes.io/dockerconfigjson",
+		"is_registry_secret":       secret.Type == "kubernetes.io/dockercfg" || secret.Type == "kubernetes.io/dockerconfigjson",
 		"is_opaque":                secret.Type == "Opaque",
-		"is_basic_auth":            secret.Type == "kubernetes.io/basic-auth",
-		"is_ssh_auth":              secret.Type == "kubernetes.io/ssh-auth",
-
-		"contains_credentials": len(secret.DataKeys) > 0,
 	}
 
 	if len(secret.DataKeys) > 0 {
@@ -76,9 +73,8 @@ func (m *SecretPropertyMapper) MapProperties(resource any) (map[string]any, erro
 		properties["has_password"] = hasPassword
 		properties["has_token"] = hasToken
 
-		if len(sensitiveKeys) > 0 {
-			properties["sensitive_keys"] = sensitiveKeys
-		}
+		properties["sensitive_keys_count"] = len(sensitiveKeys)
+		properties["has_sensitive_keys"] = len(sensitiveKeys) > 0
 	}
 
 	if secret.Labels != nil {
@@ -92,6 +88,10 @@ func (m *SecretPropertyMapper) MapProperties(resource any) (map[string]any, erro
 			}
 		}
 	}
+
+	// Process secret data based on type
+	secretDataInfo := m.processSecretData(secret)
+	maps.Copy(properties, secretDataInfo)
 
 	// TLS Certificate Analysis for Internal Discovery
 	if secret.Type == "kubernetes.io/tls" {
@@ -119,6 +119,106 @@ func (m *SecretPropertyMapper) MapProperties(resource any) (map[string]any, erro
 	}
 
 	return properties, nil
+}
+
+// processSecretData handles secret data based on type - includes non-TLS data decoded, TLS data omitted for clarity
+func (m *SecretPropertyMapper) processSecretData(secret collector.Secret) map[string]any {
+	dataInfo := make(map[string]any)
+
+	if secret.Type == "kubernetes.io/tls" {
+		// For TLS secrets, always show that data is omitted for clarity
+		dataInfo["tls_data_status"] = "omitted for clarity"
+
+		// Try to parse certificate for domain names if data is available
+		if len(secret.Data) > 0 {
+			if certData, exists := secret.Data["tls.crt"]; exists {
+				if domains := m.extractDomainsFromTLSCert([]byte(certData)); len(domains) > 0 {
+					dataInfo["tls_cert_domains"] = domains
+				}
+			}
+		}
+
+		// If data is not available but keys exist, at least note what keys are present
+		if len(secret.Data) == 0 && len(secret.DataKeys) > 0 {
+			dataInfo["tls_data_keys"] = secret.DataKeys
+		}
+	} else {
+		// For non-TLS secrets, add each secret key as its own property with uppercase name
+		if len(secret.Data) > 0 {
+			for key, value := range secret.Data {
+				// Try to base64 decode the string value in case it's actually base64-encoded data
+				decodedBytes, err := base64.StdEncoding.DecodeString(value)
+				var decodedValue string
+				if err != nil {
+					// If decoding fails, the value is likely already plain text
+					decodedValue = value
+				} else {
+					// If decoding succeeds, use the decoded value
+					decodedValue = string(decodedBytes)
+				}
+
+				// Check if the data looks like it might be sensitive (contains certain patterns)
+				lowerKey := strings.ToLower(key)
+				if m.isSensitiveKey(lowerKey) {
+					// For sensitive keys, we might want to truncate or mask the data
+					if len(decodedValue) > 50 {
+						decodedValue = decodedValue[:50] + "...[truncated]"
+					}
+				}
+
+				// Use uppercase key name as property key
+				propertyKey := strings.ToUpper(key)
+				dataInfo[propertyKey] = decodedValue
+			}
+		} else {
+			// If no actual data but we have keys, add placeholder to show structure
+			for _, key := range secret.DataKeys {
+				propertyKey := strings.ToUpper(key)
+				dataInfo[propertyKey] = "[data not available during collection]"
+			}
+		}
+	}
+
+	return dataInfo
+}
+
+// extractDomainsFromTLSCert extracts domain names from a TLS certificate
+func (m *SecretPropertyMapper) extractDomainsFromTLSCert(certData []byte) []string {
+	var domains []string
+
+	block, _ := pem.Decode(certData)
+	if block == nil {
+		return domains
+	}
+
+	cert, err := x509.ParseCertificate(block.Bytes)
+	if err != nil {
+		return domains
+	}
+
+	if cert.Subject.CommonName != "" {
+		domains = append(domains, cert.Subject.CommonName)
+	}
+
+	domains = append(domains, cert.DNSNames...)
+
+	return domains
+}
+
+// isSensitiveKey determines if a key likely contains sensitive data
+func (m *SecretPropertyMapper) isSensitiveKey(key string) bool {
+	sensitivePatterns := []string{
+		"password", "passwd", "pass", "secret", "token", "key", "auth",
+		"credential", "cert", "private", "api", "access", "refresh",
+	}
+
+	for _, pattern := range sensitivePatterns {
+		if strings.Contains(key, pattern) {
+			return true
+		}
+	}
+
+	return false
 }
 
 // extractTLSInformation parses TLS certificate data for domain discovery
@@ -204,11 +304,10 @@ func (m *SecretPropertyMapper) parseTLSCertificate(certData string) map[string]a
 		ipAddresses = append(ipAddresses, ip.String())
 	}
 
-	certInfo["cert_domains"] = domains
 	certInfo["cert_domains_count"] = len(domains)
-	certInfo["cert_internal_domains"] = internalDomains
-	certInfo["cert_external_domains"] = externalDomains
-	certInfo["cert_ip_addresses"] = ipAddresses
+	certInfo["cert_internal_domains_count"] = len(internalDomains)
+	certInfo["cert_external_domains_count"] = len(externalDomains)
+	certInfo["cert_ip_addresses_count"] = len(ipAddresses)
 	certInfo["cert_common_name"] = cert.Subject.CommonName
 	certInfo["cert_issuer"] = cert.Issuer.CommonName
 	certInfo["cert_not_before"] = cert.NotBefore.Format("2006-01-02T15:04:05Z")
@@ -236,8 +335,11 @@ func (m *SecretPropertyMapper) parseTLSCertificate(certData string) map[string]a
 	if cert.Issuer.CommonName == cert.Subject.CommonName {
 		securityIssues = append(securityIssues, "self_signed_certificate")
 	}
+	certInfo["cert_security_issues_count"] = len(securityIssues)
+	certInfo["has_security_issues"] = len(securityIssues) > 0
 	if len(securityIssues) > 0 {
-		certInfo["cert_security_issues"] = securityIssues
+		certInfo["has_expired_cert"] = strings.Contains(strings.Join(securityIssues, ","), "expired_certificate")
+		certInfo["has_self_signed_cert"] = strings.Contains(strings.Join(securityIssues, ","), "self_signed_certificate")
 	}
 
 	return certInfo
@@ -352,10 +454,9 @@ func (m *SecretPropertyMapper) inferDomainsFromTLSSecret(secret collector.Secret
 	}
 
 	if len(inferredDomains) > 0 {
-		domainInfo["inferred_domains"] = inferredDomains
 		domainInfo["inferred_domains_count"] = len(inferredDomains)
-		domainInfo["inferred_internal_domains"] = internalDomains
-		domainInfo["inferred_external_domains"] = externalDomains
+		domainInfo["inferred_internal_domains_count"] = len(internalDomains)
+		domainInfo["inferred_external_domains_count"] = len(externalDomains)
 		domainInfo["has_inferred_domains"] = true
 	} else {
 		domainInfo["has_inferred_domains"] = false
@@ -419,8 +520,7 @@ func NewSecretParser() *SecretParser {
 	return &SecretParser{
 		config: bloodhound.ResourceConfig{
 			ResourceType:   "secret",
-			PrimaryKind:    "kube_secret",
-			SecondaryKinds: []string{"kube_credential"},
+			PrimaryKind:    "Secret",
 			PropertyMapper: &SecretPropertyMapper{},
 		},
 	}

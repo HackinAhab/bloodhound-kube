@@ -12,7 +12,7 @@ type Logger struct {
 
 func New(level string) *Logger {
 	var logLevel slog.Level
-	
+
 	switch strings.ToLower(level) {
 	case "debug":
 		logLevel = slog.LevelDebug

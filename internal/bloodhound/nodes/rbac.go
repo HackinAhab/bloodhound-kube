@@ -33,15 +33,15 @@ func (m *RBACPropertyMapper) MapProperties(resource any) (map[string]any, error)
 		if kind, ok := rbacResource["kind"].(string); ok {
 			switch kind {
 			case "Role":
-				resourceType = "role"
+				resourceType = "Role"
 			case "ClusterRole":
-				resourceType = "cluster_role"
+				resourceType = "ClusterRole"
 			case "RoleBinding":
-				resourceType = "role_binding"
+				resourceType = "RoleBinding"
 			case "ClusterRoleBinding":
-				resourceType = "cluster_role_binding"
+				resourceType = "ClusterRoleBinding"
 			case "ServiceAccount":
-				resourceType = "service_account"
+				resourceType = "ServiceAccount"
 			}
 		} else {
 			// Check for fields that identify the type (new format)
@@ -89,27 +89,44 @@ func (m *RBACPropertyMapper) extractRoleProperties(role map[string]any, resource
 		canEscalatePrivileges := false
 		canImpersonate := false
 
-		// Collect all API groups, resources, and verbs from all rules
-		allAPIGroups := []string{}
-		allResources := []string{}
-		allVerbs := []string{}
+		// Create correlated permissions list in the format:
+		// ["api_group - resource - resource_names - verbs"]
+		permissions := []string{}
 
 		for _, rule := range rules {
 			if ruleMap, ok := rule.(map[string]any); ok {
-				// Extract and collect API groups
-				if apiGroups, ok := ruleMap["api_groups"].([]any); ok {
-					for _, group := range apiGroups {
+				// Extract API groups, resources, verbs, and resource names from this rule
+				var apiGroups []string
+				var resources []string
+				var verbs []string
+				var resourceNames []string
+
+				if apiGroupsData, ok := ruleMap["api_groups"].([]any); ok {
+					for _, group := range apiGroupsData {
 						if groupStr, ok := group.(string); ok {
-							allAPIGroups = append(allAPIGroups, groupStr)
+							apiGroups = append(apiGroups, groupStr)
 						}
 					}
 				}
 
-				// Extract and collect verbs
-				if verbs, ok := ruleMap["verbs"].([]any); ok {
-					for _, verb := range verbs {
+				if resourcesData, ok := ruleMap["resources"].([]any); ok {
+					for _, resource := range resourcesData {
+						if resourceStr, ok := resource.(string); ok {
+							resources = append(resources, resourceStr)
+							if resourceStr == "*" {
+								hasWildcardResources = true
+								highRiskPerms = append(highRiskPerms, "wildcard-resources")
+							} else if strings.Contains(resourceStr, "secrets") {
+								highRiskPerms = append(highRiskPerms, "secrets-access")
+							}
+						}
+					}
+				}
+
+				if verbsData, ok := ruleMap["verbs"].([]any); ok {
+					for _, verb := range verbsData {
 						if verbStr, ok := verb.(string); ok {
-							allVerbs = append(allVerbs, verbStr)
+							verbs = append(verbs, verbStr)
 							switch verbStr {
 							case "*":
 								hasWildcardVerbs = true
@@ -125,33 +142,52 @@ func (m *RBACPropertyMapper) extractRoleProperties(role map[string]any, resource
 					}
 				}
 
-				// Extract and collect resources
-				if resources, ok := ruleMap["resources"].([]any); ok {
-					for _, resource := range resources {
-						if resourceStr, ok := resource.(string); ok {
-							allResources = append(allResources, resourceStr)
-							if resourceStr == "*" {
-								hasWildcardResources = true
-								highRiskPerms = append(highRiskPerms, "wildcard-resources")
-							} else if strings.Contains(resourceStr, "secrets") {
-								highRiskPerms = append(highRiskPerms, "secrets-access")
-							}
+				if resourceNamesData, ok := ruleMap["resource_names"].([]any); ok {
+					for _, resourceName := range resourceNamesData {
+						if resourceNameStr, ok := resourceName.(string); ok {
+							resourceNames = append(resourceNames, resourceNameStr)
 						}
+					}
+				}
+
+				// Create correlated permission strings for this rule
+				// Handle cases where arrays might be empty
+				if len(apiGroups) == 0 {
+					apiGroups = []string{""}
+				}
+				if len(resources) == 0 {
+					resources = []string{"*"}
+				}
+				if len(verbs) == 0 {
+					verbs = []string{"*"}
+				}
+
+				// Create permission entries for each combination
+				for _, apiGroup := range apiGroups {
+					for _, resource := range resources {
+						// Format resource names
+						resourceNamesStr := "[]"
+						if len(resourceNames) > 0 {
+							resourceNamesStr = "[" + strings.Join(resourceNames, ",") + "]"
+						}
+
+						// Format verbs
+						verbsStr := strings.Join(verbs, ",")
+						if len(verbs) == 1 && verbs[0] == "*" {
+							verbsStr = "*"
+						}
+
+						// Create the permission string
+						permission := fmt.Sprintf("%s - %s - %s - %s", apiGroup, resource, resourceNamesStr, verbsStr)
+						permissions = append(permissions, permission)
 					}
 				}
 			}
 		}
 
-		// Add the collected data to properties
-		if len(allAPIGroups) > 0 {
-			properties["api_groups"] = allAPIGroups
-		}
-		if len(allResources) > 0 {
-			properties["resources"] = allResources
-		}
-		if len(allVerbs) > 0 {
-			properties["verbs"] = allVerbs
-		}
+		// Add permission count instead of the array
+		properties["permissions_count"] = len(permissions)
+		properties["has_permissions"] = len(permissions) > 0
 
 		properties["has_wildcard_verbs"] = hasWildcardVerbs
 		properties["has_wildcard_resources"] = hasWildcardResources
@@ -159,8 +195,15 @@ func (m *RBACPropertyMapper) extractRoleProperties(role map[string]any, resource
 		properties["can_impersonate"] = canImpersonate
 		properties["rules_count"] = len(rules)
 
+		properties["high_risk_permissions_count"] = len(highRiskPerms)
+		properties["has_high_risk_permissions"] = len(highRiskPerms) > 0
 		if len(highRiskPerms) > 0 {
-			properties["high_risk_permissions"] = highRiskPerms
+			properties["has_wildcard_resources_perm"] = strings.Contains(strings.Join(highRiskPerms, ","), "wildcard-resources")
+			properties["has_secrets_access_perm"] = strings.Contains(strings.Join(highRiskPerms, ","), "secrets-access")
+			properties["has_wildcard_verbs_perm"] = strings.Contains(strings.Join(highRiskPerms, ","), "wildcard-verbs")
+			properties["has_escalate_perm"] = strings.Contains(strings.Join(highRiskPerms, ","), "escalate")
+			properties["has_bind_perm"] = strings.Contains(strings.Join(highRiskPerms, ","), "bind")
+			properties["has_impersonate_perm"] = strings.Contains(strings.Join(highRiskPerms, ","), "impersonate")
 		}
 	}
 
@@ -217,7 +260,7 @@ func (m *RBACPropertyMapper) extractBindingProperties(binding map[string]any, re
 		properties["has_service_account_subjects"] = hasServiceAccount
 		properties["has_user_subjects"] = hasUser
 		properties["has_group_subjects"] = hasGroup
-		properties["subject_types"] = subjectTypes
+		properties["subject_types_count"] = len(subjectTypes)
 	}
 
 	return properties, nil
@@ -334,9 +377,11 @@ func (p *RBACParser) Parse(resource bloodhound.ResourceData) (*bloodhound.Parsed
 
 	bhNode.Kinds = []string{kind}
 
+	// Note: RBAC edges are now created globally in ProcessGlobalRBACEdges
+	// to ensure proper Role/ClusterRole -> Binding -> Subject chain relationships
 	result := &bloodhound.ParsedResult{
 		Nodes: []bloodhound.BloodHoundNode{bhNode},
-		Edges: []bloodhound.BloodHoundEdge{},
+		Edges: []bloodhound.BloodHoundEdge{}, // No edges created here anymore
 	}
 
 	return result, nil

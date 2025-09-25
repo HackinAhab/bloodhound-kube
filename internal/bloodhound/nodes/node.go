@@ -121,9 +121,8 @@ func (m *NodePropertyMapper) MapProperties(resource any) (map[string]any, error)
 			}
 		}
 
-		if len(securityAnnotations) > 0 {
-			properties["security_annotations"] = securityAnnotations
-		}
+		properties["security_annotations_count"] = len(securityAnnotations)
+		properties["has_security_annotations"] = len(securityAnnotations) > 0
 	}
 
 	if len(node.Taints) > 0 {
@@ -146,9 +145,8 @@ func (m *NodePropertyMapper) MapProperties(resource any) (map[string]any, error)
 			}
 		}
 
-		if len(criticalTaints) > 0 {
-			properties["security_taints"] = criticalTaints
-		}
+		properties["critical_taints_count"] = len(criticalTaints)
+		properties["has_critical_taints"] = len(criticalTaints) > 0
 		properties["blocks_scheduling"] = hasNoSchedule
 		properties["evicts_pods"] = hasNoExecute
 	}
@@ -170,8 +168,13 @@ func (m *NodePropertyMapper) MapProperties(resource any) (map[string]any, error)
 		securityIssues = append(securityIssues, "accepts_workloads")
 	}
 
+	properties["security_issues_count"] = len(securityIssues)
+	properties["has_security_issues"] = len(securityIssues) > 0
 	if len(securityIssues) > 0 {
-		properties["security_issues"] = securityIssues
+		properties["is_control_plane_node"] = strings.Contains(strings.Join(securityIssues, ","), "control_plane_node")
+		properties["is_externally_accessible"] = strings.Contains(strings.Join(securityIssues, ","), "externally_accessible")
+		properties["has_operational_problems"] = strings.Contains(strings.Join(securityIssues, ","), "operational_problems")
+		properties["accepts_workloads"] = strings.Contains(strings.Join(securityIssues, ","), "accepts_workloads")
 	}
 
 	return properties, nil
@@ -186,7 +189,6 @@ func NewNodeParser() *NodeParser {
 		config: bloodhound.ResourceConfig{
 			ResourceType:   "node",
 			PrimaryKind:    "Node",
-			SecondaryKinds: []string{"ComputeNode"},
 			PropertyMapper: &NodePropertyMapper{},
 		},
 	}

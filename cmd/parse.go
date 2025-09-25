@@ -53,15 +53,14 @@ Examples:
 			clusterName = cluster
 		}
 
-		// Use concurrent processing for better performance on large datasets
+		// Use concurrent processing if we have a large number of resources
+		var result *bloodhound.BloodHoundResult
 		resources, err := bloodhound.ParseFromNDJSON(data)
 		if err != nil {
 			return fmt.Errorf("failed to parse NDJSON: %w", err)
 		}
 
-		// Use concurrent processing if we have a large number of resources
-		var result *bloodhound.BloodHoundResult
-		if len(resources) > 1000 {
+		if len(resources) > 10000 {
 			// Use concurrent processing for large datasets
 			result, err = bloodhound.ConcurrentParseProcessor(resources, 20) // 20 workers for high concurrency
 			if err != nil {
@@ -86,8 +85,16 @@ Examples:
 				return fmt.Errorf("failed to write output file: %w", err)
 			}
 			fmt.Printf("BloodHound-compliant data written to: %s\n", outputFile)
+
+			// Add nil checks to prevent segmentation fault
+			nodeCount := 0
+			edgeCount := 0
+			if result != nil {
+				nodeCount = len(result.Graph.Nodes)
+				edgeCount = len(result.Graph.Edges)
+			}
 			fmt.Printf("Processed %d nodes and %d edges from cluster: %s\n",
-				len(result.Graph.Nodes), len(result.Graph.Edges), clusterName)
+				nodeCount, edgeCount, clusterName)
 		} else {
 			fmt.Print(string(jsonData))
 		}

@@ -43,7 +43,6 @@ func (m *CRDPropertyMapper) MapProperties(resource any) (map[string]any, error) 
 	}
 
 	if len(crd.ShortNames) > 0 {
-		properties["short_names"] = crd.ShortNames
 		properties["has_short_names"] = true
 		properties["short_names_count"] = len(crd.ShortNames)
 	} else {
@@ -52,7 +51,6 @@ func (m *CRDPropertyMapper) MapProperties(resource any) (map[string]any, error) 
 	}
 
 	if len(crd.Categories) > 0 {
-		properties["categories"] = crd.Categories
 		properties["has_categories"] = true
 		properties["categories_count"] = len(crd.Categories)
 
@@ -68,10 +66,8 @@ func (m *CRDPropertyMapper) MapProperties(resource any) (map[string]any, error) 
 			}
 		}
 
-		if len(highPrivCategories) > 0 {
-			properties["high_privilege_categories"] = highPrivCategories
-			properties["has_high_privilege_categories"] = true
-		}
+		properties["high_privilege_categories_count"] = len(highPrivCategories)
+		properties["has_high_privilege_categories"] = len(highPrivCategories) > 0
 	} else {
 		properties["has_categories"] = false
 		properties["categories_count"] = 0
@@ -93,13 +89,10 @@ func (m *CRDPropertyMapper) MapProperties(resource any) (map[string]any, error) 
 		}
 	}
 
-	properties["active_versions"] = activeVersions
 	properties["active_versions_count"] = len(activeVersions)
-	properties["storage_versions"] = storageVersions
 	properties["storage_versions_count"] = len(storageVersions)
 
 	if len(deprecatedVersions) > 0 {
-		properties["deprecated_versions"] = deprecatedVersions
 		properties["has_deprecated_versions"] = true
 		properties["deprecated_versions_count"] = len(deprecatedVersions)
 	}
@@ -135,20 +128,14 @@ func (m *CRDPropertyMapper) MapProperties(resource any) (map[string]any, error) 
 			}
 		}
 
-		if len(securityLabels) > 0 {
-			properties["security_labels"] = securityLabels
-			properties["has_security_labels"] = true
-		}
+		properties["security_labels_count"] = len(securityLabels)
+		properties["has_security_labels"] = len(securityLabels) > 0
 
-		if len(operatorLabels) > 0 {
-			properties["operator_labels"] = operatorLabels
-			properties["is_operator_managed"] = true
-		}
+		properties["operator_labels_count"] = len(operatorLabels)
+		properties["is_operator_managed"] = len(operatorLabels) > 0
 
-		if len(vendorLabels) > 0 {
-			properties["vendor_labels"] = vendorLabels
-			properties["has_vendor_info"] = true
-		}
+		properties["vendor_labels_count"] = len(vendorLabels)
+		properties["has_vendor_info"] = len(vendorLabels) > 0
 	}
 
 	if crd.Annotations != nil {
@@ -179,20 +166,14 @@ func (m *CRDPropertyMapper) MapProperties(resource any) (map[string]any, error) 
 			}
 		}
 
-		if len(securityAnnotations) > 0 {
-			properties["security_annotations"] = securityAnnotations
-			properties["has_security_annotations"] = true
-		}
+		properties["security_annotations_count"] = len(securityAnnotations)
+		properties["has_security_annotations"] = len(securityAnnotations) > 0
 
-		if len(certManagerAnnotations) > 0 {
-			properties["cert_manager_annotations"] = certManagerAnnotations
-			properties["manages_certificates"] = true
-		}
+		properties["cert_manager_annotations_count"] = len(certManagerAnnotations)
+		properties["manages_certificates"] = len(certManagerAnnotations) > 0
 
-		if len(helmAnnotations) > 0 {
-			properties["helm_annotations"] = helmAnnotations
-			properties["is_helm_managed"] = true
-		}
+		properties["helm_annotations_count"] = len(helmAnnotations)
+		properties["is_helm_managed"] = len(helmAnnotations) > 0
 	}
 	securityScore := 0
 	var securityIssues []string
@@ -243,19 +224,19 @@ func (m *CRDPropertyMapper) MapProperties(resource any) (map[string]any, error) 
 	properties["is_high_value_target"] = securityScore >= 10
 	properties["is_security_relevant"] = securityScore >= 5
 
-	if len(securityIssues) > 0 {
-		properties["security_issues"] = securityIssues
-	}
+	properties["security_issues_count"] = len(securityIssues)
+	properties["has_security_issues"] = len(securityIssues) > 0
 
-	if len(attackSurface) > 0 {
-		properties["attack_surface"] = attackSurface
-	}
+	properties["attack_surface_count"] = len(attackSurface)
+	properties["has_attack_surface"] = len(attackSurface) > 0
 
 	// API access patterns for reconnaissance
-	properties["kubectl_access_names"] = []string{crd.Plural, crd.Kind}
+	properties["kubectl_access_names_count"] = 2 // Plural + Kind
 	if len(crd.ShortNames) > 0 {
-		accessNames := append([]string{crd.Plural, crd.Kind}, crd.ShortNames...)
-		properties["kubectl_access_names"] = accessNames
+		properties["kubectl_access_names_count"] = 2 + len(crd.ShortNames)
+		properties["has_short_names"] = true
+	} else {
+		properties["has_short_names"] = false
 	}
 
 	var kubectlCommands []string
@@ -271,7 +252,8 @@ func (m *CRDPropertyMapper) MapProperties(resource any) (map[string]any, error) 
 		kubectlCommands = append(kubectlCommands, fmt.Sprintf("kubectl get %s", crd.ShortNames[0]))
 	}
 
-	properties["kubectl_commands"] = kubectlCommands
+	properties["kubectl_commands_count"] = len(kubectlCommands)
+	properties["has_kubectl_commands"] = len(kubectlCommands) > 0
 
 	return properties, nil
 }

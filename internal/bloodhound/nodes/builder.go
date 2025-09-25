@@ -14,6 +14,7 @@ func RegisterParsers() {
 	bloodhound.DefaultRegistry.Register(NewNetworkPolicyParser())
 	bloodhound.DefaultRegistry.Register(NewRBACParser())
 	bloodhound.DefaultRegistry.Register(NewCRDParser())
+	bloodhound.DefaultRegistry.Register(NewDeploymentParser())
 }
 
 func GetAllSupportedKinds() []string {

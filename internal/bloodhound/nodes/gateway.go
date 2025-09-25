@@ -34,7 +34,7 @@ func (m *GatewayPropertyMapper) MapProperties(resource any) (map[string]any, err
 
 	if listeners, ok := spec["listeners"].([]any); ok {
 		properties["listeners_count"] = len(listeners)
-		
+
 		var protocols []string
 		var ports []int
 		hasTLS := false
@@ -42,12 +42,12 @@ func (m *GatewayPropertyMapper) MapProperties(resource any) (map[string]any, err
 		hasHTTP := false
 		hasWildcardHostname := false
 		allowedRoutes := []string{}
-		
+
 		for _, listener := range listeners {
 			if listenerMap, ok := listener.(map[string]any); ok {
 				if protocol, ok := listenerMap["protocol"].(string); ok {
 					protocols = append(protocols, protocol)
-					
+
 					switch strings.ToLower(protocol) {
 					case "https", "tls":
 						hasTLS = true
@@ -56,29 +56,29 @@ func (m *GatewayPropertyMapper) MapProperties(resource any) (map[string]any, err
 						hasHTTP = true
 					}
 				}
-				
+
 				if port, ok := listenerMap["port"].(float64); ok {
 					portInt := int(port)
 					ports = append(ports, portInt)
 				}
-				
+
 				if hostname, ok := listenerMap["hostname"].(string); ok {
 					if strings.Contains(hostname, "*") {
 						hasWildcardHostname = true
 					}
 				}
-				
+
 				// TLS configuration
 				if tls, ok := listenerMap["tls"].(map[string]any); ok {
 					hasTLS = true
-					
+
 					if mode, ok := tls["mode"].(string); ok {
 						properties["tls_mode"] = mode
 						properties["tls_terminate"] = mode == "Terminate"
 						properties["tls_passthrough"] = mode == "Passthrough"
 					}
 				}
-				
+
 				if allowedRoutesMap, ok := listenerMap["allowedRoutes"].(map[string]any); ok {
 					if namespaces, ok := allowedRoutesMap["namespaces"].(map[string]any); ok {
 						if from, ok := namespaces["from"].(string); ok {
@@ -88,7 +88,7 @@ func (m *GatewayPropertyMapper) MapProperties(resource any) (map[string]any, err
 				}
 			}
 		}
-		
+
 		properties["protocols"] = protocols
 		properties["ports"] = ports
 		properties["has_tls"] = hasTLS
@@ -101,7 +101,7 @@ func (m *GatewayPropertyMapper) MapProperties(resource any) (map[string]any, err
 
 	if addresses, ok := spec["addresses"].([]any); ok {
 		properties["addresses_count"] = len(addresses)
-		
+
 		var addressTypes []string
 		for _, address := range addresses {
 			if addressMap, ok := address.(map[string]any); ok {
@@ -116,7 +116,7 @@ func (m *GatewayPropertyMapper) MapProperties(resource any) (map[string]any, err
 	if status, ok := gateway["status"].(map[string]any); ok {
 		if conditions, ok := status["conditions"].([]any); ok {
 			properties["conditions_count"] = len(conditions)
-			
+
 			isReady := false
 			for _, condition := range conditions {
 				if condMap, ok := condition.(map[string]any); ok {
@@ -131,7 +131,7 @@ func (m *GatewayPropertyMapper) MapProperties(resource any) (map[string]any, err
 			}
 			properties["is_ready"] = isReady
 		}
-		
+
 		if listeners, ok := status["listeners"].([]any); ok {
 			attachedRoutes := 0
 			for _, listener := range listeners {

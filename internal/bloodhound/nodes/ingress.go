@@ -32,11 +32,11 @@ func (m *IngressPropertyMapper) MapProperties(resource any) (map[string]any, err
 	hasTLS := false
 	tlsSecrets := []string{}
 	tlsHosts := []string{}
-	
+
 	if tls, ok := spec["tls"].([]any); ok {
 		hasTLS = len(tls) > 0
 		properties["tls_config_count"] = len(tls)
-		
+
 		for _, tlsConfig := range tls {
 			if tlsMap, ok := tlsConfig.(map[string]any); ok {
 				if secretName, ok := tlsMap["secretName"].(string); ok {
@@ -52,7 +52,7 @@ func (m *IngressPropertyMapper) MapProperties(resource any) (map[string]any, err
 			}
 		}
 	}
-	
+
 	properties["has_tls"] = hasTLS
 	if len(tlsSecrets) > 0 {
 		properties["tls_secrets"] = tlsSecrets
@@ -67,7 +67,7 @@ func (m *IngressPropertyMapper) MapProperties(resource any) (map[string]any, err
 
 	if defaultBackend, ok := spec["defaultBackend"].(map[string]any); ok {
 		properties["has_default_backend"] = true
-		
+
 		if service, ok := defaultBackend["service"].(map[string]any); ok {
 			if serviceName, ok := service["name"].(string); ok {
 				properties["default_backend_service"] = serviceName
@@ -77,13 +77,13 @@ func (m *IngressPropertyMapper) MapProperties(resource any) (map[string]any, err
 
 	if rules, ok := spec["rules"].([]any); ok {
 		properties["rules_count"] = len(rules)
-		
+
 		var exposedHosts []string
 		var exposedPaths []string
 		hasWildcardHost := false
 		hasWildcardPath := false
 		pathTypesUsed := []string{}
-		
+
 		for _, rule := range rules {
 			if ruleMap, ok := rule.(map[string]any); ok {
 				if host, ok := ruleMap["host"].(string); ok {
@@ -92,7 +92,7 @@ func (m *IngressPropertyMapper) MapProperties(resource any) (map[string]any, err
 						hasWildcardHost = true
 					}
 				}
-				
+
 				if http, ok := ruleMap["http"].(map[string]any); ok {
 					if paths, ok := http["paths"].([]any); ok {
 						for _, path := range paths {
@@ -103,7 +103,7 @@ func (m *IngressPropertyMapper) MapProperties(resource any) (map[string]any, err
 										hasWildcardPath = true
 									}
 								}
-								
+
 								if pathType, ok := pathMap["pathType"].(string); ok {
 									pathTypesUsed = append(pathTypesUsed, pathType)
 								}
@@ -113,7 +113,7 @@ func (m *IngressPropertyMapper) MapProperties(resource any) (map[string]any, err
 				}
 			}
 		}
-		
+
 		properties["exposed_hosts"] = exposedHosts
 		properties["exposed_paths"] = exposedPaths
 		properties["has_wildcard_host"] = hasWildcardHost
@@ -126,30 +126,30 @@ func (m *IngressPropertyMapper) MapProperties(resource any) (map[string]any, err
 	if metadata, ok := ingress["metadata"].(map[string]any); ok {
 		if annotations, ok := metadata["annotations"].(map[string]any); ok {
 			properties["annotations_count"] = len(annotations)
-			
+
 			securityAnnotations := map[string]any{}
-			
+
 			// SSL redirect
 			if sslRedirect, exists := annotations["nginx.ingress.kubernetes.io/ssl-redirect"]; exists {
 				securityAnnotations["ssl_redirect"] = sslRedirect
 				properties["forces_ssl_redirect"] = sslRedirect == "true"
 			}
-			
+
 			if authType, exists := annotations["nginx.ingress.kubernetes.io/auth-type"]; exists {
 				securityAnnotations["auth_type"] = authType
 				properties["has_authentication"] = true
 			}
-			
+
 			if rateLimit, exists := annotations["nginx.ingress.kubernetes.io/rate-limit"]; exists {
 				securityAnnotations["rate_limit"] = rateLimit
 				properties["has_rate_limiting"] = true
 			}
-			
+
 			if whitelist, exists := annotations["nginx.ingress.kubernetes.io/whitelist-source-range"]; exists {
 				securityAnnotations["whitelist_source_range"] = whitelist
 				properties["has_ip_whitelist"] = true
 			}
-			
+
 			if len(securityAnnotations) > 0 {
 				properties["security_annotations"] = securityAnnotations
 			}

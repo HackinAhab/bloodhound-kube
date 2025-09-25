@@ -69,19 +69,11 @@ func (m *ConfigMapPropertyMapper) MapProperties(resource any) (map[string]any, e
 			}
 		}
 
-		properties["data_keys"] = dataKeys
 		properties["has_suspicious_keys"] = len(suspiciousKeys) > 0
 		properties["has_sensitive_patterns"] = hasSensitivePatterns
 
-		if len(suspiciousKeys) > 0 {
-			properties["suspicious_keys"] = suspiciousKeys
-			properties["suspicious_keys_count"] = len(suspiciousKeys)
-		}
-
-		if len(potentialCredentials) > 0 {
-			properties["potential_credentials"] = potentialCredentials
-			properties["potential_credentials_count"] = len(potentialCredentials)
-		}
+		properties["suspicious_keys_count"] = len(suspiciousKeys)
+		properties["potential_credentials_count"] = len(potentialCredentials)
 	} else {
 		properties["has_data"] = false
 		properties["data_keys_count"] = 0
@@ -91,11 +83,7 @@ func (m *ConfigMapPropertyMapper) MapProperties(resource any) (map[string]any, e
 		properties["binary_data_keys_count"] = len(binaryData)
 		properties["has_binary_data"] = len(binaryData) > 0
 
-		var binaryKeys []string
-		for key := range binaryData {
-			binaryKeys = append(binaryKeys, key)
-		}
-		properties["binary_data_keys"] = binaryKeys
+		// Count binary keys but don't store the array
 	} else {
 		properties["has_binary_data"] = false
 		properties["binary_data_keys_count"] = 0

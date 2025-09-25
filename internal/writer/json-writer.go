@@ -31,10 +31,10 @@ func newAsyncWriter(outputPath, filename string, log *logger.Logger, appendMode 
 	}
 
 	filePath := filepath.Join(outputPath, filename)
-	
+
 	var file *os.File
 	var err error
-	
+
 	if appendMode {
 		file, err = os.OpenFile(filePath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
 		if err != nil {

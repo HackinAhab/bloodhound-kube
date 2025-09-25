@@ -46,50 +46,46 @@ func (m *ServicePropertyMapper) MapProperties(resource any) (map[string]any, err
 
 	if ports, ok := spec["ports"].([]any); ok {
 		properties["port_count"] = len(ports)
-		
-		var exposedPorts []map[string]any
+
 		hasNodePort := false
 		hasPrivilegedPorts := false
-		
+		protocolTCP := false
+		protocolUDP := false
+
 		for _, port := range ports {
 			if portMap, ok := port.(map[string]any); ok {
-				portInfo := map[string]any{}
-				
 				if portNum, ok := portMap["port"]; ok {
 					if portInt, err := strconv.Atoi(fmt.Sprintf("%.0f", portNum)); err == nil {
-						portInfo["port"] = portInt
 						if portInt < 1024 {
 							hasPrivilegedPorts = true
 						}
 					}
 				}
-				
+
 				if protocol, ok := portMap["protocol"].(string); ok {
-					portInfo["protocol"] = protocol
+					if protocol == "TCP" {
+						protocolTCP = true
+					} else if protocol == "UDP" {
+						protocolUDP = true
+					}
 				}
-				
-				if nodePort, ok := portMap["nodePort"]; ok {
+
+				if _, ok := portMap["nodePort"]; ok {
 					hasNodePort = true
-					portInfo["node_port"] = nodePort
 				}
-				
-				if targetPort, ok := portMap["targetPort"]; ok {
-					portInfo["target_port"] = targetPort
-				}
-				
-				exposedPorts = append(exposedPorts, portInfo)
 			}
 		}
-		
+
 		properties["has_node_port"] = hasNodePort
 		properties["has_privileged_ports"] = hasPrivilegedPorts
-		properties["exposed_ports"] = exposedPorts
+		properties["uses_tcp"] = protocolTCP
+		properties["uses_udp"] = protocolUDP
 	}
 
 	if selector, ok := spec["selector"].(map[string]any); ok {
 		properties["has_selector"] = len(selector) > 0
 		properties["selector_count"] = len(selector)
-		
+
 		if app, exists := selector["app"]; exists {
 			properties["selects_by_app"] = true
 			properties["app_selector"] = app
@@ -105,7 +101,7 @@ func (m *ServicePropertyMapper) MapProperties(resource any) (map[string]any, err
 	}
 
 	if sourceRanges, ok := spec["loadBalancerSourceRanges"].([]any); ok {
-		properties["load_balancer_source_ranges"] = sourceRanges
+		properties["load_balancer_source_ranges_count"] = len(sourceRanges)
 		properties["has_source_restrictions"] = len(sourceRanges) > 0
 	}
 

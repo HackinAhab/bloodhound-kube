@@ -128,7 +128,7 @@ func NewNetworkPolicyParser() *NetworkPolicyParser {
 	return &NetworkPolicyParser{
 		config: bloodhound.ResourceConfig{
 			ResourceType:   "networkpolicy",
-			PrimaryKind:    "KubeNetworkPolicy",
+			PrimaryKind:    "NetworkPolicy",
 			SecondaryKinds: []string{},
 			PropertyMapper: &NetworkPolicyPropertyMapper{},
 		},

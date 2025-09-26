@@ -23,17 +23,19 @@ func (m *ConfigMapPropertyMapper) MapProperties(resource any) (map[string]any, e
 
 	properties := map[string]any{}
 
+	if name, ok := configMap["name"].(string); ok {
+		properties["name"] = name
+	}
+
 	if data, ok := configMap["data"].(map[string]any); ok {
 		properties["data_keys_count"] = len(data)
 		properties["has_data"] = len(data) > 0
 
-		var dataKeys []string
 		var suspiciousKeys []string
 		var potentialCredentials []string
 		hasSensitivePatterns := false
 
 		for key, value := range data {
-			dataKeys = append(dataKeys, key)
 			lowerKey := strings.ToLower(key)
 
 			sensitivePatterns := []string{
@@ -69,6 +71,7 @@ func (m *ConfigMapPropertyMapper) MapProperties(resource any) (map[string]any, e
 			}
 		}
 
+		properties["data"] = data
 		properties["has_suspicious_keys"] = len(suspiciousKeys) > 0
 		properties["has_sensitive_patterns"] = hasSensitivePatterns
 
@@ -98,20 +101,6 @@ func (m *ConfigMapPropertyMapper) MapProperties(resource any) (map[string]any, e
 			}
 		}
 	}
-
-	riskFactors := 0
-	if properties["has_suspicious_keys"] == true {
-		riskFactors++
-	}
-	if properties["potential_credentials_count"] != nil && properties["potential_credentials_count"].(int) > 0 {
-		riskFactors++
-	}
-	if properties["is_immutable"] == false {
-		riskFactors++
-	}
-
-	properties["security_risk_factors"] = riskFactors
-	properties["is_high_risk"] = riskFactors >= 2
 
 	return properties, nil
 }
@@ -155,10 +144,7 @@ func (p *ConfigMapParser) Parse(resource bloodhound.ResourceData) (*bloodhound.P
 		return nil, fmt.Errorf("failed to unmarshal configmap: %w", err)
 	}
 
-	var name string
-	if metadata, ok := configMap["metadata"].(map[string]any); ok && metadata != nil {
-		name, _ = metadata["name"].(string)
-	}
+	name := configMap["name"].(string)
 
 	bhNode, err := bloodhound.CreateNodeWithConfig(
 		p.config,

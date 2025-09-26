@@ -22,30 +22,34 @@ func NewResourceRegistry() *ResourceRegistry {
 }
 
 func (r *ResourceRegistry) registerDefaults() {
-	r.Register(NewNodesHandler())
-	r.Register(NewSecretsHandler())
-	r.Register(NewServicesHandler())
-	r.Register(NewIngressesHandler())
-	r.Register(NewGatewaysHandler())
-	r.Register(NewRoutesHandler())
-	r.Register(NewRbacHandler())
-	r.Register(NewConfigMapsHandler())
-	r.Register(NewNetworkPoliciesHandler())
-	r.Register(NewCRDHandler())
-	r.Register(NewDeploymentsHandler())
-	r.Register(NewDaemonSetsHandler())
-}
-
-func (r *ResourceRegistry) RegisterOpenShiftResources() {
-	r.Register(NewProjectsHandler())
-	r.Register(NewImagesHandler())
+	// Register all handlers from metadata
+	for _, meta := range AllHandlers {
+		handler := NewHandlerFromMetadata(meta)
+		r.Register(handler)
+	}
 }
 
 func (r *ResourceRegistry) InitializeForCluster(clusterType k8s.ClusterType) {
-	r.registerDefaults()
-	if clusterType == k8s.ClusterTypeOpenShift {
-		r.RegisterOpenShiftResources()
+	// Clear existing handlers
+	r.handlers = make(map[string]ResourceHandler)
+
+	// Register handlers that support the current cluster type
+	for _, meta := range AllHandlers {
+		if r.supportsClusterType(meta.SupportedClusterTypes, clusterType) {
+			handler := NewHandlerFromMetadata(meta)
+			r.Register(handler)
+		}
 	}
+}
+
+// supportsClusterType checks if the handler supports the given cluster type
+func (r *ResourceRegistry) supportsClusterType(supportedTypes []k8s.ClusterType, clusterType k8s.ClusterType) bool {
+	for _, supportedType := range supportedTypes {
+		if supportedType == clusterType {
+			return true
+		}
+	}
+	return false
 }
 
 func (r *ResourceRegistry) Register(handler ResourceHandler) {
@@ -104,6 +108,32 @@ func (r *ResourceRegistry) ValidateTypes(types []string) error {
 	}
 
 	return nil
+}
+
+// GetHandlerDescriptions returns a map of handler names to their descriptions
+func (r *ResourceRegistry) GetHandlerDescriptions() map[string]string {
+	descriptions := make(map[string]string)
+	for name, handler := range r.handlers {
+		descriptions[name] = handler.GetDescription()
+	}
+	return descriptions
+}
+
+// ListHandlersForClusterType returns all handlers that support the given cluster type
+func (r *ResourceRegistry) ListHandlersForClusterType(clusterType k8s.ClusterType) []string {
+	var handlers []string
+	for _, meta := range AllHandlers {
+		if r.supportsClusterType(meta.SupportedClusterTypes, clusterType) {
+			handlers = append(handlers, meta.Name)
+		}
+	}
+	sort.Strings(handlers)
+	return handlers
+}
+
+// GetAvailableHandlers returns metadata for all available handlers
+func (r *ResourceRegistry) GetAvailableHandlers() []HandlerMetadata {
+	return AllHandlers
 }
 
 var DefaultRegistry = NewResourceRegistry()

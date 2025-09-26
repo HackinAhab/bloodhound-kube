@@ -1,9 +1,79 @@
 package bloodhound
 
 import (
+	"context"
+	"fmt"
 	"sync"
+
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
+// BloodHoundObject represents a unified object structure for both nodes and edges
+type BloodHoundObject struct {
+	ObjectID   string                 `json:"ObjectID"`
+	Properties map[string]interface{} `json:"Properties"`
+	Labels     []string               `json:"Labels"`
+	Type       string                 `json:"Type"` // "Node" or "Edge"
+}
+
+// ObjectBuilder interface for creating BloodHound objects from Kubernetes resources
+type ObjectBuilder interface {
+	Build(ctx context.Context, obj *unstructured.Unstructured) ([]*BloodHoundObject, error)
+	GetSupportedKinds() []string
+}
+
+// BuilderRegistry manages object builders for different Kubernetes resource types
+type BuilderRegistry struct {
+	builders map[string]ObjectBuilder
+}
+
+func NewBuilderRegistry() *BuilderRegistry {
+	return &BuilderRegistry{
+		builders: make(map[string]ObjectBuilder),
+	}
+}
+
+func (r *BuilderRegistry) RegisterBuilder(kind string, builder ObjectBuilder) {
+	r.builders[kind] = builder
+}
+
+func (r *BuilderRegistry) GetBuilder(kind string) (ObjectBuilder, error) {
+	builder, exists := r.builders[kind]
+	if !exists {
+		return nil, fmt.Errorf("no builder registered for kind: %s", kind)
+	}
+	return builder, nil
+}
+
+func (r *BuilderRegistry) GetAllBuilders() map[string]ObjectBuilder {
+	return r.builders
+}
+
+// Thread-safe result accumulator for concurrent processing
+type ConcurrentResult struct {
+	mu      sync.RWMutex
+	objects []*BloodHoundObject
+}
+
+func NewConcurrentResult() *ConcurrentResult {
+	return &ConcurrentResult{
+		objects: make([]*BloodHoundObject, 0),
+	}
+}
+
+func (cr *ConcurrentResult) AddObjects(objects ...*BloodHoundObject) {
+	cr.mu.Lock()
+	defer cr.mu.Unlock()
+	cr.objects = append(cr.objects, objects...)
+}
+
+func (cr *ConcurrentResult) GetObjects() []*BloodHoundObject {
+	cr.mu.RLock()
+	defer cr.mu.RUnlock()
+	return append([]*BloodHoundObject(nil), cr.objects...)
+}
+
+// Legacy types for backwards compatibility
 type BloodHoundNode struct {
 	ID         string         `json:"id"`
 	Kinds      []string       `json:"kinds"`
@@ -37,48 +107,11 @@ type BloodHoundResult struct {
 	Graph    BloodHoundGraph     `json:"graph"`
 }
 
-// Thread-safe result accumulator for concurrent processing
-type ConcurrentResult struct {
-	mu    sync.RWMutex
-	nodes []BloodHoundNode
-	edges []BloodHoundEdge
-}
-
-func NewConcurrentResult() *ConcurrentResult {
-	return &ConcurrentResult{
-		nodes: make([]BloodHoundNode, 0),
-		edges: make([]BloodHoundEdge, 0),
-	}
-}
-
-func (cr *ConcurrentResult) AddNodes(nodes ...BloodHoundNode) {
-	cr.mu.Lock()
-	defer cr.mu.Unlock()
-	cr.nodes = append(cr.nodes, nodes...)
-}
-
-func (cr *ConcurrentResult) AddEdges(edges ...BloodHoundEdge) {
-	cr.mu.Lock()
-	defer cr.mu.Unlock()
-	cr.edges = append(cr.edges, edges...)
-}
-
-func (cr *ConcurrentResult) GetResult() BloodHoundGraph {
-	cr.mu.RLock()
-	defer cr.mu.RUnlock()
-	return BloodHoundGraph{
-		Nodes: append([]BloodHoundNode(nil), cr.nodes...),
-		Edges: append([]BloodHoundEdge(nil), cr.edges...),
-	}
-}
-
-// Legacy type for backwards compatibility
 type ParsedResult struct {
 	Nodes []BloodHoundNode `json:"nodes"`
 	Edges []BloodHoundEdge `json:"edges"`
 }
 
-// Convert legacy ParsedResult to new structure
 func (pr *ParsedResult) ToBloodHoundResult(clusterName string) *BloodHoundResult {
 	return &BloodHoundResult{
 		Metadata: &BloodHoundMetadata{

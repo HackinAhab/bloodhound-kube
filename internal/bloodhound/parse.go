@@ -234,11 +234,15 @@ func ConcurrentParseProcessor(resources []ResourceData, workerCount int) (*Blood
 		close(errorChan)
 	}()
 
-	// Collect results
-	concurrentResult := NewConcurrentResult()
+	// Collect results using legacy approach for now
+	combined := &ParsedResult{
+		Nodes: []BloodHoundNode{},
+		Edges: []BloodHoundEdge{},
+	}
+
 	for result := range resultChan {
-		concurrentResult.AddNodes(result.Nodes...)
-		concurrentResult.AddEdges(result.Edges...)
+		combined.Nodes = append(combined.Nodes, result.Nodes...)
+		combined.Edges = append(combined.Edges, result.Edges...)
 	}
 
 	// Check for errors
@@ -248,12 +252,14 @@ func ConcurrentParseProcessor(resources []ResourceData, workerCount int) (*Blood
 	default:
 	}
 
-	finalGraph := concurrentResult.GetResult()
 	return &BloodHoundResult{
 		Metadata: &BloodHoundMetadata{
 			SourceKind: "Kubernetes",
 		},
-		Graph: finalGraph,
+		Graph: BloodHoundGraph{
+			Nodes: combined.Nodes,
+			Edges: combined.Edges,
+		},
 	}, nil
 }
 

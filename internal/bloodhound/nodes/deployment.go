@@ -12,6 +12,13 @@ import (
 type DeploymentPropertyMapper struct{}
 
 func (m *DeploymentPropertyMapper) MapProperties(resource any) (map[string]any, error) {
+	// Try to cast to structured collector.Deployment first
+	if deployment, ok := resource.(map[string]any); ok {
+		// This is structured data from the collector
+		return m.mapFromStructuredData(deployment)
+	}
+
+	// Fallback to the original approach for backwards compatibility
 	deploymentData, err := json.Marshal(resource)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal deployment resource: %w", err)
@@ -22,8 +29,18 @@ func (m *DeploymentPropertyMapper) MapProperties(resource any) (map[string]any, 
 		return nil, fmt.Errorf("failed to unmarshal deployment: %w", err)
 	}
 
+	return m.mapFromStructuredData(deployment)
+}
+
+func (m *DeploymentPropertyMapper) mapFromStructuredData(deployment map[string]any) (map[string]any, error) {
 	properties := map[string]any{}
 
+	// Handle structured collector format - check if this is from collector
+	if m.isCollectorFormat(deployment) {
+		return m.mapFromCollectorFormat(deployment, properties)
+	}
+
+	// Handle legacy format
 	spec, _ := deployment["spec"].(map[string]any)
 	if spec == nil {
 		return properties, nil
@@ -328,6 +345,102 @@ func (m *DeploymentPropertyMapper) mapStatus(status map[string]any, properties m
 		properties["is_progressing"] = isProgressing
 		properties["is_available"] = isAvailable
 	}
+}
+
+// isCollectorFormat checks if the deployment data is from the structured collector
+func (m *DeploymentPropertyMapper) isCollectorFormat(deployment map[string]any) bool {
+	// Check for collector-specific fields that indicate structured format
+	if _, hasSpec := deployment["spec"]; hasSpec {
+		if _, hasStatus := deployment["status"]; hasStatus {
+			// This looks like the structured collector format
+			if spec, ok := deployment["spec"].(map[string]any); ok {
+				// Check for specific collector format fields
+				if _, hasReplicas := spec["replicas"]; hasReplicas {
+					return true
+				}
+				if _, hasSelector := spec["selector"]; hasSelector {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
+// mapFromCollectorFormat maps from the structured collector format
+func (m *DeploymentPropertyMapper) mapFromCollectorFormat(deployment map[string]any, properties map[string]any) (map[string]any, error) {
+	// Extract basic metadata
+	if name, ok := deployment["name"].(string); ok {
+		properties["name"] = name
+	}
+	if namespace, ok := deployment["namespace"].(string); ok {
+		properties["namespace"] = namespace
+	}
+	if labels, ok := deployment["labels"].(map[string]interface{}); ok {
+		properties["has_labels"] = len(labels) > 0
+		properties["label_count"] = len(labels)
+	}
+	if annotations, ok := deployment["annotations"].(map[string]interface{}); ok {
+		properties["has_annotations"] = len(annotations) > 0
+		properties["annotation_count"] = len(annotations)
+	}
+
+	// Extract spec information
+	if spec, ok := deployment["spec"].(map[string]any); ok {
+		if replicas, ok := spec["replicas"]; ok {
+			properties["spec_replicas"] = replicas
+		}
+		if selector, ok := spec["selector"].(map[string]string); ok {
+			properties["has_selector"] = len(selector) > 0
+			properties["selector_count"] = len(selector)
+
+			var selectors []string
+			for key, value := range selector {
+				selectors = append(selectors, fmt.Sprintf("%s=%s", key, value))
+			}
+			if len(selectors) > 0 {
+				properties["spec_selector_match_labels"] = strings.Join(selectors, ",")
+			}
+		}
+		if strategyType, ok := spec["strategy_type"].(string); ok {
+			properties["spec_strategy_type"] = strategyType
+			properties["is_rolling_update"] = strategyType == "RollingUpdate"
+			properties["is_recreate"] = strategyType == "Recreate"
+		}
+		if revisionHistoryLimit, ok := spec["revision_history_limit"]; ok {
+			properties["spec_revision_history_limit"] = revisionHistoryLimit
+		}
+		if progressDeadlineSeconds, ok := spec["progress_deadline_seconds"]; ok {
+			properties["spec_progress_deadline_seconds"] = progressDeadlineSeconds
+		}
+		if containerImages, ok := spec["container_images"].([]string); ok {
+			properties["spec_template_images"] = strings.Join(containerImages, ",")
+		}
+	}
+
+	// Extract status information
+	if status, ok := deployment["status"].(map[string]any); ok {
+		if replicas, ok := status["replicas"]; ok {
+			properties["status_replicas"] = replicas
+		}
+		if readyReplicas, ok := status["ready_replicas"]; ok {
+			properties["status_ready_replicas"] = readyReplicas
+		}
+		if availableReplicas, ok := status["available_replicas"]; ok {
+			properties["status_available_replicas"] = availableReplicas
+		}
+		if unavailableReplicas, ok := status["unavailable_replicas"]; ok {
+			properties["status_unavailable_replicas"] = unavailableReplicas
+		}
+		if updatedReplicas, ok := status["updated_replicas"]; ok {
+			properties["status_updated_replicas"] = updatedReplicas
+		}
+		if observedGeneration, ok := status["observed_generation"]; ok {
+			properties["status_observed_generation"] = observedGeneration
+		}
+	}
+
+	return properties, nil
 }
 
 type DeploymentParser struct {

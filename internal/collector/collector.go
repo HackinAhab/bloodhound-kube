@@ -1,22 +1,20 @@
 package collector
 
 import (
+	"bloodhound-kube/internal/utils"
 	"context"
 	"fmt"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	"bloodhound-kube/internal/k8s"
-	"bloodhound-kube/internal/logger"
 )
 
 type Collector struct {
-	clients *k8s.Clients
-	logger  *logger.Logger
+	clients *utils.Clients
+	logger  *utils.Logger
 }
 
-func New(cfg k8s.ClientConfig, log *logger.Logger) (*Collector, error) {
-	clients, err := k8s.NewClient(cfg)
+func New(cfg utils.ClientConfig, log *utils.Logger) (*Collector, error) {
+	clients, err := utils.NewClient(cfg)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create kubernetes clients: %w", err)
 	}
@@ -52,7 +50,7 @@ func (c *Collector) GetPlatform() string {
 	return c.clients.GetPlatform()
 }
 
-func (c *Collector) GetClusterType() k8s.ClusterType {
+func (c *Collector) GetClusterType() utils.ClusterType {
 	return c.clients.ClusterType
 }
 

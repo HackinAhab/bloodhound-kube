@@ -33,35 +33,33 @@ type Secret struct {
 
 type Deployment struct {
 	CommonResourceMeta
-	Spec   DeploymentSpec   `json:"spec"`
-	Status DeploymentStatus `json:"status"`
+	Spec DeploymentSpec `json:"spec"`
 }
 
 type DeploymentSpec struct {
-	Replicas                *int32            `json:"replicas,omitempty"`
-	Selector                map[string]string `json:"selector,omitempty"`
-	StrategyType            string            `json:"strategy_type,omitempty"`
-	RevisionHistoryLimit    *int32            `json:"revision_history_limit,omitempty"`
-	ProgressDeadlineSeconds *int32            `json:"progress_deadline_seconds,omitempty"`
-	ContainerImages         []string          `json:"container_images,omitempty"`
-	SecurityContext         *SecurityContext  `json:"security_context,omitempty"`
+	Selector        map[string]string `json:"selector,omitempty"`
+	ContainerImages []string          `json:"container_images,omitempty"`
+	SecurityContext *SecurityContext  `json:"security_context,omitempty"`
 }
 
-type DeploymentStatus struct {
-	Replicas            int32 `json:"replicas"`
-	ReadyReplicas       int32 `json:"ready_replicas"`
-	AvailableReplicas   int32 `json:"available_replicas"`
-	UnavailableReplicas int32 `json:"unavailable_replicas"`
-	UpdatedReplicas     int32 `json:"updated_replicas"`
-	ObservedGeneration  int64 `json:"observed_generation"`
+type SeccompProfile struct {
+	Type             string `json:"seccomp_type,omitempty"`
+	LocalhostProfile string `json:"localhost_profile,omitempty"`
+}
+
+type LinuxCapabilities struct {
+	Add  []string `json:"capabilities_add,omitempty"`
+	Drop []string `json:"capabilities_drop,omitempty"`
 }
 
 type SecurityContext struct {
-	RunAsUser    *int64 `json:"run_as_user,omitempty"`
-	RunAsGroup   *int64 `json:"run_as_group,omitempty"`
-	RunAsNonRoot *bool  `json:"run_as_non_root,omitempty"`
-	FSGroup      *int64 `json:"fs_group,omitempty"`
-	AllowPrivEsc *bool  `json:"allow_priv_esc,omitempty"`
+	RunAsUser         *int64             `json:"run_as_user,omitempty"`
+	RunAsGroup        *int64             `json:"run_as_group,omitempty"`
+	RunAsNonRoot      *bool              `json:"run_as_non_root,omitempty"`
+	FSGroup           *int64             `json:"fs_group,omitempty"`
+	AllowPrivEsc      *bool              `json:"allow_priv_esc,omitempty"`
+	SeccompProfile    *SeccompProfile    `json:"seccomp_profile,omitempty"`
+	LinuxCapabilities *LinuxCapabilities `json:"linux_capabilities,omitempty"`
 }
 
 type CRD struct {
@@ -99,22 +97,6 @@ type Node struct {
 	Architecture     string            `json:"architecture"`
 	OperatingSystem  string            `json:"operating_system"`
 	Unschedulable    bool              `json:"unschedulable"`
-	Capacity         NodeResources     `json:"capacity"`
-	Allocatable      NodeResources     `json:"allocatable"`
-	Taints           []NodeTaint       `json:"taints,omitempty"`
-}
-
-type NodeResources struct {
-	CPU              string `json:"cpu"`
-	Memory           string `json:"memory"`
-	EphemeralStorage string `json:"ephemeral_storage"`
-	Pods             string `json:"pods"`
-}
-
-type NodeTaint struct {
-	Key    string `json:"key"`
-	Value  string `json:"value"`
-	Effect string `json:"effect"`
 }
 
 type Service struct {
@@ -237,15 +219,7 @@ type RoleRef struct {
 
 type StatefulSet struct {
 	CommonResourceMeta
-	Replicas                 int32             `json:"replicas"`
-	ReadyReplicas            int32             `json:"ready_replicas"`
-	CurrentReplicas          int32             `json:"current_replicas"`
-	UpdatedReplicas          int32             `json:"updated_replicas"`
-	ObservedGeneration       int64             `json:"observed_generation"`
 	ServiceName              string            `json:"service_name"`
-	PodManagementPolicy      string            `json:"pod_management_policy"`
-	UpdateStrategyType       string            `json:"update_strategy_type"`
-	Partition                *int32            `json:"partition,omitempty"`
 	ContainerImages          []string          `json:"container_images,omitempty"`
 	Selector                 map[string]string `json:"selector,omitempty"`
 	VolumeClaimTemplateNames []string          `json:"volume_claim_template_names,omitempty"`
@@ -286,4 +260,19 @@ type Image struct {
 	DockerImageReference string            `json:"docker_image_reference"`
 	DockerImageManifest  string            `json:"docker_image_manifest,omitempty"`
 	DockerImageMetadata  string            `json:"docker_image_metadata,omitempty"`
+}
+
+type Pod struct {
+	CommonResourceMeta
+	NodeName        string           `json:"node_name,omitempty"`
+	HostNetwork     bool             `json:"host_network"`
+	ContainerImages []string         `json:"container_images,omitempty"`
+	SecurityContext *SecurityContext `json:"security_context,omitempty"`
+	Containers      []Container      `json:"containers,omitempty"`
+}
+
+type Container struct {
+	Name            string           `json:"name"`
+	Image           string           `json:"image"`
+	SecurityContext *SecurityContext `json:"security_context,omitempty"`
 }

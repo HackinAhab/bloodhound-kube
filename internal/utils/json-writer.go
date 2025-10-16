@@ -1,4 +1,4 @@
-package writer
+package utils
 
 import (
 	"bufio"
@@ -7,25 +7,23 @@ import (
 	"os"
 	"path/filepath"
 	"time"
-
-	"bloodhound-kube/internal/logger"
 )
 
 type AsyncWriter struct {
 	file   *os.File
 	writer *bufio.Writer
-	logger *logger.Logger
+	logger *Logger
 }
 
-func NewAsyncWriter(outputPath, filename string, log *logger.Logger) (*AsyncWriter, error) {
+func NewAsyncWriter(outputPath, filename string, log *Logger) (*AsyncWriter, error) {
 	return newAsyncWriter(outputPath, filename, log, false)
 }
 
-func NewAsyncWriterAppend(outputPath, filename string, log *logger.Logger) (*AsyncWriter, error) {
+func NewAsyncWriterAppend(outputPath, filename string, log *Logger) (*AsyncWriter, error) {
 	return newAsyncWriter(outputPath, filename, log, true)
 }
 
-func newAsyncWriter(outputPath, filename string, log *logger.Logger, appendMode bool) (*AsyncWriter, error) {
+func newAsyncWriter(outputPath, filename string, log *Logger, appendMode bool) (*AsyncWriter, error) {
 	if err := os.MkdirAll(outputPath, 0755); err != nil {
 		return nil, fmt.Errorf("failed to create output directory: %w", err)
 	}

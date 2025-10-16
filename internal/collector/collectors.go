@@ -108,11 +108,6 @@ func collectDeployments(ctx context.Context, c *Collector, namespace string) ([]
 			containerImages = append(containerImages, container.Image)
 		}
 
-		replicas := int32(0)
-		if deploy.Spec.Replicas != nil {
-			replicas = *deploy.Spec.Replicas
-		}
-
 		var selector map[string]string
 		if deploy.Spec.Selector != nil && deploy.Spec.Selector.MatchLabels != nil {
 			selector = deploy.Spec.Selector.MatchLabels
@@ -127,20 +122,8 @@ func collectDeployments(ctx context.Context, c *Collector, namespace string) ([]
 				CreatedAt:   deploy.CreationTimestamp.Time,
 			},
 			Spec: DeploymentSpec{
-				Replicas:                &replicas,
-				Selector:                selector,
-				StrategyType:            string(deploy.Spec.Strategy.Type),
-				ContainerImages:         containerImages,
-				RevisionHistoryLimit:    deploy.Spec.RevisionHistoryLimit,
-				ProgressDeadlineSeconds: deploy.Spec.ProgressDeadlineSeconds,
-			},
-			Status: DeploymentStatus{
-				Replicas:            replicas,
-				ReadyReplicas:       deploy.Status.ReadyReplicas,
-				AvailableReplicas:   deploy.Status.AvailableReplicas,
-				UnavailableReplicas: deploy.Status.UnavailableReplicas,
-				UpdatedReplicas:     deploy.Status.UpdatedReplicas,
-				ObservedGeneration:  deploy.Status.ObservedGeneration,
+				Selector:        selector,
+				ContainerImages: containerImages,
 			},
 		}
 
@@ -172,15 +155,6 @@ func collectNodes(ctx context.Context, c *Collector, namespace string) ([]any, e
 			}
 		}
 
-		var taints []NodeTaint
-		for _, taint := range node.Spec.Taints {
-			taints = append(taints, NodeTaint{
-				Key:    taint.Key,
-				Value:  taint.Value,
-				Effect: string(taint.Effect),
-			})
-		}
-
 		nodes = append(nodes, Node{
 			Name:             node.Name,
 			Labels:           node.Labels,
@@ -197,19 +171,6 @@ func collectNodes(ctx context.Context, c *Collector, namespace string) ([]any, e
 			Architecture:     node.Status.NodeInfo.Architecture,
 			OperatingSystem:  node.Status.NodeInfo.OperatingSystem,
 			Unschedulable:    node.Spec.Unschedulable,
-			Capacity: NodeResources{
-				CPU:              node.Status.Capacity.Cpu().String(),
-				Memory:           node.Status.Capacity.Memory().String(),
-				EphemeralStorage: node.Status.Capacity.StorageEphemeral().String(),
-				Pods:             node.Status.Capacity.Pods().String(),
-			},
-			Allocatable: NodeResources{
-				CPU:              node.Status.Allocatable.Cpu().String(),
-				Memory:           node.Status.Allocatable.Memory().String(),
-				EphemeralStorage: node.Status.Allocatable.StorageEphemeral().String(),
-				Pods:             node.Status.Allocatable.Pods().String(),
-			},
-			Taints: taints,
 		})
 	}
 
@@ -685,19 +646,9 @@ func collectStatefulSets(ctx context.Context, c *Collector, namespace string) ([
 			volumeClaimTemplateNames = append(volumeClaimTemplateNames, vct.Name)
 		}
 
-		replicas := int32(0)
-		if sts.Spec.Replicas != nil {
-			replicas = *sts.Spec.Replicas
-		}
-
 		var selector map[string]string
 		if sts.Spec.Selector != nil && sts.Spec.Selector.MatchLabels != nil {
 			selector = sts.Spec.Selector.MatchLabels
-		}
-
-		var partition *int32
-		if sts.Spec.UpdateStrategy.RollingUpdate != nil && sts.Spec.UpdateStrategy.RollingUpdate.Partition != nil {
-			partition = sts.Spec.UpdateStrategy.RollingUpdate.Partition
 		}
 
 		statefulSets = append(statefulSets, StatefulSet{
@@ -708,15 +659,7 @@ func collectStatefulSets(ctx context.Context, c *Collector, namespace string) ([
 				Annotations: AnnotationsCleaner(sts.Annotations),
 				CreatedAt:   sts.CreationTimestamp.Time,
 			},
-			Replicas:                 replicas,
-			ReadyReplicas:            sts.Status.ReadyReplicas,
-			CurrentReplicas:          sts.Status.CurrentReplicas,
-			UpdatedReplicas:          sts.Status.UpdatedReplicas,
-			ObservedGeneration:       sts.Status.ObservedGeneration,
 			ServiceName:              sts.Spec.ServiceName,
-			PodManagementPolicy:      string(sts.Spec.PodManagementPolicy),
-			UpdateStrategyType:       string(sts.Spec.UpdateStrategy.Type),
-			Partition:                partition,
 			ContainerImages:          containerImages,
 			Selector:                 selector,
 			VolumeClaimTemplateNames: volumeClaimTemplateNames,
@@ -749,7 +692,6 @@ func collectImages(ctx context.Context, c *Collector, namespace string) ([]any, 
 	return []any{}, nil
 }
 
-// Example new collector demonstrating how easy it is to add
 func collectPods(ctx context.Context, c *Collector, namespace string) ([]any, error) {
 	c.logger.Info("Collecting pods", "namespace", namespace)
 
@@ -761,25 +703,101 @@ func collectPods(ctx context.Context, c *Collector, namespace string) ([]any, er
 	pods := make([]any, 0, len(podList.Items))
 	for _, pod := range podList.Items {
 		var containerImages []string
+		var containers []Container
+
+		var allCapAdd []string
+		var allCapDrop []string
+
 		for _, container := range pod.Spec.Containers {
 			containerImages = append(containerImages, container.Image)
+
+			var containerSecurityContext *SecurityContext
+			if container.SecurityContext != nil {
+				containerSecurityContext = &SecurityContext{}
+
+				if container.SecurityContext.AllowPrivilegeEscalation != nil {
+					containerSecurityContext.AllowPrivEsc = container.SecurityContext.AllowPrivilegeEscalation
+				}
+				if container.SecurityContext.RunAsUser != nil {
+					containerSecurityContext.RunAsUser = container.SecurityContext.RunAsUser
+				}
+				if container.SecurityContext.RunAsNonRoot != nil {
+					containerSecurityContext.RunAsNonRoot = container.SecurityContext.RunAsNonRoot
+				}
+				if container.SecurityContext.RunAsGroup != nil {
+					containerSecurityContext.RunAsGroup = container.SecurityContext.RunAsGroup
+				}
+
+				if container.SecurityContext.Capabilities != nil {
+					var containerCapAdd []string
+					var containerCapDrop []string
+
+					if container.SecurityContext.Capabilities.Add != nil {
+						for _, cap := range container.SecurityContext.Capabilities.Add {
+							capStr := string(cap)
+							containerCapAdd = append(containerCapAdd, capStr)
+						}
+					}
+					if container.SecurityContext.Capabilities.Drop != nil {
+						for _, cap := range container.SecurityContext.Capabilities.Drop {
+							capStr := string(cap)
+							containerCapDrop = append(containerCapDrop, capStr)
+						}
+					}
+
+					if len(containerCapAdd) > 0 || len(containerCapDrop) > 0 {
+						containerSecurityContext.LinuxCapabilities = &LinuxCapabilities{
+							Add:  containerCapAdd,
+							Drop: containerCapDrop,
+						}
+					}
+				}
+			}
+
+			// Add container to containers slice
+			containers = append(containers, Container{
+				Name:            container.Name,
+				Image:           container.Image,
+				SecurityContext: containerSecurityContext,
+			})
 		}
 
-		// Create a simple pod structure - you can extend this based on your needs
-		podData := map[string]any{
-			"name":             pod.Name,
-			"namespace":        pod.Namespace,
-			"labels":           pod.Labels,
-			"annotations":      AnnotationsCleaner(pod.Annotations),
-			"created_at":       pod.CreationTimestamp.Format("2006-01-02T15:04:05Z"),
-			"phase":            string(pod.Status.Phase),
-			"node_name":        pod.Spec.NodeName,
-			"host_network":     pod.Spec.HostNetwork,
-			"container_images": containerImages,
-			"restart_policy":   string(pod.Spec.RestartPolicy),
+		var securityContext *SecurityContext
+		if pod.Spec.SecurityContext != nil || len(allCapAdd) > 0 || len(allCapDrop) > 0 {
+			securityContext = &SecurityContext{}
+
+			if pod.Spec.SecurityContext != nil {
+				securityContext.RunAsUser = pod.Spec.SecurityContext.RunAsUser
+				securityContext.RunAsGroup = pod.Spec.SecurityContext.RunAsGroup
+				securityContext.RunAsNonRoot = pod.Spec.SecurityContext.RunAsNonRoot
+				securityContext.FSGroup = pod.Spec.SecurityContext.FSGroup
+
+				if pod.Spec.SecurityContext.SeccompProfile != nil {
+					seccompProfile := &SeccompProfile{
+						Type: string(pod.Spec.SecurityContext.SeccompProfile.Type),
+					}
+					if pod.Spec.SecurityContext.SeccompProfile.LocalhostProfile != nil {
+						seccompProfile.LocalhostProfile = *pod.Spec.SecurityContext.SeccompProfile.LocalhostProfile
+					}
+					securityContext.SeccompProfile = seccompProfile
+				}
+			}
 		}
 
-		pods = append(pods, podData)
+		pods = append(pods, Pod{
+			CommonResourceMeta: CommonResourceMeta{
+				Name:        pod.Name,
+				Namespace:   pod.Namespace,
+				Labels:      pod.Labels,
+				Annotations: AnnotationsCleaner(pod.Annotations),
+				CreatedAt:   pod.CreationTimestamp.Time,
+			},
+			NodeName:        pod.Spec.NodeName,
+			HostNetwork:     pod.Spec.HostNetwork,
+			ContainerImages: containerImages,
+			SecurityContext: securityContext,
+			Containers:      containers,
+		})
 	}
 
 	c.logger.Info("Successfully collected pods", "count", len(pods))

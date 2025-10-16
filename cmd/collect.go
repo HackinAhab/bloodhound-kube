@@ -8,9 +8,7 @@ import (
 	"time"
 
 	"bloodhound-kube/internal/collector"
-	"bloodhound-kube/internal/k8s"
-	"bloodhound-kube/internal/logger"
-	"bloodhound-kube/internal/writer"
+	"bloodhound-kube/internal/utils"
 
 	"github.com/spf13/cobra"
 )
@@ -100,7 +98,7 @@ Examples:
   # Specify full path with directory and filename
   bloodhound-kube collect --output /tmp/my-collection.ndjson`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		log := logger.New(logLevel)
+		log := utils.New(logLevel)
 
 		if allNamespaces && cmd.Flags().Changed("namespace") {
 			return fmt.Errorf("cannot use -A (all namespaces) and -n (namespace) flags together")
@@ -110,19 +108,19 @@ Examples:
 			return fmt.Errorf("--server and --token flags must be used together")
 		}
 
-		var clusterTypeEnum k8s.ClusterType
+		var clusterTypeEnum utils.ClusterType
 		switch clusterType {
 		case "kubernetes", "k8s":
-			clusterTypeEnum = k8s.ClusterTypeKubernetes
+			clusterTypeEnum = utils.ClusterTypeKubernetes
 		case "openshift", "ocp":
-			clusterTypeEnum = k8s.ClusterTypeOpenShift
+			clusterTypeEnum = utils.ClusterTypeOpenShift
 		case "auto", "":
-			clusterTypeEnum = k8s.ClusterTypeAuto
+			clusterTypeEnum = utils.ClusterTypeAuto
 		default:
 			return fmt.Errorf("invalid cluster type %q, must be one of: kubernetes, openshift, auto", clusterType)
 		}
 
-		cfg := k8s.ClientConfig{
+		cfg := utils.ClientConfig{
 			Kubeconfig:  kubeconfig,
 			Server:      server,
 			Token:       token,
@@ -206,15 +204,15 @@ Examples:
 			checkpointFile = collector.DefaultCheckpointPath(outputDir, filename)
 		}
 
-		var asyncWriter *writer.AsyncWriter
+		var asyncWriter *utils.AsyncWriter
 		if resume {
-			asyncWriter, err = writer.NewAsyncWriterAppend(outputDir, filename, log)
+			asyncWriter, err = utils.NewAsyncWriterAppend(outputDir, filename, log)
 			if err != nil {
 				return fmt.Errorf("failed to create async writer for append: %w", err)
 			}
 			log.Info("Resuming collection, appending to existing file", "file", filename)
 		} else {
-			asyncWriter, err = writer.NewAsyncWriter(outputDir, filename, log)
+			asyncWriter, err = utils.NewAsyncWriter(outputDir, filename, log)
 			if err != nil {
 				return fmt.Errorf("failed to create async writer: %w", err)
 			}
@@ -252,7 +250,7 @@ func init() {
 	// Initialize registry to get available resource types
 	registry := collector.NewResourceRegistry()
 	// Initialize with Kubernetes defaults first
-	registry.InitializeForCluster(k8s.ClusterTypeKubernetes)
+	registry.InitializeForCluster(utils.ClusterTypeKubernetes)
 	availableTypes := registry.GetAllNames()
 
 	// Create help text with dynamic resource types list

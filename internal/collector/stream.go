@@ -1,14 +1,12 @@
 package collector
 
 import (
+	"bloodhound-kube/internal/utils"
 	"context"
 	"crypto/rand"
 	"fmt"
 	"sync"
 	"time"
-
-	"bloodhound-kube/internal/logger"
-	"bloodhound-kube/internal/writer"
 )
 
 type Resource struct {
@@ -23,7 +21,7 @@ type CollectionJob struct {
 	Namespace string
 }
 
-func RunCollection(ctx context.Context, c *Collector, w *writer.AsyncWriter, typesToCollect, namespacesToCollect []string, filename string, concurrency int, log *logger.Logger) (time.Duration, map[string]int, int, []error) {
+func RunCollection(ctx context.Context, c *Collector, w *utils.AsyncWriter, typesToCollect, namespacesToCollect []string, filename string, concurrency int, log *utils.Logger) (time.Duration, map[string]int, int, []error) {
 	startTime := time.Now()
 	stats := NewCollectionStats()
 
@@ -141,7 +139,7 @@ func RunCollection(ctx context.Context, c *Collector, w *writer.AsyncWriter, typ
 	return duration, counts, totalCollected, errors
 }
 
-func RunCollectionWithCheckpoint(ctx context.Context, c *Collector, w *writer.AsyncWriter, typesToCollect, namespacesToCollect []string, filename string, concurrency int, log *logger.Logger, existingCheckpoint *Checkpoint, checkpointFile string) (time.Duration, map[string]int, int, []error) {
+func RunCollectionWithCheckpoint(ctx context.Context, c *Collector, w *utils.AsyncWriter, typesToCollect, namespacesToCollect []string, filename string, concurrency int, log *utils.Logger, existingCheckpoint *Checkpoint, checkpointFile string) (time.Duration, map[string]int, int, []error) {
 	startTime := time.Now()
 	stats := NewCollectionStats()
 
@@ -319,7 +317,7 @@ type CollectionResult struct {
 	Error     error
 }
 
-func checkpointWorker(ctx context.Context, c *Collector, jobs <-chan CollectionJob, results chan<- CollectionResult, log *logger.Logger) {
+func checkpointWorker(ctx context.Context, c *Collector, jobs <-chan CollectionJob, results chan<- CollectionResult, log *utils.Logger) {
 	for job := range jobs {
 		select {
 		case <-ctx.Done():
@@ -371,7 +369,7 @@ func generateCollectionID() string {
 	return fmt.Sprintf("%x", bytes)
 }
 
-func collectWorker(ctx context.Context, c *Collector, jobs <-chan CollectionJob, results chan<- []Resource, log *logger.Logger) {
+func collectWorker(ctx context.Context, c *Collector, jobs <-chan CollectionJob, results chan<- []Resource, log *utils.Logger) {
 	for job := range jobs {
 		select {
 		case <-ctx.Done():

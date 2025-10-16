@@ -1,13 +1,12 @@
 package collector
 
 import (
+	"bloodhound-kube/internal/utils"
 	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"time"
-
-	"bloodhound-kube/internal/k8s"
 )
 
 type Checkpoint struct {
@@ -44,7 +43,7 @@ type FailedJob struct {
 	Retries   int    `json:"retries"`
 }
 
-func NewCheckpoint(collectionID, outputFile string, clusterType k8s.ClusterType, clusterInfo *k8s.ClusterInfo, totalJobs int) *Checkpoint {
+func NewCheckpoint(collectionID, outputFile string, clusterType utils.ClusterType, clusterInfo *utils.ClusterInfo, totalJobs int) *Checkpoint {
 	cluster := ClusterInfo{
 		Type:     string(clusterType),
 		Platform: clusterInfo.Platform,

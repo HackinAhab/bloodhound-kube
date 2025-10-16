@@ -1,17 +1,16 @@
 package collector
 
 import (
+	"bloodhound-kube/internal/utils"
 	"context"
 	"time"
-
-	"bloodhound-kube/internal/k8s"
 )
 
 type ResourceHandler interface {
 	GetName() string
 	IsClusterScoped() bool
 	GetDescription() string
-	GetSupportedClusterTypes() []k8s.ClusterType
+	GetSupportedClusterTypes() []utils.ClusterType
 	Collect(ctx context.Context, c *Collector, namespace string) ([]Resource, error)
 }
 
@@ -24,7 +23,7 @@ type Handler struct {
 	resourceType          string
 	description           string
 	clusterScoped         bool
-	supportedClusterTypes []k8s.ClusterType
+	supportedClusterTypes []utils.ClusterType
 	collectFunc           CollectFunc
 }
 
@@ -40,7 +39,7 @@ func (h *Handler) GetDescription() string {
 	return h.description
 }
 
-func (h *Handler) GetSupportedClusterTypes() []k8s.ClusterType {
+func (h *Handler) GetSupportedClusterTypes() []utils.ClusterType {
 	return h.supportedClusterTypes
 }
 
@@ -97,7 +96,7 @@ type HandlerMetadata struct {
 	ResourceType          string
 	Description           string
 	ClusterScoped         bool
-	SupportedClusterTypes []k8s.ClusterType
+	SupportedClusterTypes []utils.ClusterType
 	CollectFunc           CollectFunc
 }
 

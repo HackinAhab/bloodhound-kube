@@ -1,4 +1,4 @@
-package k8s
+package utils
 
 import (
 	"fmt"
@@ -116,6 +116,7 @@ func discoverKubeconfig() (*rest.Config, error) {
 	if kubeConfigEnv != "" {
 		// KUBECONFIG may contain a list of paths separated by the OS path list separator.
 		// Takes the first non-empty entry for now.
+		// TODO: Interactive config selection? CLI option?
 		parts := filepath.SplitList(kubeConfigEnv)
 		var chosen string
 		for _, p := range parts {

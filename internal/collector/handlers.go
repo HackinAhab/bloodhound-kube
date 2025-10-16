@@ -1,7 +1,7 @@
 package collector
 
 import (
-	"bloodhound-kube/internal/k8s"
+	"bloodhound-kube/internal/utils"
 )
 
 // AllHandlers defines all available resource handlers with their metadata
@@ -15,7 +15,7 @@ var AllHandlers = []HandlerMetadata{
 		ResourceType:          "node",
 		Description:           "Collect Kubernetes nodes",
 		ClusterScoped:         true,
-		SupportedClusterTypes: []k8s.ClusterType{k8s.ClusterTypeKubernetes, k8s.ClusterTypeOpenShift},
+		SupportedClusterTypes: []utils.ClusterType{utils.ClusterTypeKubernetes, utils.ClusterTypeOpenShift},
 		CollectFunc:           collectNodes,
 	},
 	{
@@ -23,7 +23,7 @@ var AllHandlers = []HandlerMetadata{
 		ResourceType:          "secret",
 		Description:           "Collect Kubernetes secrets",
 		ClusterScoped:         false,
-		SupportedClusterTypes: []k8s.ClusterType{k8s.ClusterTypeKubernetes, k8s.ClusterTypeOpenShift},
+		SupportedClusterTypes: []utils.ClusterType{utils.ClusterTypeKubernetes, utils.ClusterTypeOpenShift},
 		CollectFunc:           collectSecrets,
 	},
 	{
@@ -31,7 +31,7 @@ var AllHandlers = []HandlerMetadata{
 		ResourceType:          "configmap",
 		Description:           "Collect Kubernetes configmaps",
 		ClusterScoped:         false,
-		SupportedClusterTypes: []k8s.ClusterType{k8s.ClusterTypeKubernetes, k8s.ClusterTypeOpenShift},
+		SupportedClusterTypes: []utils.ClusterType{utils.ClusterTypeKubernetes, utils.ClusterTypeOpenShift},
 		CollectFunc:           collectConfigMaps,
 	},
 	{
@@ -39,7 +39,7 @@ var AllHandlers = []HandlerMetadata{
 		ResourceType:          "deployment",
 		Description:           "Collect Kubernetes deployments",
 		ClusterScoped:         false,
-		SupportedClusterTypes: []k8s.ClusterType{k8s.ClusterTypeKubernetes, k8s.ClusterTypeOpenShift},
+		SupportedClusterTypes: []utils.ClusterType{utils.ClusterTypeKubernetes, utils.ClusterTypeOpenShift},
 		CollectFunc:           collectDeployments,
 	},
 	{
@@ -47,7 +47,7 @@ var AllHandlers = []HandlerMetadata{
 		ResourceType:          "service",
 		Description:           "Collect Kubernetes services",
 		ClusterScoped:         false,
-		SupportedClusterTypes: []k8s.ClusterType{k8s.ClusterTypeKubernetes, k8s.ClusterTypeOpenShift},
+		SupportedClusterTypes: []utils.ClusterType{utils.ClusterTypeKubernetes, utils.ClusterTypeOpenShift},
 		CollectFunc:           collectServices,
 	},
 	{
@@ -55,7 +55,7 @@ var AllHandlers = []HandlerMetadata{
 		ResourceType:          "ingress",
 		Description:           "Collect Kubernetes ingresses",
 		ClusterScoped:         false,
-		SupportedClusterTypes: []k8s.ClusterType{k8s.ClusterTypeKubernetes, k8s.ClusterTypeOpenShift},
+		SupportedClusterTypes: []utils.ClusterType{utils.ClusterTypeKubernetes, utils.ClusterTypeOpenShift},
 		CollectFunc:           collectIngresses,
 	},
 	{
@@ -63,7 +63,7 @@ var AllHandlers = []HandlerMetadata{
 		ResourceType:          "gateway",
 		Description:           "Collect Kubernetes gateways",
 		ClusterScoped:         false,
-		SupportedClusterTypes: []k8s.ClusterType{k8s.ClusterTypeKubernetes, k8s.ClusterTypeOpenShift},
+		SupportedClusterTypes: []utils.ClusterType{utils.ClusterTypeKubernetes, utils.ClusterTypeOpenShift},
 		CollectFunc:           collectGateways,
 	},
 	{
@@ -71,7 +71,7 @@ var AllHandlers = []HandlerMetadata{
 		ResourceType:          "rbac",
 		Description:           "Collect Kubernetes RBAC resources",
 		ClusterScoped:         true,
-		SupportedClusterTypes: []k8s.ClusterType{k8s.ClusterTypeKubernetes, k8s.ClusterTypeOpenShift},
+		SupportedClusterTypes: []utils.ClusterType{utils.ClusterTypeKubernetes, utils.ClusterTypeOpenShift},
 		CollectFunc:           collectRBAC,
 	},
 	{
@@ -79,7 +79,7 @@ var AllHandlers = []HandlerMetadata{
 		ResourceType:          "networkpolicy",
 		Description:           "Collect Kubernetes network policies",
 		ClusterScoped:         false,
-		SupportedClusterTypes: []k8s.ClusterType{k8s.ClusterTypeKubernetes, k8s.ClusterTypeOpenShift},
+		SupportedClusterTypes: []utils.ClusterType{utils.ClusterTypeKubernetes, utils.ClusterTypeOpenShift},
 		CollectFunc:           collectNetworkPolicies,
 	},
 	{
@@ -87,7 +87,7 @@ var AllHandlers = []HandlerMetadata{
 		ResourceType:          "crd",
 		Description:           "Collect Kubernetes custom resource definitions",
 		ClusterScoped:         true,
-		SupportedClusterTypes: []k8s.ClusterType{k8s.ClusterTypeKubernetes, k8s.ClusterTypeOpenShift},
+		SupportedClusterTypes: []utils.ClusterType{utils.ClusterTypeKubernetes, utils.ClusterTypeOpenShift},
 		CollectFunc:           collectCRDs,
 	},
 	{
@@ -95,7 +95,7 @@ var AllHandlers = []HandlerMetadata{
 		ResourceType:          "daemonset",
 		Description:           "Collect Kubernetes daemonsets",
 		ClusterScoped:         false,
-		SupportedClusterTypes: []k8s.ClusterType{k8s.ClusterTypeKubernetes, k8s.ClusterTypeOpenShift},
+		SupportedClusterTypes: []utils.ClusterType{utils.ClusterTypeKubernetes, utils.ClusterTypeOpenShift},
 		CollectFunc:           collectDaemonSets,
 	},
 	{
@@ -103,7 +103,7 @@ var AllHandlers = []HandlerMetadata{
 		ResourceType:          "statefulset",
 		Description:           "Collect Kubernetes statefulsets",
 		ClusterScoped:         false,
-		SupportedClusterTypes: []k8s.ClusterType{k8s.ClusterTypeKubernetes, k8s.ClusterTypeOpenShift},
+		SupportedClusterTypes: []utils.ClusterType{utils.ClusterTypeKubernetes, utils.ClusterTypeOpenShift},
 		CollectFunc:           collectStatefulSets,
 	},
 	// OpenShift-specific handlers
@@ -112,7 +112,7 @@ var AllHandlers = []HandlerMetadata{
 		ResourceType:          "route",
 		Description:           "Collect OpenShift routes",
 		ClusterScoped:         false,
-		SupportedClusterTypes: []k8s.ClusterType{k8s.ClusterTypeOpenShift},
+		SupportedClusterTypes: []utils.ClusterType{utils.ClusterTypeOpenShift},
 		CollectFunc:           collectRoutes,
 	},
 	{
@@ -120,7 +120,7 @@ var AllHandlers = []HandlerMetadata{
 		ResourceType:          "project",
 		Description:           "Collect OpenShift projects",
 		ClusterScoped:         true,
-		SupportedClusterTypes: []k8s.ClusterType{k8s.ClusterTypeOpenShift},
+		SupportedClusterTypes: []utils.ClusterType{utils.ClusterTypeOpenShift},
 		CollectFunc:           collectProjects,
 	},
 	{
@@ -128,7 +128,7 @@ var AllHandlers = []HandlerMetadata{
 		ResourceType:          "image",
 		Description:           "Collect OpenShift images",
 		ClusterScoped:         true,
-		SupportedClusterTypes: []k8s.ClusterType{k8s.ClusterTypeOpenShift},
+		SupportedClusterTypes: []utils.ClusterType{utils.ClusterTypeOpenShift},
 		CollectFunc:           collectImages,
 	},
 	// Example: Adding a new collector - just add this metadata entry!
@@ -137,7 +137,7 @@ var AllHandlers = []HandlerMetadata{
 		ResourceType:          "pod",
 		Description:           "Collect Kubernetes pods",
 		ClusterScoped:         false,
-		SupportedClusterTypes: []k8s.ClusterType{k8s.ClusterTypeKubernetes, k8s.ClusterTypeOpenShift},
+		SupportedClusterTypes: []utils.ClusterType{utils.ClusterTypeKubernetes, utils.ClusterTypeOpenShift},
 		CollectFunc:           collectPods,
 	},
 }

@@ -1,11 +1,10 @@
 package collector
 
 import (
+	"bloodhound-kube/internal/utils"
 	"fmt"
 	"sort"
 	"strings"
-
-	"bloodhound-kube/internal/k8s"
 )
 
 type ResourceRegistry struct {
@@ -29,7 +28,7 @@ func (r *ResourceRegistry) registerDefaults() {
 	}
 }
 
-func (r *ResourceRegistry) InitializeForCluster(clusterType k8s.ClusterType) {
+func (r *ResourceRegistry) InitializeForCluster(clusterType utils.ClusterType) {
 	// Clear existing handlers
 	r.handlers = make(map[string]ResourceHandler)
 
@@ -43,7 +42,7 @@ func (r *ResourceRegistry) InitializeForCluster(clusterType k8s.ClusterType) {
 }
 
 // supportsClusterType checks if the handler supports the given cluster type
-func (r *ResourceRegistry) supportsClusterType(supportedTypes []k8s.ClusterType, clusterType k8s.ClusterType) bool {
+func (r *ResourceRegistry) supportsClusterType(supportedTypes []utils.ClusterType, clusterType utils.ClusterType) bool {
 	for _, supportedType := range supportedTypes {
 		if supportedType == clusterType {
 			return true
@@ -120,7 +119,7 @@ func (r *ResourceRegistry) GetHandlerDescriptions() map[string]string {
 }
 
 // ListHandlersForClusterType returns all handlers that support the given cluster type
-func (r *ResourceRegistry) ListHandlersForClusterType(clusterType k8s.ClusterType) []string {
+func (r *ResourceRegistry) ListHandlersForClusterType(clusterType utils.ClusterType) []string {
 	var handlers []string
 	for _, meta := range AllHandlers {
 		if r.supportsClusterType(meta.SupportedClusterTypes, clusterType) {

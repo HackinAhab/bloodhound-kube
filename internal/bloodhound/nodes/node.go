@@ -39,15 +39,6 @@ func (m *NodePropertyMapper) MapProperties(resource any) (map[string]any, error)
 		"operating_system":  node.OperatingSystem,
 		"unschedulable":     node.Unschedulable,
 		"created_at":        node.CreatedAt,
-
-		"cpu_capacity":                  getResourceValue(node.Capacity.CPU),
-		"memory_capacity":               getResourceValue(node.Capacity.Memory),
-		"ephemeral_storage_capacity":    getResourceValue(node.Capacity.EphemeralStorage),
-		"pods_capacity":                 getResourceValue(node.Capacity.Pods),
-		"cpu_allocatable":               getResourceValue(node.Allocatable.CPU),
-		"memory_allocatable":            getResourceValue(node.Allocatable.Memory),
-		"ephemeral_storage_allocatable": getResourceValue(node.Allocatable.EphemeralStorage),
-		"pods_allocatable":              getResourceValue(node.Allocatable.Pods),
 	}
 
 	if node.Labels != nil {
@@ -125,31 +116,6 @@ func (m *NodePropertyMapper) MapProperties(resource any) (map[string]any, error)
 		properties["has_security_annotations"] = len(securityAnnotations) > 0
 	}
 
-	if len(node.Taints) > 0 {
-		var criticalTaints []string
-		var hasNoSchedule bool
-		var hasNoExecute bool
-
-		for _, taint := range node.Taints {
-			if strings.Contains(taint.Key, "master") ||
-				strings.Contains(taint.Key, "control-plane") ||
-				strings.Contains(taint.Key, "node-role") {
-				criticalTaints = append(criticalTaints, taint.Key+":"+taint.Effect)
-			}
-
-			if taint.Effect == "NoSchedule" {
-				hasNoSchedule = true
-			}
-			if taint.Effect == "NoExecute" {
-				hasNoExecute = true
-			}
-		}
-
-		properties["critical_taints_count"] = len(criticalTaints)
-		properties["has_critical_taints"] = len(criticalTaints) > 0
-		properties["blocks_scheduling"] = hasNoSchedule
-		properties["evicts_pods"] = hasNoExecute
-	}
 	var securityIssues []string
 
 	if properties["is_control_plane"] == true {
@@ -235,12 +201,4 @@ func (p *NodeParser) Parse(resource bloodhound.ResourceData) (*bloodhound.Parsed
 	}
 
 	return result, nil
-}
-
-// getResourceValue safely extracts resource values
-func getResourceValue(value string) string {
-	if value == "" {
-		return "0"
-	}
-	return value
 }

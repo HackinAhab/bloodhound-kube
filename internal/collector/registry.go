@@ -3,6 +3,7 @@ package collector
 import (
 	"bloodhound-kube/internal/utils"
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 )
@@ -43,12 +44,7 @@ func (r *ResourceRegistry) InitializeForCluster(clusterType utils.ClusterType) {
 
 // supportsClusterType checks if the handler supports the given cluster type
 func (r *ResourceRegistry) supportsClusterType(supportedTypes []utils.ClusterType, clusterType utils.ClusterType) bool {
-	for _, supportedType := range supportedTypes {
-		if supportedType == clusterType {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(supportedTypes, clusterType)
 }
 
 func (r *ResourceRegistry) Register(handler ResourceHandler) {

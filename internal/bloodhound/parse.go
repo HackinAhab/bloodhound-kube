@@ -166,10 +166,10 @@ func convertObjectArrayToPrimitives(arr []any) []string {
 }
 
 // ConvertToBloodHoundResult creates a BloodHound-compliant result with metadata
-func ConvertToBloodHoundResult(ndjsonData []byte, clusterName string) (*BloodHoundResult, error) {
-	resources, err := ParseFromNDJSON(ndjsonData)
+func ConvertToBloodHoundResult(jsonlData []byte, clusterName string) (*BloodHoundResult, error) {
+	resources, err := ParseFromJSONL(jsonlData)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse NDJSON: %w", err)
+		return nil, fmt.Errorf("failed to parse JSONL: %w", err)
 	}
 
 	parsed, err := DefaultRegistry.ParseBatch(resources)
@@ -263,8 +263,8 @@ func ConcurrentParseProcessor(resources []ResourceData, workerCount int) (*Blood
 	}, nil
 }
 
-func ParseFromNDJSON(ndjsonData []byte) ([]ResourceData, error) {
-	lines := strings.Split(string(ndjsonData), "\n")
+func ParseFromJSONL(jsonlData []byte) ([]ResourceData, error) {
+	lines := strings.Split(string(jsonlData), "\n")
 	var resources []ResourceData
 
 	for i, line := range lines {
@@ -284,17 +284,17 @@ func ParseFromNDJSON(ndjsonData []byte) ([]ResourceData, error) {
 	return resources, nil
 }
 
-func ConvertToBloodHound(ndjsonData []byte) (*ParsedResult, error) {
-	resources, err := ParseFromNDJSON(ndjsonData)
+func ConvertToBloodHound(jsonlData []byte) (*ParsedResult, error) {
+	resources, err := ParseFromJSONL(jsonlData)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse NDJSON: %w", err)
+		return nil, fmt.Errorf("failed to parse JSONL: %w", err)
 	}
 
 	return DefaultRegistry.ParseBatch(resources)
 }
 
-func ConvertToBloodHoundJSON(ndjsonData []byte) ([]byte, error) {
-	result, err := ConvertToBloodHound(ndjsonData)
+func ConvertToBloodHoundJSON(jsonlData []byte) ([]byte, error) {
+	result, err := ConvertToBloodHound(jsonlData)
 	if err != nil {
 		return nil, err
 	}

@@ -82,21 +82,18 @@ type CRDVersion struct {
 }
 
 type Node struct {
-	Name             string            `json:"name"`
-	Labels           map[string]string `json:"labels,omitempty"`
-	Annotations      map[string]string `json:"annotations,omitempty"`
-	CreatedAt        time.Time         `json:"created_at"`
-	Hostname         string            `json:"hostname"`
-	InternalIP       string            `json:"internal_ip"`
-	ExternalIP       string            `json:"external_ip,omitempty"`
-	PodCIDR          string            `json:"pod_cidr,omitempty"`
-	KubeletVersion   string            `json:"kubelet_version"`
-	ContainerRuntime string            `json:"container_runtime"`
-	OSImage          string            `json:"os_image"`
-	KernelVersion    string            `json:"kernel_version"`
-	Architecture     string            `json:"architecture"`
-	OperatingSystem  string            `json:"operating_system"`
-	Unschedulable    bool              `json:"unschedulable"`
+	CommonResourceMeta
+	Hostname         string `json:"hostname"`
+	InternalIP       string `json:"internal_ip"`
+	ExternalIP       string `json:"external_ip,omitempty"`
+	PodCIDR          string `json:"pod_cidr,omitempty"`
+	KubeletVersion   string `json:"kubelet_version"`
+	ContainerRuntime string `json:"container_runtime"`
+	OSImage          string `json:"os_image"`
+	KernelVersion    string `json:"kernel_version"`
+	Architecture     string `json:"architecture"`
+	OperatingSystem  string `json:"operating_system"`
+	Unschedulable    bool   `json:"unschedulable"`
 }
 
 type Service struct {
@@ -226,6 +223,31 @@ type StatefulSet struct {
 	SecurityContext          *SecurityContext  `json:"security_context,omitempty"`
 }
 
+type ResourceLimits struct {
+	CpuReq   string `json:"cpu_request,omitempty"`
+	CpuLimit string `json:"cpu_limit,omitempty"`
+	MemReq   string `json:"memory_request,omitempty"`
+	MemLimit string `json:"memory_limit,omitempty"`
+}
+
+type Pod struct {
+	CommonResourceMeta
+	NodeName        string           `json:"node_name,omitempty"`
+	HostNetwork     bool             `json:"host_network"`
+	ContainerImages []string         `json:"container_images,omitempty"`
+	SecurityContext *SecurityContext `json:"security_context,omitempty"`
+	Containers      []Container      `json:"containers,omitempty"`
+	ServiceAccount  string           `json:"service_account,omitempty"`
+	ResourceLimits  *ResourceLimits  `json:"resource_limits,omitempty"`
+}
+
+type Container struct {
+	Name            string           `json:"name"`
+	Image           string           `json:"image"`
+	SecurityContext *SecurityContext `json:"security_context,omitempty"`
+	ResourceLimits
+}
+
 // OpenShift Types
 type Route struct {
 	CommonResourceMeta
@@ -260,19 +282,4 @@ type Image struct {
 	DockerImageReference string            `json:"docker_image_reference"`
 	DockerImageManifest  string            `json:"docker_image_manifest,omitempty"`
 	DockerImageMetadata  string            `json:"docker_image_metadata,omitempty"`
-}
-
-type Pod struct {
-	CommonResourceMeta
-	NodeName        string           `json:"node_name,omitempty"`
-	HostNetwork     bool             `json:"host_network"`
-	ContainerImages []string         `json:"container_images,omitempty"`
-	SecurityContext *SecurityContext `json:"security_context,omitempty"`
-	Containers      []Container      `json:"containers,omitempty"`
-}
-
-type Container struct {
-	Name            string           `json:"name"`
-	Image           string           `json:"image"`
-	SecurityContext *SecurityContext `json:"security_context,omitempty"`
 }

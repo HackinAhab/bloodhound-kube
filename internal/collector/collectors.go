@@ -156,10 +156,12 @@ func collectNodes(ctx context.Context, c *Collector, namespace string) ([]any, e
 		}
 
 		nodes = append(nodes, Node{
-			Name:             node.Name,
-			Labels:           node.Labels,
-			Annotations:      AnnotationsCleaner(node.Annotations),
-			CreatedAt:        node.CreationTimestamp.Time,
+			CommonResourceMeta: CommonResourceMeta{
+				Name:        node.Name,
+				Labels:      node.Labels,
+				Annotations: AnnotationsCleaner(node.Annotations),
+				CreatedAt:   node.CreationTimestamp.Time,
+			},
 			Hostname:         node.Name, // Use name as hostname fallback
 			InternalIP:       internalIP,
 			ExternalIP:       externalIP,
@@ -708,6 +710,12 @@ func collectPods(ctx context.Context, c *Collector, namespace string) ([]any, er
 		var allCapAdd []string
 		var allCapDrop []string
 
+		// Note: Pod-level resource limits are rarely used in Kubernetes
+		// Most resource limits are defined at the container level
+		// Pods do not need an aggregate of container limits - if pod-level limits
+		// are not explicitly set in the pod spec, they should be null
+		var podResourceLimits *ResourceLimits
+
 		for _, container := range pod.Spec.Containers {
 			containerImages = append(containerImages, container.Image)
 
@@ -754,11 +762,30 @@ func collectPods(ctx context.Context, c *Collector, namespace string) ([]any, er
 				}
 			}
 
-			// Add container to containers slice
+			// Extract container resource limits
+			var containerResourceLimits ResourceLimits
+			if container.Resources.Requests != nil {
+				if cpuReq := container.Resources.Requests.Cpu(); cpuReq != nil {
+					containerResourceLimits.CpuReq = cpuReq.String()
+				}
+				if memReq := container.Resources.Requests.Memory(); memReq != nil {
+					containerResourceLimits.MemReq = memReq.String()
+				}
+			}
+			if container.Resources.Limits != nil {
+				if cpuLimit := container.Resources.Limits.Cpu(); cpuLimit != nil {
+					containerResourceLimits.CpuLimit = cpuLimit.String()
+				}
+				if memLimit := container.Resources.Limits.Memory(); memLimit != nil {
+					containerResourceLimits.MemLimit = memLimit.String()
+				}
+			}
+
 			containers = append(containers, Container{
 				Name:            container.Name,
 				Image:           container.Image,
 				SecurityContext: containerSecurityContext,
+				ResourceLimits:  containerResourceLimits,
 			})
 		}
 
@@ -797,6 +824,8 @@ func collectPods(ctx context.Context, c *Collector, namespace string) ([]any, er
 			ContainerImages: containerImages,
 			SecurityContext: securityContext,
 			Containers:      containers,
+			ServiceAccount:  pod.Spec.ServiceAccountName,
+			ResourceLimits:  podResourceLimits,
 		})
 	}
 

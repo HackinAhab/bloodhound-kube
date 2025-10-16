@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	apiextensionsclientset "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
@@ -222,4 +223,66 @@ func (c *Clients) GetPlatform() string {
 
 func (c *Clients) GetClusterVersion() *version.Info {
 	return c.ClusterInfo.Version
+}
+
+// GetCurrentContextNamespace returns the namespace from the current kubeconfig context
+func GetCurrentContextNamespace(kubeconfigPath string) (string, error) {
+	// Create loading rules - if kubeconfigPath is empty, it will use the default loading rules
+	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
+	if kubeconfigPath != "" {
+		loadingRules.ExplicitPath = kubeconfigPath
+	}
+
+	config, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
+		loadingRules,
+		&clientcmd.ConfigOverrides{},
+	).RawConfig()
+	if err != nil {
+		return "", fmt.Errorf("failed to load kubeconfig: %w", err)
+	}
+
+	currentContext := config.CurrentContext
+	if currentContext == "" {
+		return "default", nil
+	}
+
+	context, exists := config.Contexts[currentContext]
+	if !exists {
+		return "default", nil
+	}
+
+	if context.Namespace == "" {
+		return "default", nil
+	}
+
+	return context.Namespace, nil
+}
+
+// ParseNamespaces parses namespace string input and returns a slice of namespaces
+// If namespacesStr is empty, it returns the current context namespace
+// If namespacesStr contains comma-delimited values, it splits and trims them
+func ParseNamespaces(namespacesStr string, kubeconfigPath string) ([]string, error) {
+	if namespacesStr == "" {
+		// Get current context namespace
+		currentNS, err := GetCurrentContextNamespace(kubeconfigPath)
+		if err != nil {
+			return []string{"default"}, nil
+		}
+		return []string{currentNS}, nil
+	}
+
+	parts := strings.Split(namespacesStr, ",")
+	var namespaces []string
+	for _, part := range parts {
+		ns := strings.TrimSpace(part)
+		if ns != "" {
+			namespaces = append(namespaces, ns)
+		}
+	}
+
+	if len(namespaces) == 0 {
+		return []string{"default"}, nil
+	}
+
+	return namespaces, nil
 }

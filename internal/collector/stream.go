@@ -48,7 +48,7 @@ func RunCollection(ctx context.Context, c *Collector, w *utils.AsyncWriter, type
 
 		flushBatch := func() {
 			if len(batchBuffer) > 0 {
-				if err := w.WriteNDJSONBatch(batchBuffer); err != nil {
+				if err := w.WriteJSONLBatch(batchBuffer); err != nil {
 					log.Error("Failed to write batch", "error", err, "size", len(batchBuffer))
 					stats.AddError(err)
 				}
@@ -212,7 +212,7 @@ func RunCollectionWithCheckpoint(ctx context.Context, c *Collector, w *utils.Asy
 
 		flushBatch := func() {
 			if len(batchBuffer) > 0 {
-				if err := w.WriteNDJSONBatch(batchBuffer); err != nil {
+				if err := w.WriteJSONLBatch(batchBuffer); err != nil {
 					log.Error("Failed to write batch", "error", err, "size", len(batchBuffer))
 					stats.AddError(err)
 				}

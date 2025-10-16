@@ -14,7 +14,7 @@ import (
 )
 
 var (
-	namespace      string
+	namespaces     string
 	allNamespaces  bool
 	logLevel       string
 	output         string
@@ -34,7 +34,7 @@ var allResourceTypes []string
 
 func generateDefaultOutput() string {
 	timestamp := time.Now().Format("2006-01-02-150405")
-	return fmt.Sprintf("bloodhound-kube-%s.ndjson", timestamp)
+	return fmt.Sprintf("bloodhound-kube-%s.jsonl", timestamp)
 }
 
 func parseOutputPath(output string) (dir, filename string) {
@@ -61,7 +61,7 @@ func parseOutputPath(output string) (dir, filename string) {
 var collectCmd = &cobra.Command{
 	Use:   "collect",
 	Short: "Collect Kubernetes resources",
-	Long: `Collect Kubernetes resources from the cluster and stream as NDJSON
+	Long: `Collect Kubernetes resources from the cluster and stream as JSONL
 
 Authentication methods (in order of precedence):
 1. --server and --token flags for direct API access
@@ -71,11 +71,17 @@ Authentication methods (in order of precedence):
 5. In-cluster configuration (when running inside a pod)
 
 Examples:
-  # Use default kubeconfig
+  # Use default kubeconfig and current context namespace
   bloodhound-kube collect
 
   # Use custom kubeconfig file
   bloodhound-kube collect --kubeconfig /path/to/config
+
+  # Specify single namespace
+  bloodhound-kube collect --namespace production
+
+  # Specify multiple namespaces
+  bloodhound-kube collect --namespace prod,staging,dev
 
   # Direct API access with token
   bloodhound-kube collect --server https://k8s-api.example.com --token eyJhbGciOi...
@@ -90,13 +96,13 @@ Examples:
   bloodhound-kube collect --resume --checkpoint-file /path/to/checkpoint.json
 
   # Specify custom output filename
-  bloodhound-kube collect --output my-collection.ndjson
+  bloodhound-kube collect --output my-collection.jsonl
 
   # Specify output to a different directory
   bloodhound-kube collect --output /tmp/
 
   # Specify full path with directory and filename
-  bloodhound-kube collect --output /tmp/my-collection.ndjson`,
+  bloodhound-kube collect --output /tmp/my-collection.jsonl`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		log := utils.New(logLevel)
 
@@ -188,7 +194,10 @@ Examples:
 				return fmt.Errorf("failed to list namespaces: %w", err)
 			}
 		} else {
-			namespacesToCollect = []string{namespace}
+			namespacesToCollect, err = utils.ParseNamespaces(namespaces, kubeconfig)
+			if err != nil {
+				return fmt.Errorf("failed to parse namespaces: %w", err)
+			}
 		}
 
 		var outputDir, filename string
@@ -256,12 +265,12 @@ func init() {
 	// Create help text with dynamic resource types list
 	resourceTypeHelp := fmt.Sprintf("Resource types to collect (%s, projects*, images*). *OpenShift only. Default: all types", strings.Join(availableTypes, ", "))
 
-	collectCmd.Flags().StringVarP(&namespace, "namespace", "n", "default", "Kubernetes namespace")
+	collectCmd.Flags().StringVarP(&namespaces, "namespace", "n", "", "Kubernetes namespace(s) - comma-delimited for multiple (defaults to current context namespace)")
 	collectCmd.Flags().BoolVarP(&allNamespaces, "all-namespaces", "A", false, "Collect from all namespaces (cannot be used with -n)")
 	collectCmd.Flags().IntVarP(&concurrency, "concurrency", "c", 10, "Number of concurrent workers for streaming collection")
 	collectCmd.Flags().IntVarP(&timeout, "timeout", "", 300, "Timeout in seconds for the entire collection")
 	collectCmd.Flags().StringVarP(&logLevel, "log-level", "l", "info", "Log level (debug, info, warn, error)")
-	collectCmd.Flags().StringVarP(&output, "output", "o", "", "Output file path (can be directory, filename, or full path). Defaults to bloodhound-kube-YYYY-MM-DD-HHMMSS.ndjson in current directory")
+	collectCmd.Flags().StringVarP(&output, "output", "o", "", "Output file path (can be directory, filename, or full path). Defaults to bloodhound-kube-YYYY-MM-DD-HHMMSS.jsonl in current directory")
 	collectCmd.Flags().StringSliceVarP(&resourceTypes, "type", "t", []string{}, resourceTypeHelp)
 	collectCmd.Flags().StringVar(&kubeconfig, "kubeconfig", "", "Path to kubeconfig file (overrides KUBECONFIG and ~/.kube/config)")
 	collectCmd.Flags().StringVarP(&server, "server", "s", "", "Kubernetes API server address (requires --token)")

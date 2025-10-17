@@ -4,6 +4,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var globalLogLevel string
+
 var rootCmd = &cobra.Command{
 	Use:   "kube-bloodhound",
 	Short: "A Kubernetes resource collector",
@@ -16,4 +18,5 @@ func Execute() error {
 
 func init() {
 	cobra.OnInitialize()
+	rootCmd.PersistentFlags().StringVarP(&globalLogLevel, "log", "l", "info", "Log level (debug, info, warn, error)")
 }

@@ -28,18 +28,24 @@ func New(cfg utils.ClientConfig, log *utils.Logger) (*Collector, error) {
 
 func (c *Collector) ListNamespaces(ctx context.Context) ([]string, error) {
 	c.logger.Info("Listing all namespaces")
+	c.logger.Debug("Starting namespace enumeration")
 
 	namespaceList, err := c.clients.Kubernetes.CoreV1().Namespaces().List(ctx, metav1.ListOptions{})
 	if err != nil {
+		c.logger.Error("Failed to list namespaces", "error", err)
 		return nil, fmt.Errorf("failed to list namespaces: %w", err)
 	}
+
+	c.logger.Debug("Retrieved namespace list from API", "raw_count", len(namespaceList.Items))
 
 	var namespaces []string
 	for _, ns := range namespaceList.Items {
 		namespaces = append(namespaces, ns.Name)
+		c.logger.Debug("Found namespace", "name", ns.Name)
 	}
 
 	c.logger.Info("Successfully listed namespaces", "count", len(namespaces))
+	c.logger.Debug("Namespace enumeration completed", "namespaces", namespaces)
 	return namespaces, nil
 }
 
@@ -71,16 +77,14 @@ func AnnotationsCleaner(annotations map[string]string) map[string]string {
 	// Create a copy of the annotations map
 	cleaned := make(map[string]string)
 	for key, value := range annotations {
-		// Skip the kubectl last-applied-configuration annotation
+		// Skip the kubectl last-applied-configuration and revision annotations (Noise)
+		// TODO: Make this configurable.
 		if key != "kubectl.kubernetes.io/last-applied-configuration" && key != "deployment.kubernetes.io/revision" {
 			cleaned[key] = value
 		}
 	}
-
-	// Return nil if the cleaned map is empty, otherwise return the cleaned map
 	if len(cleaned) == 0 {
 		return nil
 	}
-
 	return cleaned
 }

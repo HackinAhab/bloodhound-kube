@@ -105,7 +105,14 @@ Examples:
   # Specify full path with directory and filename
   bloodhound-kube collect --output /tmp/my-collection.jsonl`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		log := utils.New(logLevel)
+		// Use local log level if set, otherwise use global log level
+		effectiveLogLevel := logLevel
+		if !cmd.Flags().Changed("log") && globalLogLevel != "" {
+			effectiveLogLevel = globalLogLevel
+		}
+		log := utils.New(effectiveLogLevel)
+
+		log.Debug("Starting collection command", "logLevel", effectiveLogLevel)
 
 		if allNamespaces && cmd.Flags().Changed("namespace") {
 			return fmt.Errorf("cannot use -A (all namespaces) and -n (namespace) flags together")
@@ -273,7 +280,7 @@ func init() {
 	collectCmd.Flags().BoolVarP(&allNamespaces, "all-namespaces", "A", false, "Collect from all namespaces (cannot be used with -n)")
 	collectCmd.Flags().IntVarP(&concurrency, "concurrency", "c", 10, "Number of concurrent workers for streaming collection")
 	collectCmd.Flags().IntVarP(&timeout, "timeout", "", 300, "Timeout in seconds for the entire collection")
-	collectCmd.Flags().StringVarP(&logLevel, "log-level", "l", "info", "Log level (debug, info, warn, error)")
+	collectCmd.Flags().StringVarP(&logLevel, "log", "l", "info", "Log level (debug, info, warn, error)")
 	collectCmd.Flags().StringVarP(&output, "output", "o", "", "Output file path (can be directory, filename, or full path). Defaults to bloodhound-kube-YYYY-MM-DD-HHMMSS.jsonl in current directory")
 	collectCmd.Flags().StringSliceVarP(&resourceTypes, "type", "t", []string{}, resourceTypeHelp)
 	collectCmd.Flags().StringVar(&kubeconfig, "kubeconfig", "", "Path to kubeconfig file (overrides KUBECONFIG and ~/.kube/config)")

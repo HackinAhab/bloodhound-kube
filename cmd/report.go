@@ -116,7 +116,7 @@ func init() {
 	reportCmd.Flags().StringVar(&reportType, "report", "all", "Report type(s): all, privileged, privesc, nonroot, caps, imgsrc, seccomp, limits, serviceaccount, token (comma-delimited for multiple)")
 	reportCmd.Flags().StringVar(&reportFormat, "format", "json", "Output format: json, csv")
 	reportCmd.Flags().BoolVarP(&reportVerbose, "verbose", "v", false, "Verbose output")
-	reportCmd.Flags().StringVarP(&reportLogLevel, "log-level", "l", "info", "Log level (debug, info, warn, error)")
+	reportCmd.Flags().StringVarP(&reportLogLevel, "log", "l", "info", "Log level (debug, info, warn, error)")
 	reportCmd.Flags().StringVar(&trustedRegistries, "trusted-registries", "", "File containing trusted registries (for imgsrc report)")
 
 	reportCmd.MarkFlagRequired("input")

@@ -9,8 +9,9 @@ import (
 )
 
 type Collector struct {
-	clients *utils.Clients
-	logger  *utils.Logger
+	clients  *utils.Clients
+	logger   *utils.Logger
+	redacted bool
 }
 
 func New(cfg utils.ClientConfig, log *utils.Logger) (*Collector, error) {
@@ -52,6 +53,14 @@ func (c *Collector) GetPlatform() string {
 
 func (c *Collector) GetClusterType() utils.ClusterType {
 	return c.clients.ClusterType
+}
+
+func (c *Collector) SetRedacted(redacted bool) {
+	c.redacted = redacted
+}
+
+func (c *Collector) IsRedacted() bool {
+	return c.redacted
 }
 
 func AnnotationsCleaner(annotations map[string]string) map[string]string {

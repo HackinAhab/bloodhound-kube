@@ -27,6 +27,7 @@ var (
 	clusterType    string
 	resume         bool
 	checkpointFile string
+	redacted       bool
 )
 
 // allResourceTypes will be populated after cluster detection
@@ -137,6 +138,9 @@ Examples:
 		if err != nil {
 			return fmt.Errorf("failed to create collector: %w", err)
 		}
+
+		// Set redacted flag on collector
+		c.SetRedacted(redacted)
 
 		collector.DefaultRegistry.InitializeForCluster(c.GetClusterType())
 		allResourceTypes = collector.DefaultRegistry.GetAllNames()
@@ -278,6 +282,7 @@ func init() {
 	collectCmd.Flags().StringVarP(&clusterType, "cluster-type", "T", "auto", "Cluster type: kubernetes, openshift, or auto (auto-detect)")
 	collectCmd.Flags().BoolVar(&resume, "resume", false, "Resume from previous interrupted collection")
 	collectCmd.Flags().StringVar(&checkpointFile, "checkpoint-file", "", "Path to checkpoint file (auto-generated if not specified)")
+	collectCmd.Flags().BoolVar(&redacted, "redacted", false, "Redact secrets and sensitive data during collection")
 
 	rootCmd.AddCommand(collectCmd)
 }

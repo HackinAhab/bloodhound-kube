@@ -25,17 +25,33 @@ func collectConfigMaps(ctx context.Context, c *Collector, namespace string) ([]a
 	configMaps := make([]any, 0, len(configMapList.Items))
 	for _, cm := range configMapList.Items {
 		var dataKeys []string
-		dataMap := make(map[string]string)
-		for key, value := range cm.Data {
-			dataKeys = append(dataKeys, key)
-			dataMap[key] = value
-		}
-
+		var dataMap map[string]string
 		var binaryDataKeys []string
-		binaryDataMap := make(map[string][]byte)
-		for key, value := range cm.BinaryData {
-			binaryDataKeys = append(binaryDataKeys, key)
-			binaryDataMap[key] = value
+		var binaryDataMap map[string][]byte
+
+		if c.IsRedacted() {
+			// When redacted, collect key names but redact values
+			for key := range cm.Data {
+				dataKeys = append(dataKeys, key)
+			}
+			for key := range cm.BinaryData {
+				binaryDataKeys = append(binaryDataKeys, key)
+			}
+			dataMap = nil
+			binaryDataMap = nil
+		} else {
+			// Normal collection - include keys and data
+			dataMap = make(map[string]string)
+			for key, value := range cm.Data {
+				dataKeys = append(dataKeys, key)
+				dataMap[key] = value
+			}
+
+			binaryDataMap = make(map[string][]byte)
+			for key, value := range cm.BinaryData {
+				binaryDataKeys = append(binaryDataKeys, key)
+				binaryDataMap[key] = value
+			}
 		}
 
 		configMaps = append(configMaps, ConfigMap{
@@ -69,11 +85,23 @@ func collectSecrets(ctx context.Context, c *Collector, namespace string) ([]any,
 	secrets := make([]any, 0, len(secretList.Items))
 	for _, secret := range secretList.Items {
 		var dataKeys []string
-		dataMap := make(map[string]string)
-		for key, value := range secret.Data {
-			dataKeys = append(dataKeys, key)
-			dataMap[key] = string(value)
+		var dataMap map[string]string
+
+		if c.IsRedacted() {
+			// When redacted, collect key names but redact values
+			for key := range secret.Data {
+				dataKeys = append(dataKeys, key)
+			}
+			dataMap = nil // Don't include actual data values
+		} else {
+			// Normal collection - include keys and values
+			dataMap = make(map[string]string)
+			for key, value := range secret.Data {
+				dataKeys = append(dataKeys, key)
+				dataMap[key] = string(value)
+			}
 		}
+
 		secrets = append(secrets, Secret{
 			CommonResourceMeta: CommonResourceMeta{
 				Name:        secret.Name,

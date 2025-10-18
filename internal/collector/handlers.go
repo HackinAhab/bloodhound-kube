@@ -131,7 +131,6 @@ var AllHandlers = []HandlerMetadata{
 		SupportedClusterTypes: []utils.ClusterType{utils.ClusterTypeOpenShift},
 		CollectFunc:           collectImages,
 	},
-	// Example: Adding a new collector - just add this metadata entry!
 	{
 		Name:                  "pods",
 		ResourceType:          "pod",

@@ -266,15 +266,23 @@ Examples:
 	},
 }
 
-func init() {
-	// Initialize registry to get available resource types
-	registry := collector.NewResourceRegistry()
-	// Initialize with Kubernetes defaults first
-	registry.InitializeForCluster(utils.ClusterTypeKubernetes)
-	availableTypes := registry.GetAllNames()
+func getAvailableResourcesHelp() string {
+	var resources []string
 
-	// Create help text with dynamic resource types list
-	resourceTypeHelp := fmt.Sprintf("Resource types to collect (%s, projects*, images*). *OpenShift only. Default: all types", strings.Join(availableTypes, ", "))
+	for _, meta := range collector.AllHandlers {
+		if len(meta.Nicknames) > 0 {
+			resources = append(resources, fmt.Sprintf("%s (%s)", meta.Name, meta.Nicknames[0]))
+		} else {
+			resources = append(resources, meta.Name)
+		}
+	}
+
+	return fmt.Sprintf("Resource types to collect (%s, projects*, images*). *OpenShift only. Default: all types", strings.Join(resources, ", "))
+}
+
+func init() {
+	// Create help text with dynamic resource types list including nicknames
+	resourceTypeHelp := getAvailableResourcesHelp()
 
 	collectCmd.Flags().StringVarP(&namespaces, "namespace", "n", "", "Kubernetes namespace(s) - comma-delimited for multiple (defaults to current context namespace)")
 	collectCmd.Flags().BoolVarP(&allNamespaces, "all-namespaces", "A", false, "Collect from all namespaces (cannot be used with -n)")

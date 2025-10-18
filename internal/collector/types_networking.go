@@ -81,3 +81,72 @@ type NetworkPolicyPeer struct {
 	PodSelector       map[string]string `json:"pod_selector,omitempty"`
 	NamespaceSelector map[string]string `json:"namespace_selector,omitempty"`
 }
+
+// HTTPRoute represents a Gateway API HTTPRoute resource
+type HTTPRoute struct {
+	CommonResourceMeta
+	Hostnames  []string             `json:"hostnames,omitempty"`
+	ParentRefs []HTTPRouteParentRef `json:"parent_refs,omitempty"`
+	Rules      []HTTPRouteRule      `json:"rules,omitempty"`
+}
+
+type HTTPRouteParentRef struct {
+	Group     string `json:"group,omitempty"`
+	Kind      string `json:"kind,omitempty"`
+	Name      string `json:"name"`
+	Namespace string `json:"namespace,omitempty"`
+}
+
+type HTTPRouteRule struct {
+	Matches     []HTTPRouteMatch      `json:"matches,omitempty"`
+	BackendRefs []HTTPRouteBackendRef `json:"backend_refs,omitempty"`
+}
+
+type HTTPRouteMatch struct {
+	PathType  string `json:"path_type,omitempty"`
+	PathValue string `json:"path_value,omitempty"`
+	Method    string `json:"method,omitempty"`
+}
+
+type HTTPRouteBackendRef struct {
+	Group     string `json:"group,omitempty"`
+	Kind      string `json:"kind,omitempty"`
+	Name      string `json:"name"`
+	Namespace string `json:"namespace,omitempty"`
+	Port      int32  `json:"port,omitempty"`
+	Weight    int32  `json:"weight,omitempty"`
+}
+
+// GRPCRoute represents a Gateway API GRPCRoute resource
+type GRPCRoute struct {
+	CommonResourceMeta
+	Hostnames  []string             `json:"hostnames,omitempty"`
+	ParentRefs []GRPCRouteParentRef `json:"parent_refs,omitempty"`
+	Rules      []GRPCRouteRule      `json:"rules,omitempty"`
+}
+
+type GRPCRouteParentRef struct {
+	Group     string `json:"group,omitempty"`
+	Kind      string `json:"kind,omitempty"`
+	Name      string `json:"name"`
+	Namespace string `json:"namespace,omitempty"`
+}
+
+type GRPCRouteRule struct {
+	Matches     []GRPCRouteMatch      `json:"matches,omitempty"`
+	BackendRefs []GRPCRouteBackendRef `json:"backend_refs,omitempty"`
+}
+
+type GRPCRouteMatch struct {
+	Service string `json:"service,omitempty"`
+	Method  string `json:"method,omitempty"`
+}
+
+type GRPCRouteBackendRef struct {
+	Group     string `json:"group,omitempty"`
+	Kind      string `json:"kind,omitempty"`
+	Name      string `json:"name"`
+	Namespace string `json:"namespace,omitempty"`
+	Port      int32  `json:"port,omitempty"`
+	Weight    int32  `json:"weight,omitempty"`
+}

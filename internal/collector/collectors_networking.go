@@ -143,6 +143,30 @@ func collectGateways(ctx context.Context, c *Collector, namespace string) ([]any
 	return []any{}, nil
 }
 
+// collectHTTPRoutes collects Gateway API HTTPRoutes from the specified namespace
+func collectHTTPRoutes(ctx context.Context, c *Collector, namespace string) ([]any, error) {
+	c.logger.Info("Collecting HTTPRoutes", "namespace", namespace)
+	c.logger.Debug("Starting HTTPRoute collection", "namespace", namespace)
+
+	// Gateway API support is not yet implemented in the client
+	c.logger.Debug("Gateway API client not yet implemented, skipping HTTPRoute collection", "namespace", namespace)
+	c.logger.Info("HTTPRoute collection skipped - Gateway API support not available", "namespace", namespace)
+	// TODO
+	return []any{}, nil
+}
+
+// collectGRPCRoutes collects Gateway API GRPCRoutes from the specified namespace
+func collectGRPCRoutes(ctx context.Context, c *Collector, namespace string) ([]any, error) {
+	c.logger.Info("Collecting GRPCRoutes", "namespace", namespace)
+	c.logger.Debug("Starting GRPCRoute collection", "namespace", namespace)
+
+	// Gateway API support is not yet implemented in the client
+	c.logger.Debug("Gateway API client not yet implemented, skipping GRPCRoute collection", "namespace", namespace)
+	c.logger.Info("GRPCRoute collection skipped - Gateway API support not available", "namespace", namespace)
+	// TODO
+	return []any{}, nil
+}
+
 // collectNetworkPolicies collects Kubernetes NetworkPolicies from the specified namespace
 func collectNetworkPolicies(ctx context.Context, c *Collector, namespace string) ([]any, error) {
 	c.logger.Info("Collecting network policies", "namespace", namespace)

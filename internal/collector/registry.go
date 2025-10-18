@@ -52,11 +52,31 @@ func (r *ResourceRegistry) Register(handler ResourceHandler) {
 }
 
 func (r *ResourceRegistry) GetHandler(name string) (ResourceHandler, error) {
-	handler, exists := r.handlers[name]
-	if !exists {
-		return nil, fmt.Errorf("unknown resource type: %s", name)
+	// First try exact name match
+	if handler, exists := r.handlers[name]; exists {
+		return handler, nil
 	}
-	return handler, nil
+
+	// Then try nickname match
+	for _, handler := range r.handlers {
+		if meta := r.getHandlerMetadata(handler); meta != nil {
+			if slices.Contains(meta.Nicknames, name) {
+				return handler, nil
+			}
+		}
+	}
+
+	return nil, fmt.Errorf("unknown resource type: %s", name)
+}
+
+// getHandlerMetadata finds the metadata for a given handler
+func (r *ResourceRegistry) getHandlerMetadata(handler ResourceHandler) *HandlerMetadata {
+	for _, meta := range AllHandlers {
+		if meta.Name == handler.GetName() {
+			return &meta
+		}
+	}
+	return nil
 }
 
 func (r *ResourceRegistry) GetAllNames() []string {
@@ -91,18 +111,37 @@ func (r *ResourceRegistry) GetClusterScopedTypes(names []string) []string {
 func (r *ResourceRegistry) ValidateTypes(types []string) error {
 	var invalid []string
 	for _, t := range types {
-		if _, exists := r.handlers[t]; !exists {
+		if _, err := r.GetHandler(t); err != nil {
 			invalid = append(invalid, t)
 		}
 	}
 
 	if len(invalid) > 0 {
-		available := strings.Join(r.GetAllNames(), ", ")
+		available := r.getAvailableTypesWithNicknames()
 		return fmt.Errorf("unsupported resource types: %s (available: %s)",
 			strings.Join(invalid, ", "), available)
 	}
 
 	return nil
+}
+
+// getAvailableTypesWithNicknames returns a formatted string of available types including nicknames
+func (r *ResourceRegistry) getAvailableTypesWithNicknames() string {
+	var resources []string
+
+	for _, meta := range AllHandlers {
+		// Only include handlers that are registered for this cluster type
+		if _, exists := r.handlers[meta.Name]; exists {
+			if len(meta.Nicknames) > 0 {
+				resources = append(resources, fmt.Sprintf("%s (%s)", meta.Name, strings.Join(meta.Nicknames, ", ")))
+			} else {
+				resources = append(resources, meta.Name)
+			}
+		}
+	}
+
+	sort.Strings(resources)
+	return strings.Join(resources, ", ")
 }
 
 // GetHandlerDescriptions returns a map of handler names to their descriptions

@@ -12,6 +12,7 @@ import (
 var AllHandlers = []HandlerMetadata{
 	{
 		Name:                  "nodes",
+		Nicknames:             []string{"no", "node"},
 		ResourceType:          "node",
 		Description:           "Collect Kubernetes nodes",
 		ClusterScoped:         true,
@@ -20,6 +21,7 @@ var AllHandlers = []HandlerMetadata{
 	},
 	{
 		Name:                  "secrets",
+		Nicknames:             []string{"sec", "secret"},
 		ResourceType:          "secret",
 		Description:           "Collect Kubernetes secrets",
 		ClusterScoped:         false,
@@ -28,6 +30,7 @@ var AllHandlers = []HandlerMetadata{
 	},
 	{
 		Name:                  "configmaps",
+		Nicknames:             []string{"cm", "configmap"},
 		ResourceType:          "configmap",
 		Description:           "Collect Kubernetes configmaps",
 		ClusterScoped:         false,
@@ -36,6 +39,7 @@ var AllHandlers = []HandlerMetadata{
 	},
 	{
 		Name:                  "deployments",
+		Nicknames:             []string{"deploy", "deployment"},
 		ResourceType:          "deployment",
 		Description:           "Collect Kubernetes deployments",
 		ClusterScoped:         false,
@@ -44,6 +48,7 @@ var AllHandlers = []HandlerMetadata{
 	},
 	{
 		Name:                  "services",
+		Nicknames:             []string{"svc", "service"},
 		ResourceType:          "service",
 		Description:           "Collect Kubernetes services",
 		ClusterScoped:         false,
@@ -52,6 +57,7 @@ var AllHandlers = []HandlerMetadata{
 	},
 	{
 		Name:                  "ingresses",
+		Nicknames:             []string{"ing", "ingress"},
 		ResourceType:          "ingress",
 		Description:           "Collect Kubernetes ingresses",
 		ClusterScoped:         false,
@@ -60,6 +66,7 @@ var AllHandlers = []HandlerMetadata{
 	},
 	{
 		Name:                  "gateways",
+		Nicknames:             []string{"gw", "gateway"},
 		ResourceType:          "gateway",
 		Description:           "Collect Kubernetes gateways",
 		ClusterScoped:         false,
@@ -68,6 +75,7 @@ var AllHandlers = []HandlerMetadata{
 	},
 	{
 		Name:                  "rbac",
+		Nicknames:             []string{},
 		ResourceType:          "rbac",
 		Description:           "Collect Kubernetes RBAC resources",
 		ClusterScoped:         true,
@@ -76,6 +84,7 @@ var AllHandlers = []HandlerMetadata{
 	},
 	{
 		Name:                  "networkpolicies",
+		Nicknames:             []string{"netpol", "networkpolicy", "netpols"},
 		ResourceType:          "networkpolicy",
 		Description:           "Collect Kubernetes network policies",
 		ClusterScoped:         false,
@@ -84,6 +93,7 @@ var AllHandlers = []HandlerMetadata{
 	},
 	{
 		Name:                  "crds",
+		Nicknames:             []string{"crd"},
 		ResourceType:          "crd",
 		Description:           "Collect Kubernetes custom resource definitions",
 		ClusterScoped:         true,
@@ -92,6 +102,7 @@ var AllHandlers = []HandlerMetadata{
 	},
 	{
 		Name:                  "daemonsets",
+		Nicknames:             []string{"ds", "daemonset"},
 		ResourceType:          "daemonset",
 		Description:           "Collect Kubernetes daemonsets",
 		ClusterScoped:         false,
@@ -100,6 +111,7 @@ var AllHandlers = []HandlerMetadata{
 	},
 	{
 		Name:                  "statefulsets",
+		Nicknames:             []string{"sts", "statefulset"},
 		ResourceType:          "statefulset",
 		Description:           "Collect Kubernetes statefulsets",
 		ClusterScoped:         false,
@@ -109,6 +121,7 @@ var AllHandlers = []HandlerMetadata{
 	// OpenShift-specific handlers
 	{
 		Name:                  "routes",
+		Nicknames:             []string{"route"},
 		ResourceType:          "route",
 		Description:           "Collect OpenShift routes",
 		ClusterScoped:         false,
@@ -117,6 +130,7 @@ var AllHandlers = []HandlerMetadata{
 	},
 	{
 		Name:                  "projects",
+		Nicknames:             []string{"project"},
 		ResourceType:          "project",
 		Description:           "Collect OpenShift projects",
 		ClusterScoped:         true,
@@ -125,6 +139,7 @@ var AllHandlers = []HandlerMetadata{
 	},
 	{
 		Name:                  "images",
+		Nicknames:             []string{"image"},
 		ResourceType:          "image",
 		Description:           "Collect OpenShift images",
 		ClusterScoped:         true,
@@ -133,10 +148,29 @@ var AllHandlers = []HandlerMetadata{
 	},
 	{
 		Name:                  "pods",
+		Nicknames:             []string{"po", "pod"},
 		ResourceType:          "pod",
 		Description:           "Collect Kubernetes pods",
 		ClusterScoped:         false,
 		SupportedClusterTypes: []utils.ClusterType{utils.ClusterTypeKubernetes, utils.ClusterTypeOpenShift},
 		CollectFunc:           collectPods,
+	},
+	{
+		Name:                  "httproutes",
+		Nicknames:             []string{"httproute"},
+		ResourceType:          "httproute",
+		Description:           "Collect Gateway API HTTPRoutes",
+		ClusterScoped:         false,
+		SupportedClusterTypes: []utils.ClusterType{utils.ClusterTypeKubernetes, utils.ClusterTypeOpenShift},
+		CollectFunc:           collectHTTPRoutes,
+	},
+	{
+		Name:                  "grpcroutes",
+		Nicknames:             []string{"grpcroute"},
+		ResourceType:          "grpcroute",
+		Description:           "Collect Gateway API GRPCRoutes",
+		ClusterScoped:         false,
+		SupportedClusterTypes: []utils.ClusterType{utils.ClusterTypeKubernetes, utils.ClusterTypeOpenShift},
+		CollectFunc:           collectGRPCRoutes,
 	},
 }

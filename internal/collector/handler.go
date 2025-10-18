@@ -14,10 +14,8 @@ type ResourceHandler interface {
 	Collect(ctx context.Context, c *Collector, namespace string) ([]Resource, error)
 }
 
-// CollectFunc defines the signature for resource collection functions
 type CollectFunc func(ctx context.Context, c *Collector, namespace string) ([]any, error)
 
-// Handler provides the standard implementation of ResourceHandler
 type Handler struct {
 	name                  string
 	resourceType          string
@@ -93,6 +91,7 @@ func NewHandler(meta HandlerMetadata) ResourceHandler {
 // HandlerMetadata defines metadata for registering handlers
 type HandlerMetadata struct {
 	Name                  string
+	Nicknames             []string // Short aliases for CLI usage (optional)
 	ResourceType          string
 	Description           string
 	ClusterScoped         bool

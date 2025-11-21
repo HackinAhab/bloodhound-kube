@@ -1,2 +1,7 @@
 bin
 output
+dev-utils/
+mcp-servers
+.DS_Store
+.clinerules/*
+bloodhound-kube

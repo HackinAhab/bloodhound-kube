@@ -1,38 +1,14 @@
 package bloodhound
 
 import (
-	"crypto/sha256"
 	"encoding/json"
 	"fmt"
-	"maps"
 	"strings"
-	"sync"
+
+	"bloodhound-kube/internal/bloodhound/relationships"
 )
 
-func GenerateObjectID(resourceType, namespace, name string) string {
-	var identifier string
-	if namespace != "" {
-		identifier = fmt.Sprintf("%s/%s/%s", resourceType, namespace, name)
-	} else {
-		identifier = fmt.Sprintf("%s/%s", resourceType, name)
-	}
-
-	hash := sha256.Sum256([]byte(identifier))
-	return fmt.Sprintf("%x", hash)[:16]
-}
-
-func GenerateNodeID(label, resourceType, namespace, name string) string {
-	baseID := GenerateObjectID(resourceType, namespace, name)
-	return fmt.Sprintf("%s:%s", label, baseID)
-}
-
-func SanitizeLabel(label string) string {
-	sanitized := strings.ToUpper(label)
-	sanitized = strings.ReplaceAll(sanitized, "-", "_")
-	sanitized = strings.ReplaceAll(sanitized, ".", "_")
-	return sanitized
-}
-
+// Simplified direct conversion functions (keeping for backward compatibility)
 func CreateNodeFromResource(kinds []string, resourceType, namespace, name string, properties map[string]any) BloodHoundNode {
 	nodeID := GenerateNodeID(kinds[0], resourceType, namespace, name)
 
@@ -55,21 +31,6 @@ func CreateNodeFromResource(kinds []string, resourceType, namespace, name string
 	}
 }
 
-func CreateNodeWithConfig(config ResourceConfig, resourceType, namespace, name string, resource any) (BloodHoundNode, error) {
-	kinds := []string{config.PrimaryKind}
-	kinds = append(kinds, config.SecondaryKinds...)
-
-	properties, err := config.PropertyMapper.MapProperties(resource)
-	if err != nil {
-		return BloodHoundNode{}, fmt.Errorf("failed to map properties: %w", err)
-	}
-
-	// Flatten nested objects to ensure BloodHound schema compliance
-	properties = FlattenProperties(properties, "")
-
-	return CreateNodeFromResource(kinds, resourceType, namespace, name, properties), nil
-}
-
 func CreateEdge(sourceID, targetID, kind string, properties map[string]any) BloodHoundEdge {
 	if properties == nil {
 		properties = make(map[string]any)
@@ -89,180 +50,63 @@ func CreateEdge(sourceID, targetID, kind string, properties map[string]any) Bloo
 	}
 }
 
-// SanitizePascalCase converts edge kinds to PascalCase without dashes
-func SanitizePascalCase(input string) string {
-	words := strings.FieldsFunc(input, func(r rune) bool {
-		return r == '-' || r == '_' || r == ' '
-	})
-
-	var result strings.Builder
-	for _, word := range words {
-		if len(word) > 0 {
-			result.WriteString(strings.ToUpper(word[:1]) + strings.ToLower(word[1:]))
-		}
-	}
-	return result.String()
-}
-
-// FlattenProperties converts nested objects to primitive key-value pairs
-func FlattenProperties(input map[string]any, prefix string) map[string]any {
-	result := make(map[string]any)
-
-	for key, value := range input {
-		flatKey := key
-		if prefix != "" {
-			flatKey = prefix + "_" + key
-		}
-
-		switch v := value.(type) {
-		case map[string]any:
-			// Recursively flatten nested objects
-			nested := FlattenProperties(v, flatKey)
-			maps.Copy(result, nested)
-		case []any:
-			// Convert object arrays to primitive arrays or flatten if needed
-			if len(v) > 0 {
-				if isObjectArray(v) {
-					result[flatKey] = convertObjectArrayToPrimitives(v)
-				} else {
-					result[flatKey] = v
-				}
-			}
-		default:
-			result[flatKey] = value
-		}
-	}
-
-	return result
-}
-
-// Helper function to check if array contains objects
-func isObjectArray(arr []any) bool {
-	if len(arr) == 0 {
-		return false
-	}
-	_, isObj := arr[0].(map[string]any)
-	return isObj
-}
-
-// Helper function to convert object arrays to string arrays
-func convertObjectArrayToPrimitives(arr []any) []string {
-	result := make([]string, 0, len(arr))
-	for _, item := range arr {
-		if obj, ok := item.(map[string]any); ok {
-			// Extract a meaningful string representation
-			if name, exists := obj["name"]; exists {
-				if nameStr, ok := name.(string); ok {
-					result = append(result, nameStr)
-				}
-			} else if id, exists := obj["id"]; exists {
-				if idStr, ok := id.(string); ok {
-					result = append(result, idStr)
-				}
-			}
-		}
-	}
-	return result
-}
-
-// ConvertToBloodHoundResult creates a BloodHound-compliant result with metadata
+// Main parsing functions - simplified to use converter directly
 func ConvertToBloodHoundResult(jsonlData []byte, clusterName string) (*BloodHoundResult, error) {
-	resources, err := ParseFromJSONL(jsonlData)
+	// Convert JSONL to nodes using the new converter
+	converter := NewResourceConverter()
+	nodes, err := converter.ConvertJSONLData(jsonlData)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse JSONL: %w", err)
+		return nil, fmt.Errorf("failed to convert JSONL: %w", err)
 	}
 
-	parsed, err := DefaultRegistry.ParseBatch(resources)
+	// Create relationships using the rules engine
+	edges, err := createRelationships(nodes)
 	if err != nil {
-		return nil, err
-	}
-
-	// Process RBAC edges after all resources are parsed
-	rbacEdges := ProcessGlobalRBACEdges(resources)
-	parsed.Edges = append(parsed.Edges, rbacEdges...)
-
-	return &BloodHoundResult{
-		Metadata: &BloodHoundMetadata{
-			SourceKind: "Kubernetes",
-		},
-		Graph: BloodHoundGraph{
-			Nodes: parsed.Nodes,
-			Edges: parsed.Edges,
-		},
-	}, nil
-}
-
-// ConcurrentParseProcessor handles large-scale parsing with concurrency
-func ConcurrentParseProcessor(resources []ResourceData, workerCount int) (*BloodHoundResult, error) {
-	if workerCount <= 0 {
-		workerCount = 10 // Default worker count
-	}
-
-	resourceChan := make(chan ResourceData, len(resources))
-	resultChan := make(chan *ParsedResult, len(resources))
-	errorChan := make(chan error, len(resources))
-
-	// Start workers
-	var wg sync.WaitGroup
-	for i := 0; i < workerCount; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			for resource := range resourceChan {
-				result, err := DefaultRegistry.ParseResource(resource)
-				if err != nil {
-					errorChan <- err
-					return
-				}
-				resultChan <- result
-			}
-		}()
-	}
-
-	// Send resources to workers
-	go func() {
-		defer close(resourceChan)
-		for _, resource := range resources {
-			resourceChan <- resource
-		}
-	}()
-
-	// Wait for all workers to complete
-	go func() {
-		wg.Wait()
-		close(resultChan)
-		close(errorChan)
-	}()
-
-	// Collect results using legacy approach for now
-	combined := &ParsedResult{
-		Nodes: []BloodHoundNode{},
-		Edges: []BloodHoundEdge{},
-	}
-
-	for result := range resultChan {
-		combined.Nodes = append(combined.Nodes, result.Nodes...)
-		combined.Edges = append(combined.Edges, result.Edges...)
-	}
-
-	// Check for errors
-	select {
-	case err := <-errorChan:
-		return nil, err
-	default:
+		return nil, fmt.Errorf("failed to create relationships: %w", err)
 	}
 
 	return &BloodHoundResult{
 		Metadata: &BloodHoundMetadata{
-			SourceKind: "Kubernetes",
+			SourceKind: "kubernetes",
 		},
 		Graph: BloodHoundGraph{
-			Nodes: combined.Nodes,
-			Edges: combined.Edges,
+			Nodes: nodes,
+			Edges: edges,
 		},
 	}, nil
 }
 
+func ConvertToBloodHound(jsonlData []byte) (*ParsedResult, error) {
+	result, err := ConvertToBloodHoundResult(jsonlData, "")
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert to legacy format for backward compatibility
+	return &ParsedResult{
+		Nodes: result.Graph.Nodes,
+		Edges: result.Graph.Edges,
+	}, nil
+}
+
+func ConvertToBloodHoundJSON(jsonlData []byte) ([]byte, error) {
+	result, err := ConvertToBloodHound(jsonlData)
+	if err != nil {
+		return nil, err
+	}
+
+	return json.MarshalIndent(result, "", "  ")
+}
+
+// Package-level variable to store additional rules file path
+var additionalRulesFilePath string
+
+// SetAdditionalRulesFile sets the path to an additional rules file
+func SetAdditionalRulesFile(filepath string) {
+	additionalRulesFilePath = filepath
+}
+
+// JSONL parsing utility
 func ParseFromJSONL(jsonlData []byte) ([]ResourceData, error) {
 	lines := strings.Split(string(jsonlData), "\n")
 	var resources []ResourceData
@@ -284,247 +128,134 @@ func ParseFromJSONL(jsonlData []byte) ([]ResourceData, error) {
 	return resources, nil
 }
 
-func ConvertToBloodHound(jsonlData []byte) (*ParsedResult, error) {
-	resources, err := ParseFromJSONL(jsonlData)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse JSONL: %w", err)
+// createRelationships applies rules engine to create edges between nodes
+func createRelationships(nodes []BloodHoundNode) ([]BloodHoundEdge, error) {
+	// Create rules engine
+	engine := relationships.NewEngine()
+
+	// Load rules from config/rules directory with fallback to embedded rules
+	if err := engine.LoadRulesWithFallback(
+		"config/rules",    // Primary: config/rules/*.yaml
+		getBuiltinRules(), // Fallback: embedded rules
+	); err != nil {
+		return nil, fmt.Errorf("failed to load relationship rules: %w", err)
 	}
 
-	return DefaultRegistry.ParseBatch(resources)
-}
-
-func ConvertToBloodHoundJSON(jsonlData []byte) ([]byte, error) {
-	result, err := ConvertToBloodHound(jsonlData)
-	if err != nil {
-		return nil, err
+	// Load additional rules file if specified
+	if additionalRulesFilePath != "" {
+		if err := engine.LoadAdditionalRulesFile(additionalRulesFilePath); err != nil {
+			return nil, fmt.Errorf("failed to load additional rules file: %w", err)
+		}
 	}
 
-	return json.MarshalIndent(result, "", "  ")
+	// Convert to shared types for the relationship engine
+	sharedNodes := make([]relationships.BloodHoundNode, len(nodes))
+	for i, node := range nodes {
+		sharedNodes[i] = relationships.BloodHoundNode{
+			ID:         node.ID,
+			Kinds:      node.Kinds,
+			Properties: node.Properties,
+		}
+	}
+
+	// Apply rules to create relationships
+	sharedEdges := engine.ApplyRules(sharedNodes)
+
+	// Deduplicate and sort edges
+	sharedEdges = relationships.DeduplicateEdges(sharedEdges)
+	relationships.SortEdgesByKind(sharedEdges)
+
+	// Convert back to main package types
+	edges := make([]BloodHoundEdge, len(sharedEdges))
+	for i, edge := range sharedEdges {
+		edges[i] = BloodHoundEdge{
+			Start: BloodHoundEdgeRef{
+				MatchBy: edge.Start.MatchBy,
+				Value:   edge.Start.Value,
+				Kind:    edge.Start.Kind,
+			},
+			End: BloodHoundEdgeRef{
+				MatchBy: edge.End.MatchBy,
+				Value:   edge.End.Value,
+				Kind:    edge.End.Kind,
+			},
+			Kind:       edge.Kind,
+			Properties: edge.Properties,
+		}
+	}
+
+	return edges, nil
 }
 
-// ProcessGlobalRBACEdges creates direct edges for RBAC resources following the pattern:
-// ClusterRole -> ServiceAccount/Group/User (via ClusterRoleBinding)
-// Role -> ServiceAccount/Group/User (via RoleBinding)
-func ProcessGlobalRBACEdges(resources []ResourceData) []BloodHoundEdge {
-	var edges []BloodHoundEdge
+// getBuiltinRules returns basic embedded rules as final fallback
+func getBuiltinRules() string {
+	return `
+version: "1.0"
+relationships:
+  - name: "deployment_owns_pods"
+    description: "Deployment owns Pods via ReplicaSet"
+    source_type: ["deployment"]
+    target_type: ["pod"]
+    edge_type: "Owns"
+    conditions:
+      - "source.selector in target.labels"
+    priority: 5
+    enabled: true
 
-	// Separate resources by type for easier processing
-	var roleBindings []ResourceData
-	var clusterRoleBindings []ResourceData
+  - name: "service_exposes_pods"
+    description: "Service exposes Pods via selector"
+    source_type: ["service"]
+    target_type: ["pod"]
+    edge_type: "Exposes"
+    conditions:
+      - "source.selector subset_of target.labels"
+    priority: 7
+    enabled: true
+
+  - name: "secret_mounted_by_pod"
+    description: "Secret is mounted by Pod"
+    source_type: ["secret"]
+    target_type: ["pod"]
+    edge_type: "MountedBy"
+    conditions:
+      - "source.name in target.volumes[*].secret.secretName"
+    priority: 8
+    enabled: true
+`
+}
+
+// Legacy concurrent processing (simplified)
+func ConcurrentParseProcessor(resources []ResourceData, workerCount int) (*BloodHoundResult, error) {
+	// For simplicity, just process directly without complex worker pools
+	var allNodes []BloodHoundNode
 
 	for _, resource := range resources {
-		switch resource.Type {
-		case "role_binding":
-			roleBindings = append(roleBindings, resource)
-		case "cluster_role_binding":
-			clusterRoleBindings = append(clusterRoleBindings, resource)
+		parser, exists := DefaultRegistry.GetParser(resource.Type)
+		if !exists {
+			continue
 		}
-	}
 
-	// Create direct Role -> Subject edges via RoleBindings
-	for _, binding := range roleBindings {
-		bindingData, err := extractRBACResource(binding.Resource)
+		result, err := parser.Parse(resource)
 		if err != nil {
 			continue
 		}
 
-		roleRef, exists := bindingData["role_ref"].(map[string]any)
-		if !exists {
-			if roleRef, exists = bindingData["roleRef"].(map[string]any); !exists {
-				continue
-			}
-		}
-
-		roleKind, _ := roleRef["kind"].(string)
-		roleName, _ := roleRef["name"].(string)
-
-		if roleKind == "" || roleName == "" {
-			continue
-		}
-
-		// Create source node ID based on role type
-		var sourceNodeID string
-
-		switch roleKind {
-		case "ClusterRole":
-			sourceNodeID = GenerateNodeID("ClusterRole", "cluster_role", "", roleName)
-		case "Role":
-			sourceNodeID = GenerateNodeID("Role", "role", binding.Namespace, roleName)
-		default:
-			continue
-		}
-
-		// Create direct edges from Role/ClusterRole to subjects
-		if subjects, exists := bindingData["subjects"].([]any); exists {
-			bindingName := ""
-			if name, ok := bindingData["name"].(string); ok {
-				bindingName = name
-			}
-
-			for _, subject := range subjects {
-				if subjectMap, ok := subject.(map[string]any); ok {
-					subjectEdge := createRoleToSubjectEdge(sourceNodeID, subjectMap, binding.Namespace, roleKind, roleName, bindingName)
-					if subjectEdge != nil {
-						edges = append(edges, *subjectEdge)
-					}
-				}
-			}
-		}
+		allNodes = append(allNodes, result.Nodes...)
 	}
 
-	// Create direct ClusterRole -> Subject edges via ClusterRoleBindings
-	for _, binding := range clusterRoleBindings {
-		bindingData, err := extractRBACResource(binding.Resource)
-		if err != nil {
-			continue
-		}
-
-		roleRef, exists := bindingData["role_ref"].(map[string]any)
-		if !exists {
-			if roleRef, exists = bindingData["roleRef"].(map[string]any); !exists {
-				continue
-			}
-		}
-
-		roleKind, _ := roleRef["kind"].(string)
-		roleName, _ := roleRef["name"].(string)
-
-		if roleKind == "" || roleName == "" {
-			continue
-		}
-
-		// Create source node ID - should be ClusterRole
-		var sourceNodeID string
-
-		if roleKind == "ClusterRole" {
-			sourceNodeID = GenerateNodeID("ClusterRole", "cluster_role", "", roleName)
-		} else {
-			continue
-		}
-
-		// Create direct edges from ClusterRole to subjects
-		if subjects, exists := bindingData["subjects"].([]any); exists {
-			bindingName := ""
-			if name, ok := bindingData["name"].(string); ok {
-				bindingName = name
-			}
-
-			for _, subject := range subjects {
-				if subjectMap, ok := subject.(map[string]any); ok {
-					subjectEdge := createRoleToSubjectEdge(sourceNodeID, subjectMap, "", roleKind, roleName, bindingName)
-					if subjectEdge != nil {
-						edges = append(edges, *subjectEdge)
-					}
-				}
-			}
-		}
-	}
-
-	return edges
-}
-
-// Helper function to extract RBAC resource data
-func extractRBACResource(resource any) (map[string]any, error) {
-	resourceData, err := json.Marshal(resource)
+	// Create relationships
+	edges, err := createRelationships(allNodes)
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal RBAC resource: %w", err)
+		return nil, fmt.Errorf("failed to create relationships: %w", err)
 	}
 
-	var rbacResource map[string]any
-	if err := json.Unmarshal(resourceData, &rbacResource); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal RBAC resource: %w", err)
-	}
-
-	return rbacResource, nil
+	return &BloodHoundResult{
+		Metadata: &BloodHoundMetadata{
+			SourceKind: "kubernetes",
+		},
+		Graph: BloodHoundGraph{
+			Nodes: allNodes,
+			Edges: edges,
+		},
+	}, nil
 }
-
-// Helper function to create role to subject edges
-func createRoleToSubjectEdge(roleNodeID string, subject map[string]any, defaultNamespace, roleKind, roleName, bindingName string) *BloodHoundEdge {
-	subjectKind, _ := subject["kind"].(string)
-	subjectName, _ := subject["name"].(string)
-
-	if subjectKind == "" || subjectName == "" {
-		return nil
-	}
-
-	var targetNodeID string
-
-	switch subjectKind {
-	case "ServiceAccount":
-		subjectNamespace, _ := subject["namespace"].(string)
-		if subjectNamespace == "" {
-			subjectNamespace = defaultNamespace
-		}
-		if subjectNamespace == "" {
-			return nil // ServiceAccount must have a namespace
-		}
-		targetNodeID = GenerateNodeID("ServiceAccount", "service_account", subjectNamespace, subjectName)
-	case "User":
-		targetNodeID = GenerateNodeID("User", "user", "", subjectName)
-	case "Group":
-		targetNodeID = GenerateNodeID("Group", "group", "", subjectName)
-	default:
-		return nil
-	}
-
-	properties := map[string]any{
-		"role_kind":    roleKind,
-		"role_name":    roleName,
-		"binding_name": bindingName,
-		"subject_kind": subjectKind,
-		"subject_name": subjectName,
-	}
-
-	if subjectNamespace, exists := subject["namespace"].(string); exists && subjectNamespace != "" {
-		properties["subject_namespace"] = subjectNamespace
-	}
-
-	edge := CreateEdge(roleNodeID, targetNodeID, "HasRole", properties)
-	return &edge
-}
-
-// // Helper function to create binding to subject edges
-// func createBindingToSubjectEdge(bindingNodeID string, subject map[string]any, defaultNamespace, bindingType string) *BloodHoundEdge {
-// 	subjectKind, _ := subject["kind"].(string)
-// 	subjectName, _ := subject["name"].(string)
-
-// 	if subjectKind == "" || subjectName == "" {
-// 		return nil
-// 	}
-
-// 	var targetNodeID string
-// 	var edgeType string
-
-// 	switch subjectKind {
-// 	case "ServiceAccount":
-// 		subjectNamespace, _ := subject["namespace"].(string)
-// 		if subjectNamespace == "" {
-// 			subjectNamespace = defaultNamespace
-// 		}
-// 		if subjectNamespace == "" {
-// 			return nil // ServiceAccount must have a namespace
-// 		}
-// 		targetNodeID = GenerateNodeID("ServiceAccount", "service_account", subjectNamespace, subjectName)
-// 		edgeType = bindingType + "ToServiceAccount"
-// 	case "User":
-// 		targetNodeID = GenerateNodeID("User", "user", "", subjectName)
-// 		edgeType = bindingType + "ToUser"
-// 	case "Group":
-// 		targetNodeID = GenerateNodeID("Group", "group", "", subjectName)
-// 		edgeType = bindingType + "ToGroup"
-// 	default:
-// 		return nil
-// 	}
-
-// 	properties := map[string]any{
-// 		"subject_kind": subjectKind,
-// 		"subject_name": subjectName,
-// 	}
-
-// 	if subjectNamespace, exists := subject["namespace"].(string); exists && subjectNamespace != "" {
-// 		properties["subject_namespace"] = subjectNamespace
-// 	}
-
-// 	edge := CreateEdge(bindingNodeID, targetNodeID, edgeType, properties)
-// 	return &edge
-// }

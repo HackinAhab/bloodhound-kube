@@ -1,0 +1,14 @@
+version: "1.0"
+relationships:
+  - name: "gateway_routes_via_httproute"
+    description: "Gateway routes traffic via HTTPRoute"
+    source_type: ["gateway"]
+    target_type: ["service"]
+    via_type: ["http_route"]
+    edge_type: "RoutesTo"
+    conditions:
+      - "source.name in via.parentRefs[*].name"
+      - "target.name in via.backendRefs[*].name"
+      - "source.namespace == via.namespace"
+    priority: 6
+    enabled: false  # Disabled by default, enable if using Gateway API

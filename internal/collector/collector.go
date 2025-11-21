@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/dynamic"
 )
 
 type Collector struct {
@@ -67,6 +68,19 @@ func (c *Collector) SetRedacted(redacted bool) {
 
 func (c *Collector) IsRedacted() bool {
 	return c.redacted
+}
+
+// GetClients returns the Kubernetes clients
+func (c *Collector) GetClients() *utils.Clients {
+	return c.clients
+}
+
+// GetDynamicClient returns the dynamic client for CRD support
+func (c *Collector) GetDynamicClient() (dynamic.Interface, error) {
+	if c.clients.Dynamic == nil {
+		return nil, fmt.Errorf("dynamic client not available")
+	}
+	return c.clients.Dynamic, nil
 }
 
 func AnnotationsCleaner(annotations map[string]string) map[string]string {

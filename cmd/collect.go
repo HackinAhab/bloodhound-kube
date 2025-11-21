@@ -8,26 +8,28 @@ import (
 	"time"
 
 	"bloodhound-kube/internal/collector"
+	"bloodhound-kube/internal/config"
 	"bloodhound-kube/internal/utils"
 
 	"github.com/spf13/cobra"
 )
 
 var (
-	namespaces     string
-	allNamespaces  bool
-	logLevel       string
-	output         string
-	resourceTypes  []string
-	concurrency    int
-	timeout        int
-	kubeconfig     string
-	server         string
-	token          string
-	clusterType    string
-	resume         bool
-	checkpointFile string
-	redacted       bool
+	namespaces       string
+	allNamespaces    bool
+	logLevel         string
+	output           string
+	resourceTypes    []string
+	concurrency      int
+	timeout          int
+	kubeconfig       string
+	server           string
+	token            string
+	clusterType      string
+	resume           bool
+	checkpointFile   string
+	redacted         bool
+	collectConfigDir string
 )
 
 // allResourceTypes will be populated after cluster detection
@@ -78,6 +80,9 @@ Examples:
   # Use custom kubeconfig file
   bloodhound-kube collect --kubeconfig /path/to/config
 
+  # Use custom config directory
+  bloodhound-kube collect --config-dir ./custom-configs
+
   # Specify single namespace
   bloodhound-kube collect --namespace production
 
@@ -114,6 +119,12 @@ Examples:
 
 		log.Debug("Starting collection command", "logLevel", effectiveLogLevel)
 
+		// Set default config directory
+		if collectConfigDir == "" {
+			collectConfigDir = "config"
+		}
+		collectionsConfigPath := filepath.Join(collectConfigDir, "collections.yaml")
+
 		if allNamespaces && cmd.Flags().Changed("namespace") {
 			return fmt.Errorf("cannot use -A (all namespaces) and -n (namespace) flags together")
 		}
@@ -149,7 +160,26 @@ Examples:
 		// Set redacted flag on collector
 		c.SetRedacted(redacted)
 
-		collector.DefaultRegistry.InitializeForCluster(c.GetClusterType())
+		// Initialize registry from YAML configuration (required)
+		loader := config.NewLoader(collectConfigDir)
+		yamlCfg, err := loader.LoadCollections("collections.yaml")
+		if err != nil {
+			return fmt.Errorf("failed to load collection configurations from %s: %w", collectionsConfigPath, err)
+		}
+
+		// Get dynamic client for CRD support
+		dynamicClient, err := c.GetDynamicClient()
+		if err != nil {
+			return fmt.Errorf("failed to get dynamic client: %w", err)
+		}
+
+		// Initialize registry from YAML configuration
+		err = collector.DefaultRegistry.InitializeFromYAML(c.GetClients(), log, yamlCfg, dynamicClient)
+		if err != nil {
+			return fmt.Errorf("failed to initialize collection registry from YAML: %w", err)
+		}
+		log.Info("Successfully initialized collection registry from YAML", "handlers", len(yamlCfg.Collections))
+
 		allResourceTypes = collector.DefaultRegistry.GetAllNames()
 
 		log.Debug("Resource type selection", "inputResourceTypes", resourceTypes, "allResourceTypes", allResourceTypes)
@@ -267,17 +297,7 @@ Examples:
 }
 
 func getAvailableResourcesHelp() string {
-	var resources []string
-
-	for _, meta := range collector.AllHandlers {
-		if len(meta.Nicknames) > 0 {
-			resources = append(resources, fmt.Sprintf("%s (%s)", meta.Name, meta.Nicknames[0]))
-		} else {
-			resources = append(resources, meta.Name)
-		}
-	}
-
-	return fmt.Sprintf("Resource types to collect (%s, projects*, images*). *OpenShift only. Default: all types", strings.Join(resources, ", "))
+	return "Resource types to collect (see config/collections.yaml for available types). Default: all enabled types"
 }
 
 func init() {
@@ -298,6 +318,7 @@ func init() {
 	collectCmd.Flags().BoolVar(&resume, "resume", false, "Resume from previous interrupted collection")
 	collectCmd.Flags().StringVar(&checkpointFile, "checkpoint-file", "", "Path to checkpoint file (auto-generated if not specified)")
 	collectCmd.Flags().BoolVar(&redacted, "redacted", false, "Redact secrets and sensitive data during collection")
+	collectCmd.Flags().StringVar(&collectConfigDir, "config-dir", "config", "Directory containing configuration files (collections.yaml, parsers.yaml)")
 
 	rootCmd.AddCommand(collectCmd)
 }

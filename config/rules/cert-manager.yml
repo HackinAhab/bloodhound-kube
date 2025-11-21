@@ -1,0 +1,12 @@
+version: "1.0"
+relationships:
+  - name: "certificate_issued_to_service"
+    description: "Certificate (cert-manager) is issued for Service"
+    source_type: ["certificate"]
+    target_type: ["service"]
+    edge_type: "IssuedFor"
+    conditions:
+      - "source.dnsNames contains target.name"
+      - "source.namespace == target.namespace"
+    priority: 4
+    enabled: false  # Disabled by default, enable if using cert-manager

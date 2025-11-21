@@ -1,0 +1,519 @@
+# BloodHound Kubernetes Parser Configuration
+# This file defines how to parse Kubernetes resources into BloodHound nodes
+
+version: "1.0"
+
+metadata:
+  name: "kubernetes-default-parsers"
+  description: "Default parser configuration for Kubernetes resources"
+
+# Built-in transform functions
+# These are implemented in Go and can be referenced in property definitions
+transforms:
+  map_keys: "Extract keys from a map/dictionary"
+  timestamp: "Parse RFC3339 timestamp to Unix time"
+  port_list: "Extract port numbers and protocols from port specifications"
+  flatten: "Flatten nested structures into dot-notation keys"
+  json_string: "Convert object to JSON string"
+
+# Parser definitions
+parsers:
+  # Secret Parser
+  - resource_type: "secret"
+    bloodhound_kinds: ["Kube_Secret"]
+    enabled: true
+    properties:
+      - name: "name"
+        source: "metadata.name"
+        required: true
+      
+      - name: "namespace"
+        source: "metadata.namespace"
+        default: "default"
+      
+      - name: "resource_type"
+        value: "secret"
+      
+      - name: "secret_type"
+        source: "type"
+      
+      - name: "created_at"
+        source: "metadata.creationTimestamp"
+        transform: "timestamp"
+      
+      - name: "labels"
+        source: "metadata.labels"
+        transform: "flatten"
+      
+      - name: "data_keys"
+        source: "data"
+        transform: "map_keys"
+      
+      - name: "data_keys_count"
+        expression: "len(data_keys)"
+      
+      - name: "has_sensitive_keys"
+        expression: "contains_any(data_keys, ['password', 'token', 'key', 'secret', 'cert', 'tls'])"
+
+  # Service Parser
+  - resource_type: "service"
+    bloodhound_kinds: ["Kube_Service"]
+    enabled: true
+    properties:
+      - name: "name"
+        source: "metadata.name"
+        required: true
+      
+      - name: "namespace"
+        source: "metadata.namespace"
+        default: "default"
+      
+      - name: "resource_type"
+        value: "service"
+      
+      - name: "selector"
+        source: "spec.selector"
+        transform: "flatten"
+      
+      - name: "service_type"
+        source: "spec.type"
+        default: "ClusterIP"
+      
+      - name: "cluster_ip"
+        source: "spec.clusterIP"
+      
+      - name: "ports"
+        source: "spec.ports"
+        transform: "port_list"
+      
+      - name: "labels"
+        source: "metadata.labels"
+        transform: "flatten"
+      
+      - name: "has_external_ip"
+        expression: "len(spec.externalIPs) > 0"
+
+  # Deployment Parser
+  - resource_type: "deployment"
+    bloodhound_kinds: ["Kube_Deployment"]
+    enabled: true
+    properties:
+      - name: "name"
+        source: "metadata.name"
+        required: true
+      
+      - name: "namespace"
+        source: "metadata.namespace"
+        default: "default"
+      
+      - name: "resource_type"
+        value: "deployment"
+      
+      - name: "selector"
+        source: "spec.selector.matchLabels"
+        transform: "flatten"
+      
+      - name: "replicas"
+        source: "spec.replicas"
+        default: 1
+      
+      - name: "labels"
+        source: "metadata.labels"
+        transform: "flatten"
+      
+      - name: "pod_labels"
+        source: "spec.template.metadata.labels"
+        transform: "flatten"
+      
+      - name: "service_account"
+        source: "spec.template.spec.serviceAccountName"
+        default: "default"
+      
+      - name: "volumes"
+        source: "spec.template.spec.volumes"
+        transform: "json_string"
+      
+      - name: "containers"
+        source: "spec.template.spec.containers"
+        transform: "json_string"
+
+  # Pod Parser
+  - resource_type: "pod"
+    bloodhound_kinds: ["Kube_Pod"]
+    enabled: true
+    properties:
+      - name: "name"
+        source: "metadata.name"
+        required: true
+      
+      - name: "namespace"
+        source: "metadata.namespace"
+        default: "default"
+      
+      - name: "resource_type"
+        value: "pod"
+      
+      - name: "labels"
+        source: "metadata.labels"
+        transform: "flatten"
+      
+      - name: "service_account"
+        source: "spec.serviceAccountName"
+        default: "default"
+      
+      - name: "node_name"
+        source: "spec.nodeName"
+      
+      - name: "host_network"
+        source: "spec.hostNetwork"
+        default: false
+      
+      - name: "host_pid"
+        source: "spec.hostPID"
+        default: false
+      
+      - name: "volumes"
+        source: "spec.volumes"
+        transform: "json_string"
+      
+      - name: "containers"
+        source: "spec.containers"
+        transform: "json_string"
+      
+      - name: "is_privileged"
+        expression: "any(spec.containers[*].securityContext.privileged)"
+
+  # Node Parser
+  - resource_type: "node"
+    bloodhound_kinds: ["Kube_Node"]
+    enabled: true
+    properties:
+      - name: "name"
+        source: "metadata.name"
+        required: true
+      
+      - name: "resource_type"
+        value: "node"
+      
+      - name: "labels"
+        source: "metadata.labels"
+        transform: "flatten"
+      
+      - name: "annotations"
+        source: "metadata.annotations"
+        transform: "flatten"
+      
+      - name: "unschedulable"
+        source: "spec.unschedulable"
+        default: false
+      
+      - name: "pod_cidr"
+        source: "spec.podCIDR"
+      
+      - name: "kubelet_version"
+        source: "status.nodeInfo.kubeletVersion"
+      
+      - name: "container_runtime"
+        source: "status.nodeInfo.containerRuntimeVersion"
+      
+      - name: "os_image"
+        source: "status.nodeInfo.osImage"
+      
+      - name: "kernel_version"
+        source: "status.nodeInfo.kernelVersion"
+      
+      - name: "architecture"
+        source: "status.nodeInfo.architecture"
+      
+      - name: "operating_system"
+        source: "status.nodeInfo.operatingSystem"
+      
+      - name: "created_at"
+        source: "metadata.creationTimestamp"
+        transform: "timestamp"
+
+  # Role Parser
+  - resource_type: "role"
+    bloodhound_kinds: ["Kube_Role"]
+    enabled: true
+    properties:
+      - name: "name"
+        source: "metadata.name"
+        required: true
+      
+      - name: "namespace"
+        source: "metadata.namespace"
+        default: "default"
+      
+      - name: "resource_type"
+        value: "role"
+      
+      - name: "labels"
+        source: "metadata.labels"
+        transform: "flatten"
+      
+      - name: "rules"
+        source: "rules"
+        transform: "json_string"
+      
+      - name: "rules_count"
+        expression: "len(rules)"
+
+  # ClusterRole Parser
+  - resource_type: "clusterrole"
+    bloodhound_kinds: ["ClusterRole", "KubernetesResource"]
+    enabled: true
+    properties:
+      - name: "name"
+        source: "metadata.name"
+        required: true
+      
+      - name: "resource_type"
+        value: "clusterrole"
+      
+      - name: "labels"
+        source: "metadata.labels"
+        transform: "flatten"
+      
+      - name: "rules"
+        source: "rules"
+        transform: "json_string"
+      
+      - name: "rules_count"
+        expression: "len(rules)"
+      
+      - name: "aggregation_rule"
+        source: "aggregationRule"
+        transform: "json_string"
+
+  # RoleBinding Parser
+  - resource_type: "rolebinding"
+    bloodhound_kinds: ["Kube_RoleBinding"]
+    enabled: true
+    properties:
+      - name: "name"
+        source: "metadata.name"
+        required: true
+      
+      - name: "namespace"
+        source: "metadata.namespace"
+        default: "default"
+      
+      - name: "resource_type"
+        value: "rolebinding"
+      
+      - name: "role_ref"
+        source: "roleRef"
+        transform: "json_string"
+      
+      - name: "subjects"
+        source: "subjects"
+        transform: "json_string"
+      
+      - name: "subjects_count"
+        expression: "len(subjects)"
+
+  # ServiceAccount Parser
+  - resource_type: "serviceaccount"
+    bloodhound_kinds: ["Kube_ServiceAccount"]
+    enabled: true
+    properties:
+      - name: "name"
+        source: "metadata.name"
+        required: true
+      
+      - name: "namespace"
+        source: "metadata.namespace"
+        default: "default"
+      
+      - name: "resource_type"
+        value: "service_account"
+      
+      - name: "labels"
+        source: "metadata.labels"
+        transform: "flatten"
+      
+      - name: "secrets"
+        source: "secrets"
+        transform: "json_string"
+      
+      - name: "image_pull_secrets"
+        source: "imagePullSecrets"
+        transform: "json_string"
+      
+      - name: "automount_service_account_token"
+        source: "automountServiceAccountToken"
+        default: true
+
+  # ConfigMap Parser
+  - resource_type: "configmap"
+    bloodhound_kinds: ["Kube_ConfigMap"]
+    enabled: true
+    properties:
+      - name: "name"
+        source: "metadata.name"
+        required: true
+      
+      - name: "namespace"
+        source: "metadata.namespace"
+        default: "default"
+      
+      - name: "resource_type"
+        value: "configmap"
+      
+      - name: "labels"
+        source: "metadata.labels"
+        transform: "flatten"
+      
+      - name: "data_keys"
+        source: "data"
+        transform: "map_keys"
+      
+      - name: "data_keys_count"
+        expression: "len(data_keys)"
+      
+      - name: "created_at"
+        source: "metadata.creationTimestamp"
+        transform: "timestamp"
+
+  # ClusterRoleBinding Parser
+  - resource_type: "clusterrolebinding"
+    bloodhound_kinds: ["Kube_ClusterRoleBinding"]
+    enabled: true
+    properties:
+      - name: "name"
+        source: "metadata.name"
+        required: true
+      
+      - name: "resource_type"
+        value: "clusterrolebinding"
+      
+      - name: "labels"
+        source: "metadata.labels"
+        transform: "flatten"
+      
+      - name: "role_ref"
+        source: "roleRef"
+        transform: "json_string"
+      
+      - name: "subjects"
+        source: "subjects"
+        transform: "json_string"
+      
+      - name: "subjects_count"
+        expression: "len(subjects)"
+
+  # DaemonSet Parser
+  - resource_type: "daemonset"
+    bloodhound_kinds: ["Kube_DaemonSet"]
+    enabled: true
+    properties:
+      - name: "name"
+        source: "metadata.name"
+        required: true
+      
+      - name: "namespace"
+        source: "metadata.namespace"
+        default: "default"
+      
+      - name: "resource_type"
+        value: "daemonset"
+      
+      - name: "selector"
+        source: "spec.selector.matchLabels"
+        transform: "flatten"
+      
+      - name: "labels"
+        source: "metadata.labels"
+        transform: "flatten"
+      
+      - name: "pod_labels"
+        source: "spec.template.metadata.labels"
+        transform: "flatten"
+      
+      - name: "service_account"
+        source: "spec.template.spec.serviceAccountName"
+        default: "default"
+      
+      - name: "volumes"
+        source: "spec.template.spec.volumes"
+        transform: "json_string"
+      
+      - name: "containers"
+        source: "spec.template.spec.containers"
+        transform: "json_string"
+      
+      - name: "host_network"
+        source: "spec.template.spec.hostNetwork"
+        default: false
+      
+      - name: "host_pid"
+        source: "spec.template.spec.hostPID"
+        default: false
+
+  # CRD (CustomResourceDefinition) Parser
+  - resource_type: "crd"
+    bloodhound_kinds: ["Kube_CRD"]
+    enabled: true
+    properties:
+      - name: "name"
+        source: "metadata.name"
+        required: true
+      
+      - name: "resource_type"
+        value: "crd"
+      
+      - name: "labels"
+        source: "metadata.labels"
+        transform: "flatten"
+      
+      - name: "group"
+        source: "spec.group"
+      
+      - name: "scope"
+        source: "spec.scope"
+      
+      - name: "names"
+        source: "spec.names"
+        transform: "json_string"
+      
+      - name: "versions"
+        source: "spec.versions"
+        transform: "json_string"
+      
+      - name: "created_at"
+        source: "metadata.creationTimestamp"
+        transform: "timestamp"
+
+# Example: Custom Resource Parser (CRD)
+# Uncomment and modify to parse your custom resources
+#
+# - resource_type: "virtualservice"
+#   bloodhound_kinds: ["VirtualService", "IstioResource", "KubernetesResource"]
+#   enabled: true
+#   properties:
+#     - name: "name"
+#       source: "metadata.name"
+#       required: true
+#     
+#     - name: "namespace"
+#       source: "metadata.namespace"
+#       default: "default"
+#     
+#     - name: "resource_type"
+#       value: "virtualservice"
+#     
+#     - name: "hosts"
+#       source: "spec.hosts"
+#       transform: "json_string"
+#     
+#     - name: "gateways"
+#       source: "spec.gateways"
+#       transform: "json_string"
+#     
+#     - name: "http_routes"
+#       source: "spec.http"
+#       transform: "json_string"
+#     
+#     - name: "http_routes_count"
+#       expression: "len(spec.http)"

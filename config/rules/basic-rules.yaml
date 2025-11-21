@@ -1,0 +1,282 @@
+version: "1.0"
+relationships:
+  - name: "secret_referenced_by_deployment"
+    description: "Custom rule: Secret is referenced by Deployment environment variables"
+    source_type: ["secret"]
+    target_type: ["deployment"]
+    edge_type: "ReferencedBy"
+    conditions:
+      - "source.name in target.spec.template.spec.containers[*].env[*].valueFrom.secretKeyRef.name"
+      - "source.namespace == target.namespace"
+    priority: 8
+    enabled: true
+
+  - name: "configmap_referenced_by_deployment"
+    description: "Custom rule: ConfigMap is referenced by Deployment environment variables"
+    source_type: ["config_map"]
+    target_type: ["deployment"]
+    edge_type: "ReferencedBy"
+    conditions:
+      - "source.name in target.spec.template.spec.containers[*].env[*].valueFrom.configMapKeyRef.name"
+      - "source.namespace == target.namespace"
+    priority: 8
+    enabled: true
+
+  - name: "pod_uses_service_account"
+    description: "Custom rule: Pod uses ServiceAccount"
+    source_type: ["pod"]
+    target_type: ["service_account"]
+    edge_type: "Uses"
+    conditions:
+      - "source.spec.serviceAccountName == target.name"
+      - "source.namespace == target.namespace"
+    priority: 7
+    enabled: true
+
+  - name: "cluster_role_to_subject_via_binding"
+    description: "ClusterRole permissions granted to subjects via ClusterRoleBinding"
+    source_type: ["cluster_role"]
+    target_type: ["service_account", "user", "group"]
+    via_type: ["cluster_role_binding"]
+    edge_type: "HasRole"
+    conditions:
+      - "via.roleRef.name == source.name"
+      - "via.roleRef.kind == 'ClusterRole'"
+      - "target.name in via.subjects[*].name"
+    priority: 10
+    enabled: true
+    
+  - name: "role_to_subject_via_binding"
+    description: "Role permissions granted to subjects via RoleBinding"
+    source_type: ["role"]
+    target_type: ["service_account", "user", "group"]
+    via_type: ["role_binding"]
+    edge_type: "HasRole"
+    conditions:
+      - "via.roleRef.name == source.name"
+      - "via.roleRef.kind == 'Role'"
+      - "target.name in via.subjects[*].name"
+      - "source.namespace == target.namespace"
+    priority: 10
+    enabled: true
+
+  - name: "cluster_role_binding_to_subject"
+    description: "ClusterRoleBinding grants permissions to subjects"
+    source_type: ["cluster_role_binding"]
+    target_type: ["service_account", "user", "group"]
+    edge_type: "GrantsTo"
+    conditions:
+      - "target.name in source.subjects[*].name"
+    priority: 9
+    enabled: true
+
+  - name: "role_binding_to_subject"
+    description: "RoleBinding grants permissions to subjects"
+    source_type: ["role_binding"]
+    target_type: ["service_account", "user", "group"]
+    edge_type: "GrantsTo"
+    conditions:
+      - "target.name in source.subjects[*].name"
+      - "source.namespace == target.namespace"
+    priority: 9
+    enabled: true
+  
+  - name: "deployment_owns_replicaset"
+    description: "Deployment owns ReplicaSet resources"
+    source_type: ["deployment"]
+    target_type: ["replica_set"]
+    edge_type: "Owns"
+    conditions:
+      - "source.name in target.ownerReferences[*].name"
+      - "'Deployment' in target.ownerReferences[*].kind"
+      - "source.namespace == target.namespace"
+    priority: 5
+    enabled: true
+
+  - name: "replicaset_owns_pod"
+    description: "ReplicaSet owns Pod resources"
+    source_type: ["replica_set"]
+    target_type: ["pod"]
+    edge_type: "Owns"
+    conditions:
+      - "source.name in target.ownerReferences[*].name"
+      - "'ReplicaSet' in target.ownerReferences[*].kind"
+      - "source.namespace == target.namespace"
+    priority: 5
+    enabled: true
+
+  - name: "statefulset_owns_pod"
+    description: "StatefulSet owns Pod resources"
+    source_type: ["stateful_set"]
+    target_type: ["pod"]
+    edge_type: "Owns"
+    conditions:
+      - "source.name in target.ownerReferences[*].name"
+      - "'StatefulSet' in target.ownerReferences[*].kind"
+      - "source.namespace == target.namespace"
+    priority: 5
+    enabled: true
+
+  - name: "daemonset_owns_pod"
+    description: "DaemonSet owns Pod resources"
+    source_type: ["daemon_set"]
+    target_type: ["pod"]
+    edge_type: "Owns"
+    conditions:
+      - "source.name in target.ownerReferences[*].name"
+      - "'DaemonSet' in target.ownerReferences[*].kind"
+      - "source.namespace == target.namespace"
+    priority: 5
+    enabled: true
+  
+  - name: "secret_mounted_by_pod"
+    description: "Secret is mounted by Pod"
+    source_type: ["secret"]
+    target_type: ["pod"]
+    edge_type: "MountedBy"
+    conditions:
+      - "source.name in target.volumes[*].secret.secretName"
+      - "source.namespace == target.namespace"
+    priority: 8
+    enabled: true
+    
+  - name: "configmap_used_by_pod"
+    description: "ConfigMap is used by Pod"
+    source_type: ["config_map"]
+    target_type: ["pod"]
+    edge_type: "UsedBy"
+    conditions:
+      - "source.name in target.volumes[*].configMap.name"
+      - "source.namespace == target.namespace"
+    priority: 8
+    enabled: true
+
+  - name: "secret_referenced_by_service_account"
+    description: "Secret is referenced by ServiceAccount"
+    source_type: ["secret"]
+    target_type: ["service_account"]
+    edge_type: "ReferencedBy"
+    conditions:
+      - "source.name in target.secrets[*].name"
+      - "source.namespace == target.namespace"
+    priority: 8
+    enabled: true
+
+  # Service Relationships
+  
+  - name: "service_exposes_pods"
+    description: "Service exposes Pods via label selector"
+    source_type: ["service"]
+    target_type: ["pod"]
+    edge_type: "Exposes"
+    conditions:
+      - "source.selector subset_of target.labels"
+      - "source.namespace == target.namespace"
+    priority: 7
+    enabled: true
+
+  - name: "service_exposes_deployment"
+    description: "Service exposes Deployment via label selector"
+    source_type: ["service"]
+    target_type: ["deployment"]
+    edge_type: "Exposes"
+    conditions:
+      - "source.selector subset_of target.spec.template.metadata.labels"
+      - "source.namespace == target.namespace"
+    priority: 7
+    enabled: true
+  
+  - name: "ingress_routes_to_service"
+    description: "Ingress routes traffic to Service"
+    source_type: ["ingress"]
+    target_type: ["service"]
+    edge_type: "RoutesTo"
+    conditions:
+      - "target.name in source.backend[*].serviceName"
+      - "source.namespace == target.namespace"
+    priority: 6
+    enabled: true
+  
+  - name: "network_policy_applies_to_pods"
+    description: "NetworkPolicy applies to Pods via podSelector"
+    source_type: ["network_policy"]
+    target_type: ["pod"]
+    edge_type: "AppliesTo"
+    conditions:
+      - "source.podSelector subset_of target.labels"
+      - "source.namespace == target.namespace"
+    priority: 6
+    enabled: true
+
+  # Persistent Volume Relationships
+  
+  - name: "persistent_volume_claim_used_by_pod"
+    description: "PersistentVolumeClaim is used by Pod"
+    source_type: ["persistent_volume_claim"]
+    target_type: ["pod"]
+    edge_type: "UsedBy"
+    conditions:
+      - "source.name in target.volumes[*].persistentVolumeClaim.claimName"
+      - "source.namespace == target.namespace"
+    priority: 7
+    enabled: true
+
+  - name: "persistent_volume_bound_to_claim"
+    description: "PersistentVolume is bound to PersistentVolumeClaim"
+    source_type: ["persistent_volume"]
+    target_type: ["persistent_volume_claim"]
+    edge_type: "BoundTo"
+    conditions:
+      - "source.claimRef.name == target.name"
+      - "source.claimRef.namespace == target.namespace"
+    priority: 6
+    enabled: true
+  
+  - name: "pod_scheduled_on_node"
+    description: "Pod is scheduled on Node"
+    source_type: ["pod"]
+    target_type: ["node"]
+    edge_type: "ScheduledOn"
+    conditions:
+      - "source.nodeName == target.name"
+    priority: 5
+    enabled: true
+  
+  - name: "tls_secret_used_by_ingress"
+    description: "TLS Secret is used by Ingress"
+    source_type: ["secret"]
+    target_type: ["ingress"]
+    edge_type: "SecuresWith"
+    conditions:
+      - "source.secret_type == 'kubernetes.io/tls'"
+      - "source.name in target.tls[*].secretName"
+      - "source.namespace == target.namespace"
+    priority: 8
+    enabled: true
+
+  - name: "cluster_role_to_service_account_cross_namespace"
+    description: "ClusterRole can be bound to ServiceAccounts in any namespace"
+    source_type: ["cluster_role"]
+    target_type: ["service_account"]
+    via_type: ["cluster_role_binding", "role_binding"]
+    edge_type: "HasRole"
+    conditions:
+      - "via.roleRef.name == source.name"
+      - "via.roleRef.kind == 'ClusterRole'"
+      - "target.name in via.subjects[*].name"
+    priority: 9
+    enabled: true
+
+  # Service Account Token Relationships
+  
+  - name: "service_account_token_belongs_to_account"
+    description: "ServiceAccount token Secret belongs to ServiceAccount"
+    source_type: ["secret"]
+    target_type: ["service_account"]
+    edge_type: "BelongsTo"
+    conditions:
+      - "source.secret_type == 'kubernetes.io/service-account-token'"
+      - "source.annotations['kubernetes.io/service-account.name'] == target.name"
+      - "source.namespace == target.namespace"
+    priority: 9
+    enabled: true

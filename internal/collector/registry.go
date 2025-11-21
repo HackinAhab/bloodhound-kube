@@ -1,45 +1,73 @@
 package collector
 
 import (
+	"bloodhound-kube/internal/config"
 	"bloodhound-kube/internal/utils"
 	"fmt"
 	"slices"
 	"sort"
 	"strings"
+
+	"k8s.io/client-go/dynamic"
 )
 
 type ResourceRegistry struct {
 	handlers map[string]ResourceHandler
+	factory  *CollectorFactory
+	useYAML  bool
 }
 
 func NewResourceRegistry() *ResourceRegistry {
 	registry := &ResourceRegistry{
 		handlers: make(map[string]ResourceHandler),
+		useYAML:  false,
 	}
 
-	registry.registerDefaults()
+	// Note: Registry must be initialized with YAML config via InitializeFromYAML()
+	// or use NewResourceRegistryFromConfig() directly
 	return registry
 }
 
-func (r *ResourceRegistry) registerDefaults() {
-	// Register all handlers from metadata
-	for _, meta := range AllHandlers {
-		handler := NewHandlerFromMetadata(meta)
-		r.Register(handler)
+// NewResourceRegistryFromConfig creates a registry from YAML configuration
+func NewResourceRegistryFromConfig(clients *utils.Clients, logger *utils.Logger, collectionsConfig *config.CollectionsConfig, dynamicClient dynamic.Interface) (*ResourceRegistry, error) {
+	factory, err := NewCollectorFactory(clients, logger, collectionsConfig, dynamicClient)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create collector factory: %w", err)
 	}
+
+	handlers, err := factory.CreateAllCollectors()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create collectors: %w", err)
+	}
+
+	registry := &ResourceRegistry{
+		handlers: handlers,
+		factory:  factory,
+		useYAML:  true,
+	}
+
+	return registry, nil
 }
 
-func (r *ResourceRegistry) InitializeForCluster(clusterType utils.ClusterType) {
-	// Clear existing handlers
-	r.handlers = make(map[string]ResourceHandler)
-
-	// Register handlers that support the current cluster type
-	for _, meta := range AllHandlers {
-		if r.supportsClusterType(meta.SupportedClusterTypes, clusterType) {
-			handler := NewHandlerFromMetadata(meta)
-			r.Register(handler)
-		}
+// InitializeFromYAML initializes the registry from YAML configuration
+// This takes precedence over Go handlers
+func (r *ResourceRegistry) InitializeFromYAML(clients *utils.Clients, logger *utils.Logger, collectionsConfig *config.CollectionsConfig, dynamicClient dynamic.Interface) error {
+	factory, err := NewCollectorFactory(clients, logger, collectionsConfig, dynamicClient)
+	if err != nil {
+		return fmt.Errorf("failed to create collector factory: %w", err)
 	}
+
+	handlers, err := factory.CreateAllCollectors()
+	if err != nil {
+		return fmt.Errorf("failed to create collectors: %w", err)
+	}
+
+	// Replace existing handlers with YAML-defined ones
+	r.handlers = handlers
+	r.factory = factory
+	r.useYAML = true
+
+	return nil
 }
 
 // supportsClusterType checks if the handler supports the given cluster type
@@ -57,26 +85,10 @@ func (r *ResourceRegistry) GetHandler(name string) (ResourceHandler, error) {
 		return handler, nil
 	}
 
-	// Then try nickname match
-	for _, handler := range r.handlers {
-		if meta := r.getHandlerMetadata(handler); meta != nil {
-			if slices.Contains(meta.Nicknames, name) {
-				return handler, nil
-			}
-		}
-	}
-
-	return nil, fmt.Errorf("unknown resource type: %s", name)
-}
-
-// getHandlerMetadata finds the metadata for a given handler
-func (r *ResourceRegistry) getHandlerMetadata(handler ResourceHandler) *HandlerMetadata {
-	for _, meta := range AllHandlers {
-		if meta.Name == handler.GetName() {
-			return &meta
-		}
-	}
-	return nil
+	// For YAML-based handlers, nicknames are handled by the factory
+	// Return error with available types
+	available := r.GetAllNames()
+	return nil, fmt.Errorf("unknown resource type: %s (available: %s)", name, strings.Join(available, ", "))
 }
 
 func (r *ResourceRegistry) GetAllNames() []string {
@@ -129,14 +141,13 @@ func (r *ResourceRegistry) ValidateTypes(types []string) error {
 func (r *ResourceRegistry) getAvailableTypesWithNicknames() string {
 	var resources []string
 
-	for _, meta := range AllHandlers {
-		// Only include handlers that are registered for this cluster type
-		if _, exists := r.handlers[meta.Name]; exists {
-			if len(meta.Nicknames) > 0 {
-				resources = append(resources, fmt.Sprintf("%s (%s)", meta.Name, strings.Join(meta.Nicknames, ", ")))
-			} else {
-				resources = append(resources, meta.Name)
-			}
+	// Get available resources from registered handlers
+	for name, handler := range r.handlers {
+		desc := handler.GetDescription()
+		if desc != "" {
+			resources = append(resources, fmt.Sprintf("%s (%s)", name, desc))
+		} else {
+			resources = append(resources, name)
 		}
 	}
 
@@ -151,23 +162,6 @@ func (r *ResourceRegistry) GetHandlerDescriptions() map[string]string {
 		descriptions[name] = handler.GetDescription()
 	}
 	return descriptions
-}
-
-// ListHandlersForClusterType returns all handlers that support the given cluster type
-func (r *ResourceRegistry) ListHandlersForClusterType(clusterType utils.ClusterType) []string {
-	var handlers []string
-	for _, meta := range AllHandlers {
-		if r.supportsClusterType(meta.SupportedClusterTypes, clusterType) {
-			handlers = append(handlers, meta.Name)
-		}
-	}
-	sort.Strings(handlers)
-	return handlers
-}
-
-// GetAvailableHandlers returns metadata for all available handlers
-func (r *ResourceRegistry) GetAvailableHandlers() []HandlerMetadata {
-	return AllHandlers
 }
 
 var DefaultRegistry = NewResourceRegistry()

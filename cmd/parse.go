@@ -4,18 +4,21 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"bloodhound-kube/internal/bloodhound"
-	"bloodhound-kube/internal/bloodhound/nodes"
+	bhconfig "bloodhound-kube/internal/bloodhound/config"
 	"bloodhound-kube/internal/utils"
 
 	"github.com/spf13/cobra"
 )
 
 var (
-	inputFile     string
-	outputFile    string
-	parseLogLevel string
+	inputFile           string
+	outputFile          string
+	parseLogLevel       string
+	configDir           string
+	additionalRulesFile string
 )
 
 var parseCmd = &cobra.Command{
@@ -30,6 +33,9 @@ Examples:
   # Parse a collected file to BloodHound format
   bloodhound-kube parse -i collected-data.jsonl -o bloodhound-output.json
 
+  # Use custom config directory
+  bloodhound-kube parse -i collected-data.jsonl -o output.json --config-dir ./custom-configs
+
   # Show parsing statistics
   bloodhound-kube parse --stats`,
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -41,7 +47,22 @@ Examples:
 		log := utils.New(effectiveLogLevel)
 
 		log.Debug("Starting parse command", "logLevel", effectiveLogLevel)
-		nodes.RegisterParsers()
+
+		// Load YAML parser configurations if available
+		if configDir == "" {
+			configDir = "config" // Default config directory
+		}
+		parsersConfigPath := filepath.Join(configDir, "parsers.yaml")
+		if _, err := os.Stat(parsersConfigPath); err == nil {
+			log.Info("Loading parser configurations from YAML", "path", parsersConfigPath)
+			if err := bhconfig.LoadParsersFromConfig(parsersConfigPath); err != nil {
+				log.Warn("Failed to load parser configurations, using built-in parsers", "error", err)
+			} else {
+				log.Debug("Successfully loaded YAML parser configurations")
+			}
+		} else {
+			log.Debug("No YAML parser config found, using built-in parsers", "path", parsersConfigPath)
+		}
 
 		if cmd.Flags().Changed("stats") {
 			bloodhound.PrintParsingStats()
@@ -67,6 +88,12 @@ Examples:
 			clusterName = cluster
 		}
 		log.Debug("Using cluster name", "cluster", clusterName)
+
+		// Set additional rules file if provided
+		if additionalRulesFile != "" {
+			log.Info("Additional rules file specified", "file", additionalRulesFile)
+			bloodhound.SetAdditionalRulesFile(additionalRulesFile)
+		}
 
 		// Use concurrent processing if we have a large number of resources
 		var result *bloodhound.BloodHoundResult
@@ -139,6 +166,8 @@ func init() {
 	parseCmd.Flags().StringP("cluster", "c", "unknown", "Kubernetes cluster name for metadata")
 	parseCmd.Flags().Bool("stats", false, "Show parsing statistics")
 	parseCmd.Flags().StringVarP(&parseLogLevel, "log", "l", "info", "Log level (debug, info, warn, error)")
+	parseCmd.Flags().StringVar(&configDir, "config-dir", "config", "Directory containing configuration files (collections.yaml, parsers.yaml)")
+	parseCmd.Flags().StringVar(&additionalRulesFile, "rules-file", "", "Additional rules file to load (in addition to rules from config/rules directory)")
 
 	rootCmd.AddCommand(parseCmd)
 }

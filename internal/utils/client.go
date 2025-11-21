@@ -10,6 +10,7 @@ import (
 	apiextensionsclientset "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	"k8s.io/apimachinery/pkg/version"
 	"k8s.io/client-go/discovery"
+	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -34,6 +35,7 @@ type ClientConfig struct {
 type Clients struct {
 	Kubernetes    *kubernetes.Clientset
 	ApiExtensions *apiextensionsclientset.Clientset
+	Dynamic       dynamic.Interface
 	ClusterType   ClusterType
 	ClusterInfo   *ClusterInfo
 }
@@ -84,6 +86,12 @@ func NewClient(cfg ClientConfig) (*Clients, error) {
 		return nil, fmt.Errorf("failed to create apiextensions client: %w", err)
 	}
 
+	// Create dynamic client for CRD support
+	dynamicClient, err := dynamic.NewForConfig(config)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create dynamic client: %w", err)
+	}
+
 	clusterInfo, detectedType, err := detectClusterType(clientset, cfg.ClusterType)
 	if err != nil {
 		return nil, fmt.Errorf("failed to detect cluster type: %w", err)
@@ -92,6 +100,7 @@ func NewClient(cfg ClientConfig) (*Clients, error) {
 	return &Clients{
 		Kubernetes:    clientset,
 		ApiExtensions: apiExtensionsClient,
+		Dynamic:       dynamicClient,
 		ClusterType:   detectedType,
 		ClusterInfo:   clusterInfo,
 	}, nil

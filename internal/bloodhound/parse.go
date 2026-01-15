@@ -8,72 +8,108 @@ import (
 	"bloodhound-kube/internal/bloodhound/relationships"
 )
 
-// Simplified direct conversion functions (keeping for backward compatibility)
-func CreateNodeFromResource(kinds []string, resourceType, namespace, name string, properties map[string]any) BloodHoundNode {
-	nodeID := GenerateNodeID(kinds[0], resourceType, namespace, name)
-
-	if properties == nil {
-		properties = make(map[string]any)
-	}
-
-	properties["name"] = name
-	properties["resource_type"] = resourceType
-	properties["objectid"] = nodeID
-
-	if namespace != "" {
-		properties["namespace"] = namespace
-	}
-
-	return BloodHoundNode{
-		ID:         nodeID,
-		Kinds:      kinds,
-		Properties: properties,
-	}
-}
-
-func CreateEdge(sourceID, targetID, kind string, properties map[string]any) BloodHoundEdge {
-	if properties == nil {
-		properties = make(map[string]any)
-	}
-
-	return BloodHoundEdge{
-		Start: BloodHoundEdgeRef{
-			MatchBy: "id",
-			Value:   sourceID,
-		},
-		End: BloodHoundEdgeRef{
-			MatchBy: "id",
-			Value:   targetID,
-		},
-		Kind:       SanitizePascalCase(kind),
-		Properties: properties,
-	}
-}
-
-// Main parsing functions - simplified to use converter directly
+// Main parsing function - OPA-based streaming approach
 func ConvertToBloodHoundResult(jsonlData []byte, clusterName string) (*BloodHoundResult, error) {
-	// Convert JSONL to nodes using the new converter
-	converter := NewResourceConverter()
-	nodes, err := converter.ConvertJSONLData(jsonlData)
+	// Parse raw JSONL into resources
+	resources, err := parseJSONLToResources(jsonlData)
 	if err != nil {
-		return nil, fmt.Errorf("failed to convert JSONL: %w", err)
+		return nil, fmt.Errorf("failed to parse JSONL: %w", err)
 	}
 
-	// Create relationships using the rules engine
-	edges, err := createRelationships(nodes)
+	// Create nodes using OPA policies with streaming
+	nodes, err := createNodesWithOPA(resources)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create nodes: %w", err)
+	}
+
+	// Create relationships using OPA policies
+	edges, err := createRelationshipsWithOPA(nodes)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create relationships: %w", err)
 	}
 
 	return &BloodHoundResult{
-		Metadata: &BloodHoundMetadata{
-			SourceKind: "kubernetes",
-		},
-		Graph: BloodHoundGraph{
-			Nodes: nodes,
-			Edges: edges,
-		},
+		Metadata: &BloodHoundMetadata{SourceKind: "kubernetes"},
+		Graph:    BloodHoundGraph{Nodes: nodes, Edges: edges},
 	}, nil
+}
+
+// parseJSONLToResources converts JSONL bytes to raw resource maps
+// Extracts the .resource field from the JSONL wrapper structure
+func parseJSONLToResources(jsonlData []byte) ([]map[string]any, error) {
+	lines := strings.Split(string(jsonlData), "\n")
+	var resources []map[string]any
+
+	for i, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+
+		var wrapper map[string]any
+		if err := json.Unmarshal([]byte(line), &wrapper); err != nil {
+			return nil, fmt.Errorf("failed to parse line %d: %w", i+1, err)
+		}
+
+		// Extract the actual K8s resource from the wrapper
+		// JSONL format: {"type": "secret", "timestamp": "...", "resource": {...}}
+		// OPA policies expect: {"kind": "Secret", "metadata": {...}, ...}
+		if resource, ok := wrapper["resource"].(map[string]any); ok {
+			resources = append(resources, resource)
+		} else {
+			// Skip lines without a valid resource field
+			fmt.Printf("Warning: Line %d missing 'resource' field, skipping\n", i+1)
+		}
+	}
+
+	return resources, nil
+}
+
+// createNodesWithOPA uses OPA policies to create nodes from resources
+// Processes in chunks of 10K for memory efficiency
+func createNodesWithOPA(resources []map[string]any) ([]BloodHoundNode, error) {
+	// Create OPA engine and load node policies
+	engine, err := relationships.NewOPAEngine("config/policies")
+	if err != nil {
+		return nil, fmt.Errorf("failed to create OPA engine: %w", err)
+	}
+
+	// Load node creation policies
+	if err := engine.SetNodePolicyDir("config/policies/nodes"); err != nil {
+		return nil, fmt.Errorf("failed to load node policies: %w", err)
+	}
+
+	// Process in chunks for memory efficiency
+	const chunkSize = 10000
+	var allNodes []BloodHoundNode
+
+	for i := 0; i < len(resources); i += chunkSize {
+		end := min(i+chunkSize, len(resources))
+
+		chunk := resources[i:end]
+
+		// Query OPA for nodes
+		sharedNodes, err := engine.QueryNodes(chunk)
+		if err != nil {
+			return nil, fmt.Errorf("failed to query nodes for chunk %d-%d: %w", i, end, err)
+		}
+
+		// Convert shared types to main package types
+		for _, sharedNode := range sharedNodes {
+			allNodes = append(allNodes, BloodHoundNode{
+				ID:         sharedNode.ID,
+				Kinds:      sharedNode.Kinds,
+				Properties: sharedNode.Properties,
+			})
+		}
+	}
+
+	return allNodes, nil
+}
+
+// createRelationshipsWithOPA uses OPA policies to create edges from nodes
+func createRelationshipsWithOPA(nodes []BloodHoundNode) ([]BloodHoundEdge, error) {
+	return createRelationships(nodes)
 }
 
 func ConvertToBloodHound(jsonlData []byte) (*ParsedResult, error) {
@@ -98,14 +134,6 @@ func ConvertToBloodHoundJSON(jsonlData []byte) ([]byte, error) {
 	return json.MarshalIndent(result, "", "  ")
 }
 
-// Package-level variable to store additional rules file path
-var additionalRulesFilePath string
-
-// SetAdditionalRulesFile sets the path to an additional rules file
-func SetAdditionalRulesFile(filepath string) {
-	additionalRulesFilePath = filepath
-}
-
 // JSONL parsing utility
 func ParseFromJSONL(jsonlData []byte) ([]ResourceData, error) {
 	lines := strings.Split(string(jsonlData), "\n")
@@ -128,24 +156,12 @@ func ParseFromJSONL(jsonlData []byte) ([]ResourceData, error) {
 	return resources, nil
 }
 
-// createRelationships applies rules engine to create edges between nodes
+// createRelationships applies OPA/Rego policies to create edges between nodes
 func createRelationships(nodes []BloodHoundNode) ([]BloodHoundEdge, error) {
-	// Create rules engine
-	engine := relationships.NewEngine()
-
-	// Load rules from config/rules directory with fallback to embedded rules
-	if err := engine.LoadRulesWithFallback(
-		"config/rules",    // Primary: config/rules/*.yaml
-		getBuiltinRules(), // Fallback: embedded rules
-	); err != nil {
-		return nil, fmt.Errorf("failed to load relationship rules: %w", err)
-	}
-
-	// Load additional rules file if specified
-	if additionalRulesFilePath != "" {
-		if err := engine.LoadAdditionalRulesFile(additionalRulesFilePath); err != nil {
-			return nil, fmt.Errorf("failed to load additional rules file: %w", err)
-		}
+	// Create OPA engine with policy directory
+	engine, err := relationships.NewOPAEngine("config/policies")
+	if err != nil {
+		return nil, fmt.Errorf("failed to create OPA engine: %w", err)
 	}
 
 	// Convert to shared types for the relationship engine
@@ -158,12 +174,11 @@ func createRelationships(nodes []BloodHoundNode) ([]BloodHoundEdge, error) {
 		}
 	}
 
-	// Apply rules to create relationships
-	sharedEdges := engine.ApplyRules(sharedNodes)
-
-	// Deduplicate and sort edges
-	sharedEdges = relationships.DeduplicateEdges(sharedEdges)
-	relationships.SortEdgesByKind(sharedEdges)
+	// Apply Rego policies to create relationships
+	sharedEdges, err := engine.ApplyRules(sharedNodes)
+	if err != nil {
+		return nil, fmt.Errorf("failed to apply OPA policies: %w", err)
+	}
 
 	// Convert back to main package types
 	edges := make([]BloodHoundEdge, len(sharedEdges))
@@ -185,43 +200,6 @@ func createRelationships(nodes []BloodHoundNode) ([]BloodHoundEdge, error) {
 	}
 
 	return edges, nil
-}
-
-// getBuiltinRules returns basic embedded rules as final fallback
-func getBuiltinRules() string {
-	return `
-version: "1.0"
-relationships:
-  - name: "deployment_owns_pods"
-    description: "Deployment owns Pods via ReplicaSet"
-    source_type: ["deployment"]
-    target_type: ["pod"]
-    edge_type: "Owns"
-    conditions:
-      - "source.selector in target.labels"
-    priority: 5
-    enabled: true
-
-  - name: "service_exposes_pods"
-    description: "Service exposes Pods via selector"
-    source_type: ["service"]
-    target_type: ["pod"]
-    edge_type: "Exposes"
-    conditions:
-      - "source.selector subset_of target.labels"
-    priority: 7
-    enabled: true
-
-  - name: "secret_mounted_by_pod"
-    description: "Secret is mounted by Pod"
-    source_type: ["secret"]
-    target_type: ["pod"]
-    edge_type: "MountedBy"
-    conditions:
-      - "source.name in target.volumes[*].secret.secretName"
-    priority: 8
-    enabled: true
-`
 }
 
 // Legacy concurrent processing (simplified)

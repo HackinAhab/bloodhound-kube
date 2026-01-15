@@ -423,12 +423,12 @@ func (g *Generator) processRBAC(rawItem map[string]any) error {
 	}
 
 	// Parse rules if present (for Roles/ClusterRoles)
-	if rulesList, ok := resource["rules"].([]interface{}); ok {
+	if rulesList, ok := resource["rules"].([]any); ok {
 		for _, r := range rulesList {
-			if ruleMap, ok := r.(map[string]interface{}); ok {
+			if ruleMap, ok := r.(map[string]any); ok {
 				rule := PolicyRule{}
 
-				if apiGroups, ok := ruleMap["api_groups"].([]interface{}); ok {
+				if apiGroups, ok := ruleMap["api_groups"].([]any); ok {
 					for _, ag := range apiGroups {
 						if agStr, ok := ag.(string); ok {
 							rule.APIGroups = append(rule.APIGroups, agStr)
@@ -436,7 +436,7 @@ func (g *Generator) processRBAC(rawItem map[string]any) error {
 					}
 				}
 
-				if resources, ok := ruleMap["resources"].([]interface{}); ok {
+				if resources, ok := ruleMap["resources"].([]any); ok {
 					for _, res := range resources {
 						if resStr, ok := res.(string); ok {
 							rule.Resources = append(rule.Resources, resStr)
@@ -444,7 +444,7 @@ func (g *Generator) processRBAC(rawItem map[string]any) error {
 					}
 				}
 
-				if verbs, ok := ruleMap["verbs"].([]interface{}); ok {
+				if verbs, ok := ruleMap["verbs"].([]any); ok {
 					for _, verb := range verbs {
 						if verbStr, ok := verb.(string); ok {
 							rule.Verbs = append(rule.Verbs, verbStr)
@@ -452,7 +452,7 @@ func (g *Generator) processRBAC(rawItem map[string]any) error {
 					}
 				}
 
-				if resourceNames, ok := ruleMap["resource_names"].([]interface{}); ok {
+				if resourceNames, ok := ruleMap["resource_names"].([]any); ok {
 					for _, rn := range resourceNames {
 						if rnStr, ok := rn.(string); ok {
 							rule.ResourceNames = append(rule.ResourceNames, rnStr)

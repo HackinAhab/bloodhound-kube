@@ -88,10 +88,9 @@ func AnnotationsCleaner(annotations map[string]string) map[string]string {
 		return nil
 	}
 
-	// Create a copy of the annotations map
 	cleaned := make(map[string]string)
 	for key, value := range annotations {
-		// Skip the kubectl last-applied-configuration and revision annotations (Noise)
+		// Skip the kubectl last-applied-configuration and revision annotations, it's extremely large and not often useful
 		// TODO: Make this configurable.
 		if key != "kubectl.kubernetes.io/last-applied-configuration" && key != "deployment.kubernetes.io/revision" {
 			cleaned[key] = value

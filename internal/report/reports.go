@@ -297,7 +297,6 @@ func (g *Generator) generateImageSourceReport() ([]*Report, error) {
 			for _, container := range pod.Containers {
 				isUntrusted := true
 
-				// Check if using :latest tag (bad practice)
 				if strings.Contains(container.Image, ":latest") {
 					isUntrusted = true
 				} else {

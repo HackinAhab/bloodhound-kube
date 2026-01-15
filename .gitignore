@@ -5,3 +5,4 @@ mcp-servers
 .DS_Store
 .clinerules/*
 bloodhound-kube
+.agents

@@ -3,6 +3,7 @@ package config
 import (
 	"bloodhound-kube/internal/utils"
 	"fmt"
+	"slices"
 )
 
 // ConfigVersion represents the version of the configuration schema
@@ -120,12 +121,7 @@ func (nf *NamespaceFilter) ShouldCollectNamespace(namespace string) bool {
 
 // contains checks if a slice contains a string
 func contains(slice []string, item string) bool {
-	for _, s := range slice {
-		if s == item {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(slice, item)
 }
 
 // PerformanceSettings defines performance-related configuration

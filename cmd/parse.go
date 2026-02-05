@@ -30,9 +30,6 @@ Examples:
   # Parse a collected file to BloodHound format
   bloodhound-kube parse -i collected-data.jsonl -o bloodhound-output.json
 
-  # Use custom config directory
-  bloodhound-kube parse -i collected-data.jsonl -o output.json --config-dir ./custom-configs
-
   # Show parsing statistics
   bloodhound-kube parse --stats`,
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -70,7 +67,6 @@ Examples:
 		}
 		log.Debug("Using cluster name", "cluster", clusterName)
 
-		// Use concurrent processing if we have a large number of resources
 		var result *bloodhound.BloodHoundResult
 		log.Info("Parsing JSONL data")
 		resources, err := bloodhound.ParseFromJSONL(data)
@@ -79,23 +75,11 @@ Examples:
 			return fmt.Errorf("failed to parse JSONL: %w", err)
 		}
 		log.Debug("Successfully parsed JSONL", "resourceCount", len(resources))
-
-		if len(resources) > 10000 {
-			// Use concurrent processing for large datasets
-			log.Info("Using concurrent processing for large dataset", "resourceCount", len(resources), "workers", 20)
-			result, err = bloodhound.ConcurrentParseProcessor(resources, 20) // 20 workers for high concurrency
-			if err != nil {
-				log.Error("Failed to process data concurrently", "error", err)
-				return fmt.Errorf("failed to process data concurrently: %w", err)
-			}
-		} else {
-			// Use regular processing for smaller datasets
-			log.Info("Using regular processing for dataset", "resourceCount", len(resources))
-			result, err = bloodhound.ConvertToBloodHoundResult(data, clusterName)
-			if err != nil {
-				log.Error("Failed to convert data", "error", err)
-				return fmt.Errorf("failed to convert data: %w", err)
-			}
+		log.Info("Begin processing resources", "resourceCount", len(resources), "workers", 20)
+		result, err = bloodhound.ConvertToBloodHoundResult(data, clusterName) // 20 workers for high concurrency
+		if err != nil {
+			log.Error("Failed to process data concurrently", "error", err)
+			return fmt.Errorf("failed to process data concurrently: %w", err)
 		}
 		log.Debug("Processing completed successfully")
 
@@ -116,7 +100,6 @@ Examples:
 			}
 			fmt.Printf("BloodHound-compliant data written to: %s\n", outputFile)
 
-			// Add nil checks to prevent segmentation fault
 			nodeCount := 0
 			edgeCount := 0
 			if result != nil {
@@ -125,12 +108,10 @@ Examples:
 			}
 			fmt.Printf("Processed %d nodes and %d edges from cluster: %s\n",
 				nodeCount, edgeCount, clusterName)
-			log.Debug("Parse command completed successfully", "nodes", nodeCount, "edges", edgeCount)
 		} else {
 			log.Debug("Writing output to stdout")
 			fmt.Print(string(jsonData))
 		}
-
 		return nil
 	},
 }

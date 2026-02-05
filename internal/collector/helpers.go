@@ -5,10 +5,26 @@ import (
 	"encoding/pem"
 	"fmt"
 	"strings"
+	"time"
 )
 
 // This file contains helper functions for certificate parsing and sensitive data detection.
 // These functions provide value-added analysis beyond simple Kubernetes API collection.
+
+// CertificateInfo represents parsed certificate metadata
+type CertificateInfo struct {
+	Subject        string    `json:"subject,omitempty"`
+	Issuer         string    `json:"issuer,omitempty"`
+	NotBefore      time.Time `json:"not_before,omitempty"`
+	NotAfter       time.Time `json:"not_after,omitempty"`
+	DNSNames       []string  `json:"dns_names,omitempty"`
+	IPAddresses    []string  `json:"ip_addresses,omitempty"`
+	EmailAddresses []string  `json:"email_addresses,omitempty"`
+	URIs           []string  `json:"uris,omitempty"`
+	IsCA           bool      `json:"is_ca,omitempty"`
+	KeyUsage       []string  `json:"key_usage,omitempty"`
+	ExtKeyUsage    []string  `json:"ext_key_usage,omitempty"`
+}
 
 // parseCertificate parses a PEM-encoded certificate and extracts metadata
 func parseCertificate(certPEM string) (*CertificateInfo, error) {
@@ -112,7 +128,7 @@ func extractCertificatesFromSecret(data map[string][]byte) map[string]Certificat
 		}
 	}
 
-	// Also check for any key ending with .crt or .pem that we haven't processed yet
+	// Also check for any key ending with .crt or .pem
 	for key, certData := range data {
 		if strings.HasSuffix(key, ".crt") || strings.HasSuffix(key, ".pem") {
 			if _, exists := certificates[key]; !exists {

@@ -99,7 +99,7 @@ func createNodesWithOPA(resources []map[string]any) ([]BloodHoundNode, error) {
 			allNodes = append(allNodes, BloodHoundNode{
 				ID:         sharedNode.ID,
 				Kinds:      sharedNode.Kinds,
-				Properties: sharedNode.Properties,
+				Properties: FlattenProperties(sharedNode.Properties, ""),
 			})
 		}
 	}
@@ -118,20 +118,10 @@ func ConvertToBloodHound(jsonlData []byte) (*ParsedResult, error) {
 		return nil, err
 	}
 
-	// Convert to legacy format for backward compatibility
 	return &ParsedResult{
 		Nodes: result.Graph.Nodes,
 		Edges: result.Graph.Edges,
 	}, nil
-}
-
-func ConvertToBloodHoundJSON(jsonlData []byte) ([]byte, error) {
-	result, err := ConvertToBloodHound(jsonlData)
-	if err != nil {
-		return nil, err
-	}
-
-	return json.MarshalIndent(result, "", "  ")
 }
 
 // JSONL parsing utility
@@ -200,40 +190,4 @@ func createRelationships(nodes []BloodHoundNode) ([]BloodHoundEdge, error) {
 	}
 
 	return edges, nil
-}
-
-// Legacy concurrent processing (simplified)
-func ConcurrentParseProcessor(resources []ResourceData, workerCount int) (*BloodHoundResult, error) {
-	// For simplicity, just process directly without complex worker pools
-	var allNodes []BloodHoundNode
-
-	for _, resource := range resources {
-		parser, exists := DefaultRegistry.GetParser(resource.Type)
-		if !exists {
-			continue
-		}
-
-		result, err := parser.Parse(resource)
-		if err != nil {
-			continue
-		}
-
-		allNodes = append(allNodes, result.Nodes...)
-	}
-
-	// Create relationships
-	edges, err := createRelationships(allNodes)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create relationships: %w", err)
-	}
-
-	return &BloodHoundResult{
-		Metadata: &BloodHoundMetadata{
-			SourceKind: "kubernetes",
-		},
-		Graph: BloodHoundGraph{
-			Nodes: allNodes,
-			Edges: edges,
-		},
-	}, nil
 }

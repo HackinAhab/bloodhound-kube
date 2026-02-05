@@ -25,17 +25,21 @@ func RunCollection(ctx context.Context, c *Collector, w *utils.AsyncWriter, type
 	startTime := time.Now()
 	stats := NewCollectionStats()
 
-	jobBufferSize := len(typesToCollect) * len(namespacesToCollect)
-	if jobBufferSize < 100 {
-		jobBufferSize = 100
+	// Validate concurrency value, specify reasonable default if invalid
+	if concurrency < 1 {
+		concurrency = 4
+		log.Warn("Invalid concurrency value, using default", "concurrency", concurrency)
 	}
+
+	jobBufferSize := max(len(typesToCollect)*len(namespacesToCollect), 100)
 
 	jobs := make(chan CollectionJob, jobBufferSize)
 	results := make(chan []Resource, 200)
 
 	var wg sync.WaitGroup
 
-	for range concurrency {
+	// Spawn workers correctly
+	for i := 0; i < concurrency; i++ {
 		wg.Go(func() {
 			collectWorker(ctx, c, jobs, results, log)
 		})
@@ -86,12 +90,22 @@ func RunCollection(ctx context.Context, c *Collector, w *utils.AsyncWriter, type
 	clusterJobs := make([]CollectionJob, 0)
 	namespacedJobs := make([]CollectionJob, 0)
 
+	// Track handlers already added to avoid duplicates from nicknames
+	seenHandlers := make(map[ResourceHandler]bool)
+
 	for _, resourceType := range typesToCollect {
 		handler, err := DefaultRegistry.GetHandler(resourceType)
 		if err != nil {
 			log.Error("Unknown resource type", "type", resourceType, "error", err)
 			continue
 		}
+
+		// Skip if already added this handler (nickname deduplication)
+		if seenHandlers[handler] {
+			log.Debug("Skipping duplicate handler", "type", resourceType, "handler", handler.GetName())
+			continue
+		}
+		seenHandlers[handler] = true
 
 		if handler.IsClusterScoped() {
 			clusterJobs = append(clusterJobs, CollectionJob{Handler: handler, Namespace: ""})
@@ -146,12 +160,22 @@ func RunCollectionWithCheckpoint(ctx context.Context, c *Collector, w *utils.Asy
 	clusterJobs := make([]CollectionJob, 0)
 	namespacedJobs := make([]CollectionJob, 0)
 
+	// Track handlers we've already added to avoid duplicates from nicknames
+	seenHandlers := make(map[ResourceHandler]bool)
+
 	for _, resourceType := range typesToCollect {
 		handler, err := DefaultRegistry.GetHandler(resourceType)
 		if err != nil {
 			log.Error("Unknown resource type", "type", resourceType, "error", err)
 			continue
 		}
+
+		// Skip if we've already added this handler (nickname deduplication)
+		if seenHandlers[handler] {
+			log.Debug("Skipping duplicate handler", "type", resourceType, "handler", handler.GetName())
+			continue
+		}
+		seenHandlers[handler] = true
 
 		if handler.IsClusterScoped() {
 			clusterJobs = append(clusterJobs, CollectionJob{Handler: handler, Namespace: ""})
@@ -189,17 +213,21 @@ func RunCollectionWithCheckpoint(ctx context.Context, c *Collector, w *utils.Asy
 
 	checkpoint.JobsRemaining = len(pendingJobs)
 
-	jobBufferSize := len(pendingJobs)
-	if jobBufferSize < 100 {
-		jobBufferSize = 100
+	// Validate concurrency value
+	if concurrency < 1 {
+		concurrency = 4 // sensible default
+		log.Warn("Invalid concurrency value, using default", "concurrency", concurrency)
 	}
+
+	jobBufferSize := max(len(pendingJobs), 100)
 
 	jobs := make(chan CollectionJob, jobBufferSize)
 	results := make(chan CollectionResult, 200)
 
 	var wg sync.WaitGroup
 
-	for range concurrency {
+	// Spawn workers correctly
+	for i := 0; i < concurrency; i++ {
 		wg.Go(func() {
 			checkpointWorker(ctx, c, jobs, results, log)
 		})

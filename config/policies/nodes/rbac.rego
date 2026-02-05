@@ -1,9 +1,11 @@
 package nodes.rbac
 
+import rego.v1
+
 import data.nodes.helpers
 
 # ServiceAccount → Node
-nodes[node] {
+nodes contains node if {
     resource := input.resources[_]
     resource.kind == "ServiceAccount"
     
@@ -27,7 +29,7 @@ nodes[node] {
 }
 
 # Role → Node
-nodes[node] {
+nodes contains node if {
     resource := input.resources[_]
     resource.kind == "Role"
     
@@ -49,7 +51,7 @@ nodes[node] {
 }
 
 # ClusterRole → Node
-nodes[node] {
+nodes contains node if {
     resource := input.resources[_]
     resource.kind == "ClusterRole"
     
@@ -70,7 +72,7 @@ nodes[node] {
 }
 
 # RoleBinding → Node
-nodes[node] {
+nodes contains node if {
     resource := input.resources[_]
     resource.kind == "RoleBinding"
     
@@ -95,7 +97,7 @@ nodes[node] {
 }
 
 # ClusterRoleBinding → Node
-nodes[node] {
+nodes contains node if {
     resource := input.resources[_]
     resource.kind == "ClusterRoleBinding"
     

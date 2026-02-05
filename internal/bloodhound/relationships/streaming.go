@@ -39,10 +39,7 @@ func (sp *StreamProcessor) ProcessStream(nodes []BloodHoundNode) (<-chan []Blood
 
 		// Split nodes into chunks
 		for i := 0; i < len(nodes); i += sp.chunkSize {
-			end := i + sp.chunkSize
-			if end > len(nodes) {
-				end = len(nodes)
-			}
+			end := min(i+sp.chunkSize, len(nodes))
 
 			chunk := nodes[i:end]
 

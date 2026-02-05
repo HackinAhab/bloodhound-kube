@@ -1,9 +1,11 @@
 package nodes.networking
 
+import rego.v1
+
 import data.nodes.helpers
 
 # Service → Node
-nodes[node] {
+nodes contains node if {
     resource := input.resources[_]
     resource.kind == "Service"
     
@@ -29,7 +31,7 @@ nodes[node] {
 }
 
 # Ingress → Node
-nodes[node] {
+nodes contains node if {
     resource := input.resources[_]
     resource.kind == "Ingress"
     
@@ -54,7 +56,7 @@ nodes[node] {
 }
 
 # NetworkPolicy → Node
-nodes[node] {
+nodes contains node if {
     resource := input.resources[_]
     resource.kind == "NetworkPolicy"
     

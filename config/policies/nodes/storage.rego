@@ -1,9 +1,11 @@
 package nodes.storage
 
+import rego.v1
+
 import data.nodes.helpers
 
 # Secret → Node
-nodes[node] {
+nodes contains node if {
     resource := input.resources[_]
     resource.kind == "Secret"
     
@@ -31,7 +33,7 @@ nodes[node] {
 }
 
 # ConfigMap → Node
-nodes[node] {
+nodes contains node if {
     resource := input.resources[_]
     resource.kind == "ConfigMap"
     

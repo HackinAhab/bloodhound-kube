@@ -1,27 +1,29 @@
 package kubernetes.helpers
 
+import rego.v1
+
 # Check if map1 is subset of map2 (for label selectors)
 # All keys in selector must exist in labels with matching values
-is_subset(selector, labels) {
+is_subset(selector, labels) if {
 	selector_keys := object.keys(selector)
 	matching_keys := {k | k := selector_keys[_]; selector[k] == labels[k]}
 	count(matching_keys) == count(selector_keys)
 }
 
 # Check if value exists in array
-contains_value(array, value) {
+contains_value(array, value) if {
 	array[_] == value
 }
 
 # Check if array contains any of the specified values
-contains_any(array, values) {
+contains_any(array, values) if {
 	some i
 	values[i]
 	contains_value(array, values[i])
 }
 
 # Create standard edge structure
-create_edge(source, target, kind, priority) := edge {
+create_edge(source, target, kind, priority) := edge if {
 	edge := {
 		"start": {
 			"match_by": "id",
@@ -37,7 +39,7 @@ create_edge(source, target, kind, priority) := edge {
 }
 
 # Create edge with additional via information (for via-based relationships)
-create_edge_via(source, target, via, kind, priority) := edge {
+create_edge_via(source, target, via, kind, priority) := edge if {
 	edge := {
 		"start": {
 			"match_by": "id",
@@ -57,11 +59,11 @@ create_edge_via(source, target, via, kind, priority) := edge {
 }
 
 # Get property value safely with default
-get_property(obj, key, default_value) := value {
+get_property(obj, key, default_value) := value if {
 	value := obj[key]
 } else := default_value
 
 # Check if object has property
-has_property(obj, key) {
+has_property(obj, key) if {
 	_ := obj[key]
 }

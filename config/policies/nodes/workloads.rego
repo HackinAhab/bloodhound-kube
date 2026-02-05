@@ -1,9 +1,11 @@
 package nodes.workloads
 
+import rego.v1
+
 import data.nodes.helpers
 
 # Pod → Node
-nodes[node] {
+nodes contains node if {
     resource := input.resources[_]
     resource.kind == "Pod"
     
@@ -33,7 +35,7 @@ nodes[node] {
 }
 
 # Deployment → Node
-nodes[node] {
+nodes contains node if {
     resource := input.resources[_]
     resource.kind == "Deployment"
     
@@ -56,7 +58,7 @@ nodes[node] {
 }
 
 # StatefulSet → Node
-nodes[node] {
+nodes contains node if {
     resource := input.resources[_]
     resource.kind == "StatefulSet"
     
@@ -79,7 +81,7 @@ nodes[node] {
 }
 
 # DaemonSet → Node
-nodes[node] {
+nodes contains node if {
     resource := input.resources[_]
     resource.kind == "DaemonSet"
     

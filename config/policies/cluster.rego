@@ -1,9 +1,11 @@
 package kubernetes.relationships.cluster
 
+import rego.v1
+
 import data.kubernetes.helpers
 
 # Pod scheduled on Node
-pod_scheduled_on_node[edge] {
+pod_scheduled_on_node contains edge if {
 	node := input.cluster_scoped.node[_]
 	namespace := input.namespaces[ns]
 	pod := namespace.pod[_]
@@ -14,7 +16,7 @@ pod_scheduled_on_node[edge] {
 }
 
 # PersistentVolumeClaim used by Pod
-persistent_volume_claim_used_by_pod[edge] {
+persistent_volume_claim_used_by_pod contains edge if {
 	namespace := input.namespaces[ns]
 	pvc := namespace.persistent_volume_claim[_]
 	pod := namespace.pod[_]
@@ -26,7 +28,7 @@ persistent_volume_claim_used_by_pod[edge] {
 }
 
 # PersistentVolume bound to PersistentVolumeClaim
-persistent_volume_bound_to_claim[edge] {
+persistent_volume_bound_to_claim contains edge if {
 	pv := input.cluster_scoped.persistent_volume[_]
 	namespace := input.namespaces[ns]
 	pvc := namespace.persistent_volume_claim[_]

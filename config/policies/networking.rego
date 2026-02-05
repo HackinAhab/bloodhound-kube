@@ -1,9 +1,11 @@
 package kubernetes.relationships.networking
 
+import rego.v1
+
 import data.kubernetes.helpers
 
 # Service exposes Pods via label selector
-service_exposes_pods[edge] {
+service_exposes_pods contains edge if {
 	namespace := input.namespaces[ns]
 	service := namespace.service[_]
 	pod := namespace.pod[_]
@@ -14,7 +16,7 @@ service_exposes_pods[edge] {
 }
 
 # Service exposes Deployment via label selector
-service_exposes_deployment[edge] {
+service_exposes_deployment contains edge if {
 	namespace := input.namespaces[ns]
 	service := namespace.service[_]
 	deployment := namespace.deployment[_]
@@ -25,7 +27,7 @@ service_exposes_deployment[edge] {
 }
 
 # Ingress routes to Service
-ingress_routes_to_service[edge] {
+ingress_routes_to_service contains edge if {
 	namespace := input.namespaces[ns]
 	ingress := namespace.ingress[_]
 	service := namespace.service[_]
@@ -41,7 +43,7 @@ ingress_routes_to_service[edge] {
 }
 
 # Ingress routes to Service (newer API with service.name)
-ingress_routes_to_service_v1[edge] {
+ingress_routes_to_service_v1 contains edge if {
 	namespace := input.namespaces[ns]
 	ingress := namespace.ingress[_]
 	service := namespace.service[_]
@@ -57,7 +59,7 @@ ingress_routes_to_service_v1[edge] {
 }
 
 # NetworkPolicy applies to Pods
-network_policy_applies_to_pods[edge] {
+network_policy_applies_to_pods contains edge if {
 	namespace := input.namespaces[ns]
 	netpol := namespace.network_policy[_]
 	pod := namespace.pod[_]

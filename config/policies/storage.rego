@@ -1,9 +1,11 @@
 package kubernetes.relationships.storage
 
+import rego.v1
+
 import data.kubernetes.helpers
 
 # Secret mounted by Pod
-secret_mounted_by_pod[edge] {
+secret_mounted_by_pod contains edge if {
 	namespace := input.namespaces[ns]
 	secret := namespace.secret[_]
 	pod := namespace.pod[_]
@@ -15,7 +17,7 @@ secret_mounted_by_pod[edge] {
 }
 
 # ConfigMap used by Pod
-configmap_used_by_pod[edge] {
+configmap_used_by_pod contains edge if {
 	namespace := input.namespaces[ns]
 	cm := namespace.config_map[_]
 	pod := namespace.pod[_]
@@ -27,7 +29,7 @@ configmap_used_by_pod[edge] {
 }
 
 # Secret referenced by Deployment environment variables
-secret_referenced_by_deployment[edge] {
+secret_referenced_by_deployment contains edge if {
 	namespace := input.namespaces[ns]
 	secret := namespace.secret[_]
 	deployment := namespace.deployment[_]
@@ -40,7 +42,7 @@ secret_referenced_by_deployment[edge] {
 }
 
 # ConfigMap referenced by Deployment environment variables
-configmap_referenced_by_deployment[edge] {
+configmap_referenced_by_deployment contains edge if {
 	namespace := input.namespaces[ns]
 	cm := namespace.config_map[_]
 	deployment := namespace.deployment[_]
@@ -53,7 +55,7 @@ configmap_referenced_by_deployment[edge] {
 }
 
 # TLS Secret used by Ingress
-tls_secret_used_by_ingress[edge] {
+tls_secret_used_by_ingress contains edge if {
 	namespace := input.namespaces[ns]
 	secret := namespace.secret[_]
 	ingress := namespace.ingress[_]
@@ -67,7 +69,7 @@ tls_secret_used_by_ingress[edge] {
 }
 
 # Pod uses ServiceAccount
-pod_uses_service_account[edge] {
+pod_uses_service_account contains edge if {
 	namespace := input.namespaces[ns]
 	pod := namespace.pod[_]
 	sa := namespace.service_account[_]

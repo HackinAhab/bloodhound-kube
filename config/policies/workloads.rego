@@ -1,9 +1,11 @@
 package kubernetes.relationships.workloads
 
+import rego.v1
+
 import data.kubernetes.helpers
 
 # Deployment owns ReplicaSet
-deployment_owns_replicaset[edge] {
+deployment_owns_replicaset contains edge if {
 	namespace := input.namespaces[ns]
 	deployment := namespace.deployment[_]
 	replicaset := namespace.replica_set[_]
@@ -16,7 +18,7 @@ deployment_owns_replicaset[edge] {
 }
 
 # ReplicaSet owns Pod
-replicaset_owns_pod[edge] {
+replicaset_owns_pod contains edge if {
 	namespace := input.namespaces[ns]
 	replicaset := namespace.replica_set[_]
 	pod := namespace.pod[_]
@@ -29,7 +31,7 @@ replicaset_owns_pod[edge] {
 }
 
 # StatefulSet owns Pod
-statefulset_owns_pod[edge] {
+statefulset_owns_pod contains edge if {
 	namespace := input.namespaces[ns]
 	statefulset := namespace.stateful_set[_]
 	pod := namespace.pod[_]
@@ -42,7 +44,7 @@ statefulset_owns_pod[edge] {
 }
 
 # DaemonSet owns Pod
-daemonset_owns_pod[edge] {
+daemonset_owns_pod contains edge if {
 	namespace := input.namespaces[ns]
 	daemonset := namespace.daemon_set[_]
 	pod := namespace.pod[_]
@@ -55,7 +57,7 @@ daemonset_owns_pod[edge] {
 }
 
 # Deployment directly to Pods (transitive via ReplicaSet - for convenience)
-deployment_owns_pods[edge] {
+deployment_owns_pods contains edge if {
 	namespace := input.namespaces[ns]
 	deployment := namespace.deployment[_]
 	pod := namespace.pod[_]

@@ -1,9 +1,11 @@
 package nodes.cluster
 
+import rego.v1
+
 import data.nodes.helpers
 
 # Node → Node
-nodes[node] {
+nodes contains node if {
     resource := input.resources[_]
     resource.kind == "Node"
     
@@ -30,7 +32,7 @@ nodes[node] {
 }
 
 # Namespace → Node
-nodes[node] {
+nodes contains node if {
     resource := input.resources[_]
     resource.kind == "Namespace"
     

@@ -1,69 +1,91 @@
+# Relationship Helpers
+# Common utilities for creating edges between nodes
+
 package kubernetes.helpers
 
 import rego.v1
 
-# Check if map1 is subset of map2 (for label selectors)
-# All keys in selector must exist in labels with matching values
-is_subset(selector, labels) if {
-	selector_keys := object.keys(selector)
-	matching_keys := {k | k := selector_keys[_]; selector[k] == labels[k]}
-	count(matching_keys) == count(selector_keys)
-}
-
-# Check if value exists in array
-contains_value(array, value) if {
-	array[_] == value
-}
-
-# Check if array contains any of the specified values
-contains_any(array, values) if {
-	some i
-	values[i]
-	contains_value(array, values[i])
-}
-
-# Create standard edge structure
-create_edge(source, target, kind, priority) := edge if {
+# Create edge with priority
+create_edge(source, target, edge_type, priority) := edge if {
 	edge := {
 		"start": {
 			"match_by": "id",
 			"value": source.id,
+			"kind": source.kinds[0],
 		},
 		"end": {
 			"match_by": "id",
 			"value": target.id,
+			"kind": target.kinds[0],
 		},
-		"kind": kind,
-		"properties": {"priority": priority},
-	}
-}
-
-# Create edge with additional via information (for via-based relationships)
-create_edge_via(source, target, via, kind, priority) := edge if {
-	edge := {
-		"start": {
-			"match_by": "id",
-			"value": source.id,
-		},
-		"end": {
-			"match_by": "id",
-			"value": target.id,
-		},
-		"kind": kind,
+		"kind": edge_type,
 		"properties": {
 			"priority": priority,
-			"via": via.id,
-			"via_kind": via.kinds[0],
 		},
 	}
 }
 
-# Get property value safely with default
-get_property(obj, key, default_value) := value if {
-	value := obj[key]
-} else := default_value
+# Create edge with via node
+create_edge_via(source, target, via, edge_type, priority) := edge if {
+	edge := {
+		"start": {
+			"match_by": "id",
+			"value": source.id,
+			"kind": source.kinds[0],
+		},
+		"end": {
+			"match_by": "id",
+			"value": target.id,
+			"kind": target.kinds[0],
+		},
+		"kind": edge_type,
+		"properties": {
+			"priority": priority,
+			"via_id": via.id,
+			"via_kind": via.kinds[0],
+			"via_name": via.properties.name,
+		},
+	}
+}
 
-# Check if object has property
-has_property(obj, key) if {
-	_ := obj[key]
+# Check if labels match selector (subset matching)
+labels_match_selector(labels, selector) if {
+	# Every key in selector must exist in labels with the same value
+	every key, value in selector {
+		labels[key] == value
+	}
+}
+
+# Extract service accounts from subjects
+extract_service_accounts(subjects, namespace) := sas if {
+	sas := [sa |
+		some i
+		subject := subjects[i]
+		subject.kind == "ServiceAccount"
+		sa := {
+			"name": subject.name,
+			"namespace": object.get(subject, "namespace", namespace),
+		}
+	]
+}
+
+# Check if volume references secret
+volume_references_secret(volume, secret_name) if {
+	volume.secret.secretName == secret_name
+}
+
+# Check if volume references configmap
+volume_references_configmap(volume, configmap_name) if {
+	volume.configMap.name == configmap_name
+}
+
+# Get namespace safely
+get_namespace(resource) := namespace if {
+	namespace := object.get(resource.properties, "namespace", "")
+}
+
+# Check if resources are in same namespace
+same_namespace(resource1, resource2) if {
+	get_namespace(resource1) == get_namespace(resource2)
+	get_namespace(resource1) != ""
 }

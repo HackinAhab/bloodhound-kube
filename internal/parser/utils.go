@@ -1,4 +1,4 @@
-package bloodhound
+package parser
 
 import (
 	"crypto/sha256"

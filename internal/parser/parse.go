@@ -1,15 +1,21 @@
-package bloodhound
+package parser
 
 import (
 	"encoding/json"
 	"fmt"
 	"strings"
 
-	"bloodhound-kube/internal/bloodhound/relationships"
+	"bloodhound-kube/internal/parser/relationships"
+
+	"github.com/TheManticoreProject/gopengraph"
+	"github.com/TheManticoreProject/gopengraph/edge"
+	"github.com/TheManticoreProject/gopengraph/node"
+	"github.com/TheManticoreProject/gopengraph/properties"
 )
 
 // Main parsing function - OPA-based streaming approach
-func ConvertToBloodHoundResult(jsonlData []byte, clusterName string) (*BloodHoundResult, error) {
+func ConvertToBloodHoundResult(jsonlData []byte, clusterName string) (*gopengraph.OpenGraph, error) {
+	_ = clusterName
 	// Parse raw JSONL into resources
 	resources, err := parseJSONLToResources(jsonlData)
 	if err != nil {
@@ -36,10 +42,29 @@ func ConvertToBloodHoundResult(jsonlData []byte, clusterName string) (*BloodHoun
 		edges[i].Properties = SanitizeProperties(edges[i].Properties)
 	}
 
-	return &BloodHoundResult{
-		Metadata: &BloodHoundMetadata{SourceKind: "kubernetes"},
-		Graph:    BloodHoundGraph{Nodes: nodes, Edges: edges},
-	}, nil
+	graph := gopengraph.NewOpenGraph("kubernetes")
+
+	for _, n := range nodes {
+		props := properties.NewPropertiesFromMap(n.Properties)
+		openNode, err := node.NewNode(n.ID, n.Kinds, props)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create node %s: %w", n.ID, err)
+		}
+
+		graph.AddNodeWithoutValidation(openNode)
+	}
+
+	for _, e := range edges {
+		props := properties.NewPropertiesFromMap(e.Properties)
+		openEdge, err := edge.NewEdge(e.Start.Value, e.End.Value, e.Kind, props)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create edge %s: %w", e.Kind, err)
+		}
+
+		graph.AddEdgeWithoutValidation(openEdge)
+	}
+
+	return graph, nil
 }
 
 // parseJSONLToResources converts JSONL bytes to raw resource maps
@@ -118,18 +143,6 @@ func createNodesWithOPA(resources []map[string]any) ([]BloodHoundNode, error) {
 // createRelationshipsWithOPA uses OPA policies to create edges from nodes
 func createRelationshipsWithOPA(nodes []BloodHoundNode) ([]BloodHoundEdge, error) {
 	return createRelationships(nodes)
-}
-
-func ConvertToBloodHound(jsonlData []byte) (*ParsedResult, error) {
-	result, err := ConvertToBloodHoundResult(jsonlData, "")
-	if err != nil {
-		return nil, err
-	}
-
-	return &ParsedResult{
-		Nodes: result.Graph.Nodes,
-		Edges: result.Graph.Edges,
-	}, nil
 }
 
 // JSONL parsing utility

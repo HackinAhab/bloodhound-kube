@@ -38,9 +38,6 @@ Examples:
   # Use custom kubeconfig file
   bloodhound-kube collect --kubeconfig /path/to/config
 
-  # Use custom config directory
-  bloodhound-kube collect --config-dir ./custom-configs
-
   # Specify single namespace
   bloodhound-kube collect --namespace production
 
@@ -68,6 +65,18 @@ Examples:
   # Specify full path with directory and filename
   bloodhound-kube collect --output /tmp/my-collection.jsonl
 
+  # List discovered resources with API identifiers
+  bloodhound-kube collect --discovery-list
+
+  # Collect all discovered resources (CRD prompt applies)
+  bloodhound-kube collect --discovery-auto
+
+  # Auto-accept CRDs during discovery
+  bloodhound-kube collect --discovery-auto --discovery-auto-accept
+
+  # Append allowlist to defaults
+  bloodhound-kube collect --discovery-allowlist ./allowlist.txt
+
 Usage:
   kube-bloodhound collect [flags]
 
@@ -76,9 +85,13 @@ Flags:
       --checkpoint-file string   Path to checkpoint file (auto-generated if not specified)
   -T, --cluster-type string      Cluster type: kubernetes, openshift, or auto (auto-detect) (default "auto")
   -c, --concurrency int          Number of concurrent workers for streaming collection (default 10)
-      --config-dir string        Directory containing configuration files (collections.yaml, parsers.yaml) (default "config")
+      --discovery-allowlist string
+                                 Path to newline-delimited allowlist of API resources (group/version/resource or group/resource)
+      --discovery-auto            Collect all discovered resources when resources are not specified
+      --discovery-auto-accept     Automatically accept CRD discovery without prompting
+      --discovery-list            List discovered API resources and exit
   -h, --help                     help for collect
-      --kubeconfig string        Path to kubeconfig file (overrides KUBECONFIG and ~/.kube/config)
+  --kubeconfig string        Path to kubeconfig file (overrides KUBECONFIG and ~/.kube/config)
   -l, --log string               Log level (debug, info, warn, error) (default "info")
   -n, --namespace string         Kubernetes namespace(s) - comma-delimited for multiple (defaults to current context namespace)
   -o, --output string            Output file path (can be directory, filename, or full path). Defaults to bloodhound-kube-YYYY-MM-DD-HHMMSS.jsonl in current directory
@@ -86,8 +99,16 @@ Flags:
       --resume                   Resume from previous interrupted collection
   -s, --server string            Kubernetes API server address (requires --token)
       --timeout int              Timeout in seconds for the entire collection (default 300)
-      --token string             Bearer token for authentication (requires --server)
-  -t, --type strings             Resource types to collect (see config/collections.yaml for available types). Default: all enabled types
+  --token string             Bearer token for authentication (requires --server)
+  -t, --type strings             Resource types to collect (defaults to discovered types)
 ```
 
-> Collection types can be found in config/collections.yaml, along with some default values that are in various phases of implementation and may not be working. This will likely change in the future
+### Discovery and allowlists
+- Default behavior runs discovery and collects resources from the built-in allowlist.
+- `--discovery-auto` collects all discovered resources and prompts on large CRD sets unless `--discovery-auto-accept` is passed.
+- `--discovery-allowlist` appends entries to the built-in allowlist. Each line can be one of:
+  - `group/version/resource`
+  - `group/version` (all resources in that group + version)
+  - `group/resource`
+  - `group/*` (all resources in the group)
+  - `v1/resource` (core group)

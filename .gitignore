@@ -6,3 +6,4 @@ mcp-servers
 .clinerules/*
 bloodhound-kube
 .agents
+tmp/

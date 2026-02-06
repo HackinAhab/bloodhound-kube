@@ -1,39 +1,47 @@
 package cmd
 
 import (
+	"bufio"
 	"context"
 	"fmt"
+	"os"
 	"path/filepath"
+	"sort"
 	"strings"
+	"text/tabwriter"
 	"time"
 
 	"bloodhound-kube/internal/collector"
-	"bloodhound-kube/internal/config"
 	"bloodhound-kube/internal/utils"
 
 	"github.com/spf13/cobra"
 )
 
 var (
-	namespaces       string
-	allNamespaces    bool
-	logLevel         string
-	output           string
-	resourceTypes    []string
-	concurrency      int
-	timeout          int
-	kubeconfig       string
-	server           string
-	token            string
-	clusterType      string
-	resume           bool
-	checkpointFile   string
-	redacted         bool
-	collectConfigDir string
+	namespaces         string
+	allNamespaces      bool
+	logLevel           string
+	output             string
+	resourceTypes      []string
+	concurrency        int
+	timeout            int
+	kubeconfig         string
+	server             string
+	token              string
+	clusterType        string
+	resume             bool
+	checkpointFile     string
+	redacted           bool
+	discoveryList      bool
+	discoveryAuto      bool
+	discoveryAccept    bool
+	discoveryAllowlist string
 )
 
 // allResourceTypes will be populated after cluster detection
 var allResourceTypes []string
+
+const defaultCRDPromptThreshold = 25
 
 func generateDefaultOutput() string {
 	timestamp := time.Now().Format("2006-01-02-150405")
@@ -79,10 +87,6 @@ Examples:
 
   # Use custom kubeconfig file
   bloodhound-kube collect --kubeconfig /path/to/config
-
-  # Use custom config directory
-  bloodhound-kube collect --config-dir ./custom-configs
-
   # Specify single namespace
   bloodhound-kube collect --namespace production
 
@@ -119,12 +123,6 @@ Examples:
 
 		log.Debug("Starting collection command", "logLevel", effectiveLogLevel)
 
-		// Set default config directory
-		if collectConfigDir == "" {
-			collectConfigDir = "config"
-		}
-		collectionsConfigPath := filepath.Join(collectConfigDir, "collections.yaml")
-
 		if allNamespaces && cmd.Flags().Changed("namespace") {
 			return fmt.Errorf("cannot use -A (all namespaces) and -n (namespace) flags together")
 		}
@@ -160,12 +158,8 @@ Examples:
 		// Set redacted flag on collector
 		c.SetRedacted(redacted)
 
-		// Initialize registry from YAML configuration (required)
-		loader := config.NewLoader(collectConfigDir)
-		yamlCfg, err := loader.LoadCollections("collections.yaml")
-		if err != nil {
-			return fmt.Errorf("failed to load collection configurations from %s: %w", collectionsConfigPath, err)
-		}
+		ctx, cancel := context.WithTimeout(context.Background(), time.Duration(timeout)*time.Second)
+		defer cancel()
 
 		// Get dynamic client for CRD support
 		dynamicClient, err := c.GetDynamicClient()
@@ -173,18 +167,122 @@ Examples:
 			return fmt.Errorf("failed to get dynamic client: %w", err)
 		}
 
-		// Initialize registry from YAML configuration
-		err = collector.DefaultRegistry.InitializeFromYAML(c.GetClients(), log, yamlCfg, dynamicClient)
-		if err != nil {
-			return fmt.Errorf("failed to initialize collection registry from YAML: %w", err)
+		explicitTypes := len(resourceTypes) > 0
+
+		discoveryAutoEnabled := discoveryAuto
+		if !cmd.Flags().Changed("discovery-auto") && !explicitTypes && discoveryAllowlist == "" {
+			discoveryAutoEnabled = true
 		}
-		log.Info("Successfully initialized collection registry from YAML", "handlers", len(yamlCfg.Collections))
+
+		if discoveryList {
+			resources, err := collector.DiscoverResources(ctx, c.GetClients(), log)
+			if err != nil {
+				return fmt.Errorf("failed to discover resources: %w", err)
+			}
+			printDiscoveryTable(resources)
+			return nil
+		}
+
+		var typesToCollect []string
+		var usingDiscovery bool
+		var allowlistEntries []collector.AllowlistEntry
+		allowlistProvided := discoveryAllowlist != ""
+
+		if allowlistProvided {
+			allowlistEntries, err = collector.ParseAllowlistFile(discoveryAllowlist)
+			if err != nil {
+				return fmt.Errorf("failed to read allowlist file: %w", err)
+			}
+			log.Info("Using discovery allowlist file", "path", discoveryAllowlist, "entries", len(allowlistEntries))
+		}
+
+		resources, err := collector.DiscoverResources(ctx, c.GetClients(), log)
+		if err != nil {
+			return fmt.Errorf("failed to discover resources: %w", err)
+		}
+		usingDiscovery = true
+
+		if explicitTypes {
+			collectionsCfg, err := collector.BuildCollectionsConfigFromDiscovery(resources)
+			if err != nil {
+				return fmt.Errorf("failed to build collections from discovery: %w", err)
+			}
+			if err := collector.DefaultRegistry.InitializeFromYAML(c.GetClients(), log, collectionsCfg, dynamicClient); err != nil {
+				return fmt.Errorf("failed to initialize collection registry: %w", err)
+			}
+			log.Info("Successfully initialized collection registry", "handlers", len(collectionsCfg.Collections), "discovery", usingDiscovery)
+		} else {
+			filteredResources := resources
+			source := "all"
+			if allowlistProvided {
+				defaults, err := collector.DefaultDiscoveryAllowlist()
+				if err != nil {
+					return fmt.Errorf("failed to load default allowlist: %w", err)
+				}
+				defaults = collector.MergeAllowlists(defaults, allowlistEntries)
+				filteredResources = collector.FilterDiscoveredResources(resources, defaults)
+				source = "default-allowlist+file"
+			} else if !discoveryAutoEnabled {
+				defaults, err := collector.DefaultDiscoveryAllowlist()
+				if err != nil {
+					return fmt.Errorf("failed to load default allowlist: %w", err)
+				}
+				filteredResources = collector.FilterDiscoveredResources(resources, defaults)
+				source = "default-allowlist"
+			}
+
+			if len(filteredResources) == 0 {
+				return fmt.Errorf("no resources matched discovery filters (%s)", source)
+			}
+
+			includeCRDs := true
+			crdCount := countCRDResources(filteredResources)
+			if crdCount >= defaultCRDPromptThreshold && !discoveryAccept {
+				if isInteractive() {
+					accepted, err := promptForCRDs(filteredResources)
+					if err != nil {
+						return err
+					}
+					includeCRDs = accepted
+				} else {
+					includeCRDs = false
+					log.Warn("Skipping CRDs in non-interactive mode", "crd_count", crdCount)
+				}
+			}
+			if !includeCRDs {
+				if discoveryAutoEnabled {
+					defaults, err := collector.DefaultDiscoveryAllowlist()
+					if err != nil {
+						return fmt.Errorf("failed to load default allowlist: %w", err)
+					}
+					if allowlistProvided {
+						defaults = collector.MergeAllowlists(defaults, allowlistEntries)
+						source = "default-allowlist+file"
+					} else {
+						source = "default-allowlist"
+					}
+					filteredResources = collector.FilterDiscoveredResources(resources, defaults)
+					log.Info("CRDs skipped, falling back to default collections", "source", source)
+				} else {
+					filteredResources = filterCRDResources(filteredResources, false)
+				}
+			}
+
+			collectionsCfg, err := collector.BuildCollectionsConfigFromDiscovery(filteredResources)
+			if err != nil {
+				return fmt.Errorf("failed to build collections from discovery: %w", err)
+			}
+			if err := collector.DefaultRegistry.InitializeFromYAML(c.GetClients(), log, collectionsCfg, dynamicClient); err != nil {
+				return fmt.Errorf("failed to initialize collection registry: %w", err)
+			}
+			log.Info("Successfully initialized collection registry", "handlers", len(collectionsCfg.Collections), "discovery", usingDiscovery, "source", source)
+		}
 
 		allResourceTypes = collector.DefaultRegistry.GetAllNames()
 
 		log.Debug("Resource type selection", "inputResourceTypes", resourceTypes, "allResourceTypes", allResourceTypes)
 
-		typesToCollect := resourceTypes
+		typesToCollect = resourceTypes
 		if len(typesToCollect) == 0 {
 			typesToCollect = allResourceTypes
 			log.Debug("No specific types provided, using all available types", "typesToCollect", typesToCollect)
@@ -224,9 +322,6 @@ Examples:
 			completed, total, pct := existingCheckpoint.GetProgress()
 			log.Info("Previous progress", "completed", completed, "total", total, "percentage", fmt.Sprintf("%.1f%%", pct))
 		}
-
-		ctx, cancel := context.WithTimeout(context.Background(), time.Duration(timeout)*time.Second)
-		defer cancel()
 
 		var namespacesToCollect []string
 		if allNamespaces {
@@ -297,7 +392,7 @@ Examples:
 }
 
 func getAvailableResourcesHelp() string {
-	return "Resource types to collect (see config/collections.yaml for available types). Default: all enabled types"
+	return "Resource types to collect (defaults to discovered types)"
 }
 
 func init() {
@@ -318,7 +413,130 @@ func init() {
 	collectCmd.Flags().BoolVar(&resume, "resume", false, "Resume from previous interrupted collection")
 	collectCmd.Flags().StringVar(&checkpointFile, "checkpoint-file", "", "Path to checkpoint file (auto-generated if not specified)")
 	collectCmd.Flags().BoolVar(&redacted, "redacted", false, "Redact secrets and sensitive data during collection")
-	collectCmd.Flags().StringVar(&collectConfigDir, "config-dir", "config", "Directory containing configuration files (collections.yaml, parsers.yaml)")
+	collectCmd.Flags().BoolVar(&discoveryList, "discovery-list", false, "List discovered API resources and exit")
+	collectCmd.Flags().BoolVar(&discoveryAuto, "discovery-auto", false, "Collect all discovered resources when resources are not specified")
+	collectCmd.Flags().BoolVar(&discoveryAccept, "discovery-auto-accept", false, "Automatically accept CRD discovery without prompting")
+	collectCmd.Flags().StringVar(&discoveryAllowlist, "discovery-allowlist", "", "Path to newline-delimited allowlist of API resources (group/version/resource or group/resource)")
 
 	rootCmd.AddCommand(collectCmd)
+}
+
+func printDiscoveryTable(resources []collector.DiscoveryResource) {
+	writer := tabwriter.NewWriter(os.Stdout, 0, 4, 2, ' ', 0)
+	fmt.Fprintln(writer, "API\tGROUP\tVERSION\tRESOURCE\tKIND\tNAMESPACED\tCRD")
+
+	crdCount := 0
+	for _, res := range resources {
+		group := res.Group
+		api := ""
+		if group == "" {
+			group = "core"
+			api = fmt.Sprintf("%s/%s", res.Version, res.Resource)
+		} else {
+			api = fmt.Sprintf("%s/%s/%s", group, res.Version, res.Resource)
+		}
+		if res.IsCRD {
+			crdCount++
+		}
+		fmt.Fprintf(writer, "%s\t%s\t%s\t%s\t%s\t%t\t%t\n", api, group, res.Version, res.Resource, res.Kind, res.Namespaced, res.IsCRD)
+	}
+
+	writer.Flush()
+	fmt.Printf("\nTotal resources: %d (CRDs: %d)\n", len(resources), crdCount)
+}
+
+func countCRDResources(resources []collector.DiscoveryResource) int {
+	count := 0
+	for _, res := range resources {
+		if res.IsCRD {
+			count++
+		}
+	}
+	return count
+}
+
+func filterCRDResources(resources []collector.DiscoveryResource, includeCRDs bool) []collector.DiscoveryResource {
+	if includeCRDs {
+		return resources
+	}
+
+	filtered := make([]collector.DiscoveryResource, 0, len(resources))
+	for _, res := range resources {
+		if res.IsCRD {
+			continue
+		}
+		filtered = append(filtered, res)
+	}
+	return filtered
+}
+
+func isInteractive() bool {
+	info, err := os.Stdin.Stat()
+	if err != nil {
+		return false
+	}
+	return info.Mode()&os.ModeCharDevice != 0
+}
+
+func promptForCRDs(resources []collector.DiscoveryResource) (bool, error) {
+	groupCounts := make(map[string]int)
+	crdCount := 0
+	for _, res := range resources {
+		if !res.IsCRD {
+			continue
+		}
+		group := res.Group
+		if group == "" {
+			group = "core"
+		}
+		groupCounts[group]++
+		crdCount++
+	}
+
+	if crdCount == 0 {
+		return true, nil
+	}
+
+	groups := make([]struct {
+		group string
+		count int
+	}, 0, len(groupCounts))
+	for group, count := range groupCounts {
+		groups = append(groups, struct {
+			group string
+			count int
+		}{group: group, count: count})
+	}
+
+	sort.Slice(groups, func(i, j int) bool {
+		if groups[i].count == groups[j].count {
+			return groups[i].group < groups[j].group
+		}
+		return groups[i].count > groups[j].count
+	})
+
+	maxGroups := 5
+	if len(groups) < maxGroups {
+		maxGroups = len(groups)
+	}
+
+	var groupSummary []string
+	for i := 0; i < maxGroups; i++ {
+		groupSummary = append(groupSummary, fmt.Sprintf("%s (%d)", groups[i].group, groups[i].count))
+	}
+
+	fmt.Printf("Discovered %d CRD-backed resources across %d groups.\n", crdCount, len(groupCounts))
+	if len(groupSummary) > 0 {
+		fmt.Printf("Top groups: %s\n", strings.Join(groupSummary, ", "))
+	}
+	fmt.Print("Proceed with CRDs? [y/N]: ")
+
+	reader := bufio.NewReader(os.Stdin)
+	response, err := reader.ReadString('\n')
+	if err != nil {
+		return false, fmt.Errorf("failed to read response: %w", err)
+	}
+
+	response = strings.TrimSpace(strings.ToLower(response))
+	return response == "y" || response == "yes", nil
 }

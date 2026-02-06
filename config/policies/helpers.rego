@@ -56,6 +56,13 @@ labels_match_selector(labels, selector) if {
 	}
 }
 
+# Check if map is a subset of another map
+is_subset(subset, superset) if {
+	every key, value in subset {
+		superset[key] == value
+	}
+}
+
 # Extract service accounts from subjects
 extract_service_accounts(subjects, namespace) := sas if {
 	sas := [sa |

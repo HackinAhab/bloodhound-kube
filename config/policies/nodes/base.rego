@@ -114,7 +114,6 @@ dangerous_capabilities := [
 ]
 
 has_dangerous_capabilities(container) if {
-	some cap
 	cap := container.securityContext.capabilities.add[_]
 	cap in dangerous_capabilities
 }

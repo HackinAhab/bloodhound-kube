@@ -59,26 +59,22 @@ extract_container_info(spec) := [] if {
 
 # Check if container has env from secrets
 has_env_from_secrets(container) if {
-	some ef
 	ef := container.envFrom[_]
 	ef.secretRef
 }
 
 has_env_from_secrets(container) if {
-	some env
 	env := container.env[_]
 	env.valueFrom.secretKeyRef
 }
 
 # Check if container has env from configmaps
 has_env_from_configmaps(container) if {
-	some ef
 	ef := container.envFrom[_]
 	ef.configMapRef
 }
 
 has_env_from_configmaps(container) if {
-	some env
 	env := container.env[_]
 	env.valueFrom.configMapKeyRef
 }
@@ -103,22 +99,12 @@ extract_volume_info(spec) := [] if {
 # Determine volume type
 determine_volume_type(volume) := "secret" if {
 	volume.secret
-}
-
-determine_volume_type(volume) := "configMap" if {
+} else := "configMap" if {
 	volume.configMap
-}
-
-determine_volume_type(volume) := "persistentVolumeClaim" if {
+} else := "persistentVolumeClaim" if {
 	volume.persistentVolumeClaim
-}
-
-determine_volume_type(volume) := "emptyDir" if {
+} else := "emptyDir" if {
 	volume.emptyDir
-}
-
-determine_volume_type(volume) := "hostPath" if {
+} else := "hostPath" if {
 	volume.hostPath
-}
-
-determine_volume_type(volume) := "other"
+} else := "other"

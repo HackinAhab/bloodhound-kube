@@ -88,7 +88,6 @@ extract_capabilities(container) := {} if {
 }
 
 has_dangerous_caps(container) if {
-	some cap
 	cap := container.securityContext.capabilities.add[_]
 	cap in base.dangerous_capabilities
 }
@@ -131,13 +130,11 @@ extract_env_from(container) := [] if {
 
 # Check if container references secrets
 references_secrets(container) if {
-	some ef
 	ef := container.envFrom[_]
 	ef.secretRef
 }
 
 references_secrets(container) if {
-	some env
 	env := container.env[_]
 	env.valueFrom.secretKeyRef
 }
@@ -167,33 +164,19 @@ analyze_volumes(spec) := [] if {
 # Determine volume type
 volume_type(volume) := "secret" if {
 	volume.secret
-}
-
-volume_type(volume) := "configmap" if {
+} else := "configmap" if {
 	volume.configMap
-}
-
-volume_type(volume) := "persistentVolumeClaim" if {
+} else := "persistentVolumeClaim" if {
 	volume.persistentVolumeClaim
-}
-
-volume_type(volume) := "hostPath" if {
+} else := "hostPath" if {
 	volume.hostPath
-}
-
-volume_type(volume) := "emptyDir" if {
+} else := "emptyDir" if {
 	volume.emptyDir
-}
-
-volume_type(volume) := "projected" if {
+} else := "projected" if {
 	volume.projected
-}
-
-volume_type(volume) := "downwardAPI" if {
+} else := "downwardAPI" if {
 	volume.downwardAPI
-}
-
-volume_type(volume) := "other"
+} else := "other"
 
 # Check if volume is sensitive
 is_sensitive_volume(volume) if {
@@ -203,7 +186,6 @@ is_sensitive_volume(volume) if {
 is_sensitive_volume(volume) if {
 	volume.hostPath
 	sensitive_paths := ["/etc", "/var/run", "/proc", "/sys", "/dev"]
-	some path
 	path := sensitive_paths[_]
 	startswith(volume.hostPath.path, path)
 }
@@ -259,7 +241,6 @@ host_namespace_risk(spec) := 10 if {
 host_namespace_risk(spec) := 0
 
 capabilities_risk(spec) := 25 if {
-	some container
 	container := spec.containers[_]
 	base.has_dangerous_capabilities(container)
 }
@@ -273,7 +254,6 @@ root_risk(spec) := 15 if {
 root_risk(spec) := 0
 
 volume_risk(spec) := 20 if {
-	some volume
 	volume := spec.volumes[_]
 	is_sensitive_volume(volume)
 }
@@ -282,22 +262,12 @@ volume_risk(spec) := 0
 
 # Helper: Check if pod is privileged
 is_privileged_pod(spec) if {
-	some container
 	container := spec.containers[_]
 	base.is_privileged(container)
 }
 
-is_privileged_pod(spec) := false if {
-	not is_privileged_pod(spec)
-}
-
 # Helper: Check if pod runs as root
 runs_as_root_pod(spec) if {
-	some container
 	container := spec.containers[_]
 	base.runs_as_root(container)
-}
-
-runs_as_root_pod(spec) := false if {
-	not runs_as_root_pod(spec)
 }

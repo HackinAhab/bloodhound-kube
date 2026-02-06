@@ -90,9 +90,7 @@ ingress_routes_to_service contains edge if {
 	service := namespace.service[_]
 	
 	# Check if any ingress rule references this service
-	some rule
 	rule := ingress.properties.rules[_]
-	some path
 	path := rule.paths[_]
 	path.backend_service == service.properties.name
 	

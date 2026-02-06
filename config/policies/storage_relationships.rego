@@ -13,7 +13,6 @@ secret_mounted_by_pod contains edge if {
 	pod := namespace.pod[_]
 	
 	# Check if pod has volume referencing this secret
-	some volume
 	volume := pod.properties.volumes[_]
 	volume.type == "secret"
 	volume.secret_name == secret.properties.name
@@ -28,7 +27,6 @@ configmap_mounted_by_pod contains edge if {
 	pod := namespace.pod[_]
 	
 	# Check if pod has volume referencing this configmap
-	some volume
 	volume := pod.properties.volumes[_]
 	volume.type == "configmap"
 	volume.configmap_name == cm.properties.name
@@ -43,12 +41,10 @@ secret_env_referenced_by_pod contains edge if {
 	pod := namespace.pod[_]
 	
 	# Check containers for secret references
-	some container
 	container := pod.properties.containers[_]
 	container.has_secrets == true
 	
 	# Additional check via env_from
-	some env_source
 	env_source := container.env_from[_]
 	env_source.secret_ref
 	env_source.secret_ref.name == secret.properties.name
@@ -63,9 +59,7 @@ configmap_env_referenced_by_pod contains edge if {
 	pod := namespace.pod[_]
 	
 	# Check containers for configmap references
-	some container
 	container := pod.properties.containers[_]
-	some env_source
 	env_source := container.env_from[_]
 	env_source.configmap_ref
 	env_source.configmap_ref.name == cm.properties.name
@@ -82,7 +76,6 @@ tls_secret_used_by_ingress contains edge if {
 	secret.properties.is_tls_secret == true
 	
 	# Check TLS configuration
-	some tls_config
 	tls_config := ingress.properties.tls[_]
 	tls_config.secret_name == secret.properties.name
 	
@@ -98,7 +91,6 @@ service_account_token_belongs_to_account contains edge if {
 	secret.properties.is_service_account_token == true
 	
 	# Check if secret is referenced by service account
-	some sa_secret
 	sa_secret := sa.properties.secrets[_]
 	sa_secret == secret.properties.name
 	

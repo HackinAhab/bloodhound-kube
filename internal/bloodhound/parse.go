@@ -28,6 +28,14 @@ func ConvertToBloodHoundResult(jsonlData []byte, clusterName string) (*BloodHoun
 		return nil, fmt.Errorf("failed to create relationships: %w", err)
 	}
 
+	for i := range nodes {
+		nodes[i].Properties = SanitizeProperties(nodes[i].Properties)
+	}
+
+	for i := range edges {
+		edges[i].Properties = SanitizeProperties(edges[i].Properties)
+	}
+
 	return &BloodHoundResult{
 		Metadata: &BloodHoundMetadata{SourceKind: "kubernetes"},
 		Graph:    BloodHoundGraph{Nodes: nodes, Edges: edges},
@@ -99,7 +107,7 @@ func createNodesWithOPA(resources []map[string]any) ([]BloodHoundNode, error) {
 			allNodes = append(allNodes, BloodHoundNode{
 				ID:         sharedNode.ID,
 				Kinds:      sharedNode.Kinds,
-				Properties: FlattenProperties(sharedNode.Properties, ""),
+				Properties: sharedNode.Properties,
 			})
 		}
 	}

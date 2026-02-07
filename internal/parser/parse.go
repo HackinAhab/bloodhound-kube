@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"strings"
 
-	"bloodhound-kube/internal/parser/relationships"
-
 	"github.com/TheManticoreProject/gopengraph"
 	"github.com/TheManticoreProject/gopengraph/edge"
 	"github.com/TheManticoreProject/gopengraph/node"
@@ -70,39 +68,31 @@ func ConvertToBloodHoundResult(jsonlData []byte, clusterName string) (*gopengrap
 // parseJSONLToResources converts JSONL bytes to raw resource maps
 // Extracts the .resource field from the JSONL wrapper structure
 func parseJSONLToResources(jsonlData []byte) ([]map[string]any, error) {
-	lines := strings.Split(string(jsonlData), "\n")
-	var resources []map[string]any
+	resources, err := ParseFromJSONL(jsonlData)
+	if err != nil {
+		return nil, err
+	}
 
-	for i, line := range lines {
-		line = strings.TrimSpace(line)
-		if line == "" {
-			continue
-		}
-
-		var wrapper map[string]any
-		if err := json.Unmarshal([]byte(line), &wrapper); err != nil {
-			return nil, fmt.Errorf("failed to parse line %d: %w", i+1, err)
-		}
-
+	var extracted []map[string]any
+	for i, resource := range resources {
 		// Extract the actual K8s resource from the wrapper
 		// JSONL format: {"type": "secret", "timestamp": "...", "resource": {...}}
 		// OPA policies expect: {"kind": "Secret", "metadata": {...}, ...}
-		if resource, ok := wrapper["resource"].(map[string]any); ok {
-			resources = append(resources, resource)
-		} else {
-			// Skip lines without a valid resource field
-			fmt.Printf("Warning: Line %d missing 'resource' field, skipping\n", i+1)
+		if payload, ok := resource.Resource.(map[string]any); ok {
+			extracted = append(extracted, payload)
+			continue
 		}
+		fmt.Printf("Warning: Line %d missing 'resource' field, skipping\n", i+1)
 	}
 
-	return resources, nil
+	return extracted, nil
 }
 
 // createNodesWithOPA uses OPA policies to create nodes from resources
 // Processes in chunks of 10K for memory efficiency
 func createNodesWithOPA(resources []map[string]any) ([]BloodHoundNode, error) {
 	// Create OPA engine and load node policies
-	engine, err := relationships.NewOPAEngine("rego/edges")
+	engine, err := NewOPAEngine("rego/edges")
 	if err != nil {
 		return nil, fmt.Errorf("failed to create OPA engine: %w", err)
 	}
@@ -122,19 +112,11 @@ func createNodesWithOPA(resources []map[string]any) ([]BloodHoundNode, error) {
 		chunk := resources[i:end]
 
 		// Query OPA for nodes
-		sharedNodes, err := engine.QueryNodes(chunk)
+		nodes, err := engine.QueryNodes(chunk)
 		if err != nil {
 			return nil, fmt.Errorf("failed to query nodes for chunk %d-%d: %w", i, end, err)
 		}
-
-		// Convert shared types to main package types
-		for _, sharedNode := range sharedNodes {
-			allNodes = append(allNodes, BloodHoundNode{
-				ID:         sharedNode.ID,
-				Kinds:      sharedNode.Kinds,
-				Properties: sharedNode.Properties,
-			})
-		}
+		allNodes = append(allNodes, nodes...)
 	}
 
 	return allNodes, nil
@@ -170,44 +152,15 @@ func ParseFromJSONL(jsonlData []byte) ([]ResourceData, error) {
 // createRelationships applies OPA/Rego policies to create edges between nodes
 func createRelationships(nodes []BloodHoundNode) ([]BloodHoundEdge, error) {
 	// Create OPA engine with policy directory
-	engine, err := relationships.NewOPAEngine("rego/edges")
+	engine, err := NewOPAEngine("rego/edges")
 	if err != nil {
 		return nil, fmt.Errorf("failed to create OPA engine: %w", err)
 	}
 
-	// Convert to shared types for the relationship engine
-	sharedNodes := make([]relationships.BloodHoundNode, len(nodes))
-	for i, node := range nodes {
-		sharedNodes[i] = relationships.BloodHoundNode{
-			ID:         node.ID,
-			Kinds:      node.Kinds,
-			Properties: node.Properties,
-		}
-	}
-
 	// Apply Rego policies to create relationships
-	sharedEdges, err := engine.ApplyRules(sharedNodes)
+	edges, err := engine.ApplyRules(nodes)
 	if err != nil {
 		return nil, fmt.Errorf("failed to apply OPA policies: %w", err)
-	}
-
-	// Convert back to main package types
-	edges := make([]BloodHoundEdge, len(sharedEdges))
-	for i, edge := range sharedEdges {
-		edges[i] = BloodHoundEdge{
-			Start: BloodHoundEdgeRef{
-				MatchBy: edge.Start.MatchBy,
-				Value:   edge.Start.Value,
-				Kind:    edge.Start.Kind,
-			},
-			End: BloodHoundEdgeRef{
-				MatchBy: edge.End.MatchBy,
-				Value:   edge.End.Value,
-				Kind:    edge.End.Kind,
-			},
-			Kind:       edge.Kind,
-			Properties: edge.Properties,
-		}
 	}
 
 	return edges, nil

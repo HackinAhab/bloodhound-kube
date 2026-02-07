@@ -15,8 +15,8 @@ external_secret_uses_secretstore contains edge if {
 	store_name := object.get(external_secret.properties, "store_name", "")
 	store_name != ""
 
-	store_kind := object.get(external_secret.properties, "store_kind", "SecretStore")
-	store_kind == "SecretStore"
+	store_kind := lower(object.get(external_secret.properties, "store_kind", "SecretStore"))
+	store_kind == "secretstore"
 	secret_store.properties.name == store_name
 
 	edge := helpers.create_edge(external_secret, secret_store, "Uses")
@@ -31,9 +31,35 @@ external_secret_uses_clustersecretstore contains edge if {
 	store_name := object.get(external_secret.properties, "store_name", "")
 	store_name != ""
 
-	store_kind := object.get(external_secret.properties, "store_kind", "SecretStore")
-	store_kind == "ClusterSecretStore"
+	store_kind := lower(object.get(external_secret.properties, "store_kind", "SecretStore"))
+	store_kind == "clustersecretstore"
 	cluster_store.properties.name == store_name
 
 	edge := helpers.create_edge(external_secret, cluster_store, "Uses")
+}
+
+# ExternalSecret manages Secret (explicit target name)
+external_secret_manages_secret contains edge if {
+	namespace := input.namespaces[ns]
+	external_secret := namespace.externalsecret[_]
+	secret := namespace.secret[_]
+
+	target_name := object.get(external_secret.properties, "target_name", "")
+	target_name != ""
+	secret.properties.name == target_name
+
+	edge := helpers.create_edge(external_secret, secret, "ManagedBy")
+}
+
+# ExternalSecret manages Secret (default target name)
+external_secret_manages_secret_default contains edge if {
+	namespace := input.namespaces[ns]
+	external_secret := namespace.externalsecret[_]
+	secret := namespace.secret[_]
+
+	target_name := object.get(external_secret.properties, "target_name", "")
+	target_name == ""
+	secret.properties.name == external_secret.properties.name
+
+	edge := helpers.create_edge(external_secret, secret, "ManagedBy")
 }

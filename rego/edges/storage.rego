@@ -4,54 +4,60 @@ import rego.v1
 
 import data.kubernetes.helpers
 
-# Secret mounted by Pod
+# Secret mounted by Pod (via volume)
 secret_mounted_by_pod contains edge if {
 	namespace := input.namespaces[ns]
 	secret := namespace.secret[_]
 	pod := namespace.pod[_]
 
 	volume := pod.properties.volumes[_]
-	volume.secret.secretName == secret.properties.name
+	volume.type == "secret"
+	volume.secret_name == secret.properties.name
 
 	edge := helpers.create_edge(secret, pod, "MountedBy")
 }
 
-# ConfigMap used by Pod
-configmap_used_by_pod contains edge if {
+# ConfigMap mounted by Pod (via volume)
+configmap_mounted_by_pod contains edge if {
 	namespace := input.namespaces[ns]
-	cm := namespace.config_map[_]
+	cm := namespace.configmap[_]
 	pod := namespace.pod[_]
 
 	volume := pod.properties.volumes[_]
-	volume.configMap.name == cm.properties.name
+	volume.type == "configmap"
+	volume.configmap_name == cm.properties.name
 
-	edge := helpers.create_edge(cm, pod, "UsedBy")
+	edge := helpers.create_edge(cm, pod, "MountedBy")
 }
 
-# Secret referenced by Deployment environment variables
-secret_referenced_by_deployment contains edge if {
+# Secret referenced by Pod environment variables
+secret_env_referenced_by_pod contains edge if {
 	namespace := input.namespaces[ns]
 	secret := namespace.secret[_]
-	deployment := namespace.deployment[_]
+	pod := namespace.pod[_]
 
-	container := deployment.properties.spec.template.spec.containers[_]
-	env := container.env[_]
-	env.valueFrom.secretKeyRef.name == secret.properties.name
+	container := pod.properties.containers[_]
+	container.has_secrets == true
 
-	edge := helpers.create_edge(secret, deployment, "ReferencedBy")
+	env_source := container.env_from[_]
+	env_source.secret_ref
+	env_source.secret_ref.name == secret.properties.name
+
+	edge := helpers.create_edge(secret, pod, "ReferencedBy")
 }
 
-# ConfigMap referenced by Deployment environment variables
-configmap_referenced_by_deployment contains edge if {
+# ConfigMap referenced by Pod environment variables
+configmap_env_referenced_by_pod contains edge if {
 	namespace := input.namespaces[ns]
-	cm := namespace.config_map[_]
-	deployment := namespace.deployment[_]
+	cm := namespace.configmap[_]
+	pod := namespace.pod[_]
 
-	container := deployment.properties.spec.template.spec.containers[_]
-	env := container.env[_]
-	env.valueFrom.configMapKeyRef.name == cm.properties.name
+	container := pod.properties.containers[_]
+	env_source := container.env_from[_]
+	env_source.configmap_ref
+	env_source.configmap_ref.name == cm.properties.name
 
-	edge := helpers.create_edge(cm, deployment, "ReferencedBy")
+	edge := helpers.create_edge(cm, pod, "ReferencedBy")
 }
 
 # TLS Secret used by Ingress
@@ -60,21 +66,35 @@ tls_secret_used_by_ingress contains edge if {
 	secret := namespace.secret[_]
 	ingress := namespace.ingress[_]
 
-	secret.properties.secret_type == "kubernetes.io/tls"
+	secret.properties.is_tls_secret == true
 
 	tls_config := ingress.properties.tls[_]
-	tls_config.secretName == secret.properties.name
+	tls_config.secret_name == secret.properties.name
 
 	edge := helpers.create_edge(secret, ingress, "SecuresWith")
+}
+
+# ServiceAccount token Secret belongs to ServiceAccount
+service_account_token_belongs_to_account contains edge if {
+	namespace := input.namespaces[ns]
+	secret := namespace.secret[_]
+	sa := namespace.serviceaccount[_]
+
+	secret.properties.is_service_account_token == true
+
+	sa_secret := sa.properties.secrets[_]
+	sa_secret == secret.properties.name
+
+	edge := helpers.create_edge(secret, sa, "BelongsTo")
 }
 
 # Pod uses ServiceAccount
 pod_uses_service_account contains edge if {
 	namespace := input.namespaces[ns]
 	pod := namespace.pod[_]
-	sa := namespace.service_account[_]
+	sa := namespace.serviceaccount[_]
 
-	pod.properties.spec.serviceAccountName == sa.properties.name
+	pod.properties.service_account == sa.properties.name
 
 	edge := helpers.create_edge(pod, sa, "Uses")
 }

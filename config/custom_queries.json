@@ -1,0 +1,14 @@
+{
+    "queries": [
+        {
+            "name": "All Object Nodes and Edges",
+            "description": "Retrieves all nodes and edges in the graph, limited to 1000.",
+            "query": "MATCH p=(s)-[]->(t)\nRETURN p\nLIMIT 1000"
+        },
+        {
+            "name": "All Object Nodes",
+            "description": "Retrieves all nodes in the graph, limited to 1000.",
+            "query": "MATCH (n)\nRETURN n\nLIMIT 1000"
+        }
+    ]
+}

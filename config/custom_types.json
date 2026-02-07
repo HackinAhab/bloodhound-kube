@@ -1,0 +1,67 @@
+{
+  "custom_types": {
+    "Node": {
+      "icon": {
+        "type": "font-awesome",
+        "name": "microchip",
+        "color": "#4CAF50"
+      }
+    },
+    "Pod": {
+      "icon": {
+        "type": "font-awesome",
+        "name": "building",
+        "color": "#607D8B"
+      }
+    },
+    "Deployment": {
+      "icon": {
+        "type": "font-awesome",
+        "name": "boxes-stacked",
+        "color": "#FF9800"
+      }
+    },
+    "Service": {
+      "icon": {
+        "type": "font-awesome",
+        "name": "globe",
+        "color": "#9C27B0"
+      }
+    },
+    "Secret": {
+      "icon": {
+        "type": "font-awesome",
+        "name": "key",
+        "color": "#FFE28E"
+      }
+    },
+    "ServiceAccount": {
+      "icon": {
+        "type": "font-awesome",
+        "name": "user",
+        "color": "#FFE28E"
+      }
+    },
+    "ExternalSecret": {
+      "icon": {
+        "type": "font-awesome",
+        "name": "user-secret",
+        "color": "#FFE28E"
+      }
+    },
+    "ClusterSecretStore": {
+      "icon": {
+        "type": "font-awesome",
+        "name": "user-shield",
+        "color": "#FF5722"
+      }
+    },
+    "SecretStore": {
+      "icon": {
+        "type": "font-awesome",
+        "name": "user-lock",
+        "color": "#FF5722"
+      }
+    }
+  }
+}

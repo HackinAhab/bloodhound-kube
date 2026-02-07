@@ -1,7 +1,6 @@
 package collector
 
 import (
-	"bloodhound-kube/internal/config"
 	"bloodhound-kube/internal/utils"
 	"context"
 	"errors"
@@ -99,8 +98,8 @@ func DiscoverResources(ctx context.Context, clients *utils.Clients, log *utils.L
 	return resources, nil
 }
 
-func BuildCollectionsConfigFromDiscovery(resources []DiscoveryResource) (*config.CollectionsConfig, error) {
-	collections := make([]config.ResourceCollection, 0, len(resources))
+func BuildCollectionsConfigFromDiscovery(resources []DiscoveryResource) (*CollectionsConfig, error) {
+	collections := make([]ResourceCollection, 0, len(resources))
 	resourceCounts := make(map[string]int)
 	for _, res := range resources {
 		resourceCounts[res.Resource]++
@@ -122,7 +121,7 @@ func BuildCollectionsConfigFromDiscovery(resources []DiscoveryResource) (*config
 		}
 		seen[name] = struct{}{}
 
-		collections = append(collections, config.ResourceCollection{
+		collections = append(collections, ResourceCollection{
 			Name:              name,
 			ResourceType:      name,
 			APIVersion:        res.GroupVersion,
@@ -131,17 +130,12 @@ func BuildCollectionsConfigFromDiscovery(resources []DiscoveryResource) (*config
 			Namespaced:        res.Namespaced,
 			ClusterScoped:     !res.Namespaced,
 			Enabled:           true,
-			SupportedClusters: []config.ClusterType{config.ClusterTypeKubernetes, config.ClusterTypeOpenShift},
+			SupportedClusters: []utils.ClusterType{utils.ClusterTypeKubernetes, utils.ClusterTypeOpenShift},
 			Custom:            res.IsCRD,
 		})
 	}
 
-	cfg := &config.CollectionsConfig{
-		Version: string(config.ConfigVersion1_0),
-		Metadata: config.ConfigMetadata{
-			Name:        "discovered-collection",
-			Description: "Collection generated from API discovery",
-		},
+	cfg := &CollectionsConfig{
 		Collections: collections,
 	}
 

@@ -207,7 +207,7 @@ Examples:
 			if err != nil {
 				return fmt.Errorf("failed to build collections from discovery: %w", err)
 			}
-			if err := collector.DefaultRegistry.InitializeFromYAML(c.GetClients(), log, collectionsCfg, dynamicClient); err != nil {
+			if err := collector.DefaultRegistry.InitializeFromConfig(c.GetClients(), log, collectionsCfg, dynamicClient); err != nil {
 				return fmt.Errorf("failed to initialize collection registry: %w", err)
 			}
 			log.Info("Successfully initialized collection registry", "handlers", len(collectionsCfg.Collections), "discovery", usingDiscovery)
@@ -272,7 +272,7 @@ Examples:
 			if err != nil {
 				return fmt.Errorf("failed to build collections from discovery: %w", err)
 			}
-			if err := collector.DefaultRegistry.InitializeFromYAML(c.GetClients(), log, collectionsCfg, dynamicClient); err != nil {
+			if err := collector.DefaultRegistry.InitializeFromConfig(c.GetClients(), log, collectionsCfg, dynamicClient); err != nil {
 				return fmt.Errorf("failed to initialize collection registry: %w", err)
 			}
 			log.Info("Successfully initialized collection registry", "handlers", len(collectionsCfg.Collections), "discovery", usingDiscovery, "source", source)

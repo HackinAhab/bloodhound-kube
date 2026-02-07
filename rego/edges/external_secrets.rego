@@ -19,7 +19,7 @@ external_secret_uses_secretstore contains edge if {
 	store_kind == "SecretStore"
 	secret_store.properties.name == store_name
 
-	edge := helpers.create_edge(external_secret, secret_store, "Uses", 7)
+	edge := helpers.create_edge(external_secret, secret_store, "Uses")
 }
 
 # ExternalSecret uses ClusterSecretStore (cluster-scoped)
@@ -35,5 +35,5 @@ external_secret_uses_clustersecretstore contains edge if {
 	store_kind == "ClusterSecretStore"
 	cluster_store.properties.name == store_name
 
-	edge := helpers.create_edge(external_secret, cluster_store, "Uses", 7)
+	edge := helpers.create_edge(external_secret, cluster_store, "Uses")
 }

@@ -82,22 +82,3 @@ func (c *Collector) GetDynamicClient() (dynamic.Interface, error) {
 	}
 	return c.clients.Dynamic, nil
 }
-
-func AnnotationsCleaner(annotations map[string]string) map[string]string {
-	if annotations == nil {
-		return nil
-	}
-
-	cleaned := make(map[string]string)
-	for key, value := range annotations {
-		// Skip the kubectl last-applied-configuration and revision annotations, it's extremely large and not often useful
-		// TODO: Make this configurable.
-		if key != "kubectl.kubernetes.io/last-applied-configuration" && key != "deployment.kubernetes.io/revision" {
-			cleaned[key] = value
-		}
-	}
-	if len(cleaned) == 0 {
-		return nil
-	}
-	return cleaned
-}

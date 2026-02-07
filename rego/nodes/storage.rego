@@ -23,6 +23,8 @@ nodes contains node if {
             "data_keys": keys,
             "data_keys_count": count(keys),
             "has_sensitive_keys": helpers.has_sensitive_keys(keys),
+            "certificates": object.get(resource, "certificates", {}),
+            "redacted_keys": object.get(resource, "redacted_keys", []),
             "labels": helpers.get_labels(resource),
             "annotations": helpers.get_annotations(resource),
             "is_service_account_token": object.get(resource, "type", "") == "kubernetes.io/service-account-token",

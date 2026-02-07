@@ -2,6 +2,7 @@ package collector
 
 import (
 	"crypto/x509"
+	"encoding/base64"
 	"encoding/pem"
 	"fmt"
 	"strings"
@@ -157,4 +158,130 @@ func isSensitiveKey(key string) bool {
 		}
 	}
 	return false
+}
+
+func AnnotationsCleaner(annotations map[string]string) map[string]string {
+	if annotations == nil {
+		return nil
+	}
+
+	cleaned := make(map[string]string)
+	for key, value := range annotations {
+		// Skip the kubectl last-applied-configuration and revision annotations, it's extremely large and not often useful
+		// TODO: Make this configurable.
+		if key != "kubectl.kubernetes.io/last-applied-configuration" && key != "deployment.kubernetes.io/revision" {
+			cleaned[key] = value
+		}
+	}
+	if len(cleaned) == 0 {
+		return nil
+	}
+	return cleaned
+}
+
+// CleanAnnotationsInObject applies annotation cleaning on a Kubernetes object map
+func CleanAnnotationsInObject(obj map[string]any) {
+	metadata, ok := obj["metadata"].(map[string]any)
+	if !ok || metadata == nil {
+		return
+	}
+
+	annotationsRaw, ok := metadata["annotations"].(map[string]any)
+	if !ok || annotationsRaw == nil {
+		return
+	}
+
+	annotations := make(map[string]string, len(annotationsRaw))
+	for key, value := range annotationsRaw {
+		if str, ok := value.(string); ok {
+			annotations[key] = str
+		}
+	}
+
+	cleaned := AnnotationsCleaner(annotations)
+	if cleaned == nil {
+		delete(metadata, "annotations")
+		return
+	}
+
+	cleanedAny := make(map[string]any, len(cleaned))
+	for key, value := range cleaned {
+		cleanedAny[key] = value
+	}
+	metadata["annotations"] = cleanedAny
+}
+
+func getSecretDataBytes(obj map[string]any) map[string][]byte {
+	dataRaw, ok := obj["data"].(map[string]any)
+	if !ok || dataRaw == nil {
+		return nil
+	}
+
+	dataBytes := make(map[string][]byte, len(dataRaw))
+	for key, value := range dataRaw {
+		str, ok := value.(string)
+		if !ok {
+			continue
+		}
+		decoded, err := base64.StdEncoding.DecodeString(str)
+		if err != nil {
+			continue
+		}
+		dataBytes[key] = decoded
+	}
+
+	if len(dataBytes) == 0 {
+		return nil
+	}
+	return dataBytes
+}
+
+// EnrichSecretObject adds certificate metadata and optional redaction to a Secret object map
+func EnrichSecretObject(obj map[string]any, redacted bool) {
+	dataBytes := getSecretDataBytes(obj)
+	if dataBytes != nil {
+		certs := extractCertificatesFromSecret(dataBytes)
+		if len(certs) > 0 {
+			obj["certificates"] = certs
+		}
+	}
+
+	if !redacted {
+		return
+	}
+
+	dataRaw, ok := obj["data"].(map[string]any)
+	if !ok || dataRaw == nil {
+		return
+	}
+
+	redactedKeys := make([]string, 0)
+	for key := range dataRaw {
+		if isSensitiveKey(key) {
+			delete(dataRaw, key)
+			redactedKeys = append(redactedKeys, key)
+		}
+	}
+
+	if len(redactedKeys) > 0 {
+		obj["redacted_keys"] = redactedKeys
+	}
+	if len(dataRaw) == 0 {
+		delete(obj, "data")
+	}
+}
+
+// ApplyCollectionHelpers applies common cleaning/enrichment to a collected object
+func ApplyCollectionHelpers(obj map[string]any, resourcePlural string, redacted bool) map[string]any {
+	if obj == nil {
+		return obj
+	}
+
+	CleanAnnotationsInObject(obj)
+
+	if resourcePlural == "secrets" {
+		EnrichSecretObject(obj, redacted)
+	}
+
+	return obj
 }

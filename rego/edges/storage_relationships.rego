@@ -17,7 +17,7 @@ secret_mounted_by_pod contains edge if {
 	volume.type == "secret"
 	volume.secret_name == secret.properties.name
 	
-	edge := helpers.create_edge(secret, pod, "MountedBy", 8)
+	edge := helpers.create_edge(secret, pod, "MountedBy")
 }
 
 # ConfigMap mounted by Pod (via volume)
@@ -31,7 +31,7 @@ configmap_mounted_by_pod contains edge if {
 	volume.type == "configmap"
 	volume.configmap_name == cm.properties.name
 	
-	edge := helpers.create_edge(cm, pod, "MountedBy", 8)
+	edge := helpers.create_edge(cm, pod, "MountedBy")
 }
 
 # Secret referenced by Pod environment variables
@@ -49,7 +49,7 @@ secret_env_referenced_by_pod contains edge if {
 	env_source.secret_ref
 	env_source.secret_ref.name == secret.properties.name
 	
-	edge := helpers.create_edge(secret, pod, "ReferencedBy", 8)
+	edge := helpers.create_edge(secret, pod, "ReferencedBy")
 }
 
 # ConfigMap referenced by Pod environment variables
@@ -64,7 +64,7 @@ configmap_env_referenced_by_pod contains edge if {
 	env_source.configmap_ref
 	env_source.configmap_ref.name == cm.properties.name
 	
-	edge := helpers.create_edge(cm, pod, "ReferencedBy", 8)
+	edge := helpers.create_edge(cm, pod, "ReferencedBy")
 }
 
 # TLS Secret used by Ingress
@@ -79,7 +79,7 @@ tls_secret_used_by_ingress contains edge if {
 	tls_config := ingress.properties.tls[_]
 	tls_config.secret_name == secret.properties.name
 	
-	edge := helpers.create_edge(secret, ingress, "SecuresWith", 8)
+	edge := helpers.create_edge(secret, ingress, "SecuresWith")
 }
 
 # ServiceAccount token Secret belongs to ServiceAccount
@@ -94,5 +94,5 @@ service_account_token_belongs_to_account contains edge if {
 	sa_secret := sa.properties.secrets[_]
 	sa_secret == secret.properties.name
 	
-	edge := helpers.create_edge(secret, sa, "BelongsTo", 9)
+	edge := helpers.create_edge(secret, sa, "BelongsTo")
 }

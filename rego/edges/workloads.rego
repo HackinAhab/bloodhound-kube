@@ -15,7 +15,7 @@ deployment_owns_pod contains edge if {
 	# Match pod labels against deployment selector
 	helpers.labels_match_selector(pod.properties.labels, deployment.properties.selector)
 	
-	edge := helpers.create_edge(deployment, pod, "Owns", 7)
+	edge := helpers.create_edge(deployment, pod, "Owns")
 }
 
 # Pod scheduled on Node
@@ -28,7 +28,7 @@ pod_scheduled_on_node contains edge if {
 	node := input.cluster_scoped.node[_]
 	node.properties.name == pod.properties.node_name
 	
-	edge := helpers.create_edge(pod, node, "ScheduledOn", 6)
+	edge := helpers.create_edge(pod, node, "ScheduledOn")
 }
 
 # Pod uses ServiceAccount
@@ -40,7 +40,7 @@ pod_uses_serviceaccount contains edge if {
 	sa_name := object.get(pod.properties, "service_account", "default")
 	sa.properties.name == sa_name
 	
-	edge := helpers.create_edge(pod, sa, "Uses", 8)
+	edge := helpers.create_edge(pod, sa, "Uses")
 }
 
 # Deployment uses ServiceAccount (via pod template)
@@ -52,7 +52,7 @@ deployment_uses_serviceaccount contains edge if {
 	sa_name := object.get(deployment.properties.pod_template, "service_account", "default")
 	sa.properties.name == sa_name
 	
-	edge := helpers.create_edge(deployment, sa, "Uses", 7)
+	edge := helpers.create_edge(deployment, sa, "Uses")
 }
 
 # Service exposes Pods (via label selector)
@@ -66,7 +66,7 @@ service_exposes_pod contains edge if {
 	count(service.properties.selector) > 0
 	helpers.labels_match_selector(pod.properties.labels, service.properties.selector)
 	
-	edge := helpers.create_edge(service, pod, "Exposes", 7)
+	edge := helpers.create_edge(service, pod, "Exposes")
 }
 
 # Service exposes Deployment (indirect through pod labels)
@@ -80,7 +80,7 @@ service_exposes_deployment contains edge if {
 	count(service.properties.selector) > 0
 	helpers.labels_match_selector(deployment.properties.selector, service.properties.selector)
 	
-	edge := helpers.create_edge(service, deployment, "Exposes", 6)
+	edge := helpers.create_edge(service, deployment, "Exposes")
 }
 
 # Ingress routes to Service
@@ -94,5 +94,5 @@ ingress_routes_to_service contains edge if {
 	path := rule.paths[_]
 	path.backend_service == service.properties.name
 	
-	edge := helpers.create_edge(ingress, service, "RoutesTo", 7)
+	edge := helpers.create_edge(ingress, service, "RoutesTo")
 }

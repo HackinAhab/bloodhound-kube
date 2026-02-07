@@ -5,8 +5,8 @@ package kubernetes.helpers
 
 import rego.v1
 
-# Create edge with priority
-create_edge(source, target, edge_type, priority) := edge if {
+# Create edge
+create_edge(source, target, edge_type) := edge if {
 	edge := {
 		"start": {
 			"match_by": "id",
@@ -19,14 +19,12 @@ create_edge(source, target, edge_type, priority) := edge if {
 			"kind": target.kinds[0],
 		},
 		"kind": edge_type,
-		"properties": {
-			"priority": priority,
-		},
+		"properties": {},
 	}
 }
 
 # Create edge with via node
-create_edge_via(source, target, via, edge_type, priority) := edge if {
+create_edge_via(source, target, via, edge_type) := edge if {
 	edge := {
 		"start": {
 			"match_by": "id",
@@ -40,7 +38,6 @@ create_edge_via(source, target, via, edge_type, priority) := edge if {
 		},
 		"kind": edge_type,
 		"properties": {
-			"priority": priority,
 			"via_id": via.id,
 			"via_kind": via.kinds[0],
 			"via_name": via.properties.name,

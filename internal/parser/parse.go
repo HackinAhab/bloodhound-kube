@@ -51,7 +51,7 @@ func ConvertToBloodHoundResult(jsonlData []byte, clusterName string) (*gopengrap
 			return nil, fmt.Errorf("failed to create node %s: %w", n.ID, err)
 		}
 
-		graph.AddNodeWithoutValidation(openNode)
+		graph.AddNode(openNode)
 	}
 
 	for _, e := range edges {
@@ -61,7 +61,7 @@ func ConvertToBloodHoundResult(jsonlData []byte, clusterName string) (*gopengrap
 			return nil, fmt.Errorf("failed to create edge %s: %w", e.Kind, err)
 		}
 
-		graph.AddEdgeWithoutValidation(openEdge)
+		graph.AddEdge(openEdge)
 	}
 
 	return graph, nil

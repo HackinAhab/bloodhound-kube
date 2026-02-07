@@ -1,10 +1,8 @@
 package collector
 
 import (
-	"bloodhound-kube/internal/config"
 	"bloodhound-kube/internal/utils"
 	"fmt"
-	"slices"
 	"sort"
 	"strings"
 
@@ -14,44 +12,20 @@ import (
 type ResourceRegistry struct {
 	handlers map[string]ResourceHandler
 	factory  *CollectorFactory
-	useYAML  bool
 }
 
 func NewResourceRegistry() *ResourceRegistry {
 	registry := &ResourceRegistry{
 		handlers: make(map[string]ResourceHandler),
-		useYAML:  false,
 	}
 
-	// Note: Registry must be initialized with YAML config via InitializeFromYAML()
-	// or use NewResourceRegistryFromConfig() directly
+	// Note: Registry must be initialized with InitializeFromConfig().
 	return registry
 }
 
-// NewResourceRegistryFromConfig creates a registry from YAML configuration
-func NewResourceRegistryFromConfig(clients *utils.Clients, logger *utils.Logger, collectionsConfig *config.CollectionsConfig, dynamicClient dynamic.Interface) (*ResourceRegistry, error) {
-	factory, err := NewCollectorFactory(clients, logger, collectionsConfig, dynamicClient)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create collector factory: %w", err)
-	}
-
-	handlers, err := factory.CreateAllCollectors()
-	if err != nil {
-		return nil, fmt.Errorf("failed to create collectors: %w", err)
-	}
-
-	registry := &ResourceRegistry{
-		handlers: handlers,
-		factory:  factory,
-		useYAML:  true,
-	}
-
-	return registry, nil
-}
-
-// InitializeFromYAML initializes the registry from YAML configuration
-// This takes precedence over Go handlers
-func (r *ResourceRegistry) InitializeFromYAML(clients *utils.Clients, logger *utils.Logger, collectionsConfig *config.CollectionsConfig, dynamicClient dynamic.Interface) error {
+// InitializeFromConfig initializes the registry from collection configuration.
+// This takes precedence over Go handlers.
+func (r *ResourceRegistry) InitializeFromConfig(clients *utils.Clients, logger *utils.Logger, collectionsConfig *CollectionsConfig, dynamicClient dynamic.Interface) error {
 	factory, err := NewCollectorFactory(clients, logger, collectionsConfig, dynamicClient)
 	if err != nil {
 		return fmt.Errorf("failed to create collector factory: %w", err)
@@ -62,17 +36,11 @@ func (r *ResourceRegistry) InitializeFromYAML(clients *utils.Clients, logger *ut
 		return fmt.Errorf("failed to create collectors: %w", err)
 	}
 
-	// Replace existing handlers with YAML-defined ones
+	// Replace existing handlers with config-defined ones
 	r.handlers = handlers
 	r.factory = factory
-	r.useYAML = true
 
 	return nil
-}
-
-// supportsClusterType checks if the handler supports the given cluster type
-func (r *ResourceRegistry) supportsClusterType(supportedTypes []utils.ClusterType, clusterType utils.ClusterType) bool {
-	return slices.Contains(supportedTypes, clusterType)
 }
 
 func (r *ResourceRegistry) Register(handler ResourceHandler) {
@@ -85,7 +53,7 @@ func (r *ResourceRegistry) GetHandler(name string) (ResourceHandler, error) {
 		return handler, nil
 	}
 
-	// For YAML-based handlers, nicknames are handled by the factory
+	// For config-based handlers, nicknames are handled by the factory
 	// Return error with available types
 	available := r.GetAllNames()
 	return nil, fmt.Errorf("unknown resource type: %s (available: %s)", name, strings.Join(available, ", "))

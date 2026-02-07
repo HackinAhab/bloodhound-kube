@@ -18,7 +18,7 @@ cluster_role_to_sa_via_binding contains edge if {
 	subject.name == sa.properties.name
 	subject.kind == "ServiceAccount"
 
-	edge := helpers.create_edge_via(cluster_role, sa, binding, "HasRole", 10)
+	edge := helpers.create_edge_via(cluster_role, sa, binding, "HasRole")
 }
 
 # Role → ServiceAccount via RoleBinding (namespace-scoped)
@@ -34,7 +34,7 @@ role_to_sa_via_binding contains edge if {
 	subject := binding.properties.subjects[_]
 	subject.name == sa.properties.name
 
-	edge := helpers.create_edge_via(role, sa, binding, "HasRole", 10)
+	edge := helpers.create_edge_via(role, sa, binding, "HasRole")
 }
 
 # ClusterRoleBinding grants permissions to subjects
@@ -46,7 +46,7 @@ cluster_role_binding_to_subject contains edge if {
 	subject := binding.properties.subjects[_]
 	subject.name == sa.properties.name
 
-	edge := helpers.create_edge(binding, sa, "GrantsTo", 9)
+	edge := helpers.create_edge(binding, sa, "GrantsTo")
 }
 
 # RoleBinding grants permissions to subjects
@@ -58,7 +58,7 @@ role_binding_to_subject contains edge if {
 	subject := binding.properties.subjects[_]
 	subject.name == sa.properties.name
 
-	edge := helpers.create_edge(binding, sa, "GrantsTo", 9)
+	edge := helpers.create_edge(binding, sa, "GrantsTo")
 }
 
 # ClusterRole → ServiceAccount cross-namespace (via any binding type)
@@ -75,7 +75,7 @@ cluster_role_to_sa_cross_namespace contains edge if {
 	subject := binding.properties.subjects[_]
 	subject.name == sa.properties.name
 
-	edge := helpers.create_edge_via(cluster_role, sa, binding, "HasRole", 9)
+	edge := helpers.create_edge_via(cluster_role, sa, binding, "HasRole")
 }
 
 cluster_role_to_sa_cross_namespace contains edge if {
@@ -91,7 +91,7 @@ cluster_role_to_sa_cross_namespace contains edge if {
 	subject := binding.properties.subjects[_]
 	subject.name == sa.properties.name
 
-	edge := helpers.create_edge_via(cluster_role, sa, binding, "HasRole", 9)
+	edge := helpers.create_edge_via(cluster_role, sa, binding, "HasRole")
 }
 
 # ServiceAccount token Secret belongs to ServiceAccount
@@ -103,7 +103,7 @@ service_account_token_belongs_to_account contains edge if {
 	secret.properties.secret_type == "kubernetes.io/service-account-token"
 	secret.properties.annotations["kubernetes.io/service-account.name"] == sa.properties.name
 
-	edge := helpers.create_edge(secret, sa, "BelongsTo", 9)
+	edge := helpers.create_edge(secret, sa, "BelongsTo")
 }
 
 # Secret referenced by ServiceAccount
@@ -115,5 +115,5 @@ secret_referenced_by_service_account contains edge if {
 	sa_secret := sa.properties.secrets[_]
 	sa_secret.name == secret.properties.name
 
-	edge := helpers.create_edge(secret, sa, "ReferencedBy", 8)
+	edge := helpers.create_edge(secret, sa, "ReferencedBy")
 }

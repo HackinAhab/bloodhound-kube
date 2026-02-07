@@ -1,7 +1,6 @@
 package collector
 
 import (
-	"bloodhound-kube/internal/config"
 	"bloodhound-kube/internal/utils"
 	"context"
 	"fmt"
@@ -15,12 +14,12 @@ import (
 type CollectorFactory struct {
 	clients       *utils.Clients
 	logger        *utils.Logger
-	config        *config.CollectionsConfig
+	config        *CollectionsConfig
 	dynamicClient dynamic.Interface
 }
 
 // NewCollectorFactory creates a new collector factory
-func NewCollectorFactory(clients *utils.Clients, logger *utils.Logger, collectionsConfig *config.CollectionsConfig, dynamicClient dynamic.Interface) (*CollectorFactory, error) {
+func NewCollectorFactory(clients *utils.Clients, logger *utils.Logger, collectionsConfig *CollectionsConfig, dynamicClient dynamic.Interface) (*CollectorFactory, error) {
 	if collectionsConfig == nil {
 		return nil, fmt.Errorf("collections config is required")
 	}
@@ -38,9 +37,9 @@ func NewCollectorFactory(clients *utils.Clients, logger *utils.Logger, collectio
 }
 
 // CreateCollector creates a collector for a specific resource collection
-func (f *CollectorFactory) CreateCollector(collection config.ResourceCollection) (ResourceHandler, error) {
+func (f *CollectorFactory) CreateCollector(collection ResourceCollection) (ResourceHandler, error) {
 	// Validate that the resource is supported by the current cluster type
-	clusterType := config.FromUtilsClusterType(f.clients.ClusterType)
+	clusterType := f.clients.ClusterType
 	if !collection.SupportsCluster(clusterType) {
 		return nil, fmt.Errorf("resource %s not supported on cluster type %s", collection.Name, clusterType)
 	}
@@ -65,7 +64,7 @@ func (f *CollectorFactory) CreateAllCollectors() (map[string]ResourceHandler, er
 	handlers := make(map[string]ResourceHandler)
 
 	// Get collections that are enabled and supported by this cluster
-	clusterType := config.FromUtilsClusterType(f.clients.ClusterType)
+	clusterType := f.clients.ClusterType
 	collections := f.config.GetCollectionsForCluster(clusterType)
 
 	for _, collection := range collections {
@@ -93,12 +92,12 @@ func (f *CollectorFactory) CreateAllCollectors() (map[string]ResourceHandler, er
 }
 
 // GetCollectionByName returns a collection definition by name or nickname
-func (f *CollectorFactory) GetCollectionByName(name string) *config.ResourceCollection {
+func (f *CollectorFactory) GetCollectionByName(name string) *ResourceCollection {
 	return f.config.GetByName(name)
 }
 
 // GetCollectionByResourceType returns a collection definition by resource type
-func (f *CollectorFactory) GetCollectionByResourceType(resourceType string) *config.ResourceCollection {
+func (f *CollectorFactory) GetCollectionByResourceType(resourceType string) *ResourceCollection {
 	return f.config.GetByResourceType(resourceType)
 }
 
@@ -108,7 +107,7 @@ func (f *CollectorFactory) ShouldCollectNamespace(namespace string) bool {
 }
 
 // GetPerformanceSettings returns the performance settings from config
-func (f *CollectorFactory) GetPerformanceSettings() config.PerformanceSettings {
+func (f *CollectorFactory) GetPerformanceSettings() PerformanceSettings {
 	return f.config.Settings
 }
 
@@ -193,10 +192,11 @@ func (g *GenericCollector) Collect(ctx context.Context, c *Collector, namespace 
 		// Convert to resources
 		resources := make([]Resource, len(unstructuredList.Items))
 		for i, item := range unstructuredList.Items {
+			processed := ApplyCollectionHelpers(item.Object, g.plural, c.IsRedacted())
 			resources[i] = Resource{
 				Type:      g.resourceType,
 				Namespace: namespace,
-				Resource:  item.Object,
+				Resource:  processed,
 				Timestamp: metav1.Now().Format("2006-01-02T15:04:05Z07:00"),
 			}
 		}
@@ -216,10 +216,11 @@ func (g *GenericCollector) Collect(ctx context.Context, c *Collector, namespace 
 		// Convert to resources
 		resources := make([]Resource, len(unstructuredList.Items))
 		for i, item := range unstructuredList.Items {
+			processed := ApplyCollectionHelpers(item.Object, g.plural, c.IsRedacted())
 			resources[i] = Resource{
 				Type:      g.resourceType,
 				Namespace: namespace,
-				Resource:  item.Object,
+				Resource:  processed,
 				Timestamp: metav1.Now().Format("2006-01-02T15:04:05Z07:00"),
 			}
 		}

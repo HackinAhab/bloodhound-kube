@@ -12,7 +12,7 @@ service_exposes_pods contains edge if {
 
 	helpers.is_subset(service.properties.selector, pod.properties.labels)
 
-	edge := helpers.create_edge(service, pod, "Exposes", 7)
+	edge := helpers.create_edge(service, pod, "Exposes")
 }
 
 # Service exposes Deployment via label selector
@@ -23,7 +23,7 @@ service_exposes_deployment contains edge if {
 
 	helpers.is_subset(service.properties.selector, deployment.properties.spec.template.metadata.labels)
 
-	edge := helpers.create_edge(service, deployment, "Exposes", 7)
+	edge := helpers.create_edge(service, deployment, "Exposes")
 }
 
 # Ingress routes to Service
@@ -39,7 +39,7 @@ ingress_routes_to_service contains edge if {
 
 	backend.serviceName == service.properties.name
 
-	edge := helpers.create_edge(ingress, service, "RoutesTo", 6)
+	edge := helpers.create_edge(ingress, service, "RoutesTo")
 }
 
 # Ingress routes to Service (newer API with service.name)
@@ -55,7 +55,7 @@ ingress_routes_to_service_v1 contains edge if {
 
 	backend.service.name == service.properties.name
 
-	edge := helpers.create_edge(ingress, service, "RoutesTo", 6)
+	edge := helpers.create_edge(ingress, service, "RoutesTo")
 }
 
 # NetworkPolicy applies to Pods
@@ -66,5 +66,5 @@ network_policy_applies_to_pods contains edge if {
 
 	helpers.is_subset(netpol.properties.podSelector, pod.properties.labels)
 
-	edge := helpers.create_edge(netpol, pod, "AppliesTo", 6)
+	edge := helpers.create_edge(netpol, pod, "AppliesTo")
 }

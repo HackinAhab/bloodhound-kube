@@ -12,7 +12,7 @@ pod_scheduled_on_node contains edge if {
 
 	pod.properties.nodeName == node.properties.name
 
-	edge := helpers.create_edge(pod, node, "ScheduledOn", 5)
+	edge := helpers.create_edge(pod, node, "ScheduledOn")
 }
 
 # PersistentVolumeClaim used by Pod
@@ -24,7 +24,7 @@ persistent_volume_claim_used_by_pod contains edge if {
 	volume := pod.properties.volumes[_]
 	volume.persistentVolumeClaim.claimName == pvc.properties.name
 
-	edge := helpers.create_edge(pvc, pod, "UsedBy", 7)
+	edge := helpers.create_edge(pvc, pod, "UsedBy")
 }
 
 # PersistentVolume bound to PersistentVolumeClaim
@@ -36,5 +36,5 @@ persistent_volume_bound_to_claim contains edge if {
 	pv.properties.claimRef.name == pvc.properties.name
 	pv.properties.claimRef.namespace == namespace
 
-	edge := helpers.create_edge(pv, pvc, "BoundTo", 6)
+	edge := helpers.create_edge(pv, pvc, "BoundTo")
 }

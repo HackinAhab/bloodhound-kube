@@ -1,51 +1,126 @@
-package config
+package collector
 
 import (
+	"bloodhound-kube/internal/utils"
 	"fmt"
+	"slices"
 	"strings"
 )
 
+// NamespaceMode defines how namespaces should be filtered
+type NamespaceMode string
+
+const (
+	NamespaceModeAll     NamespaceMode = "all"     // Collect from all namespaces
+	NamespaceModeInclude NamespaceMode = "include" // Only collect from listed namespaces
+	NamespaceModeExclude NamespaceMode = "exclude" // Collect from all except listed namespaces
+)
+
+// NamespaceFilter defines namespace filtering configuration
+type NamespaceFilter struct {
+	Mode NamespaceMode
+	List []string
+}
+
+// Validate checks if the namespace filter is valid
+func (nf *NamespaceFilter) Validate() error {
+	switch nf.Mode {
+	case NamespaceModeAll, NamespaceModeInclude, NamespaceModeExclude:
+		// Valid modes
+	case "":
+		nf.Mode = NamespaceModeAll // Default
+	default:
+		return fmt.Errorf("invalid namespace mode: %s (valid: all, include, exclude)", nf.Mode)
+	}
+
+	if (nf.Mode == NamespaceModeInclude || nf.Mode == NamespaceModeExclude) && len(nf.List) == 0 {
+		return fmt.Errorf("namespace list cannot be empty when mode is %s", nf.Mode)
+	}
+
+	return nil
+}
+
+// ShouldCollectNamespace checks if a namespace should be collected based on the filter
+func (nf *NamespaceFilter) ShouldCollectNamespace(namespace string) bool {
+	switch nf.Mode {
+	case NamespaceModeAll:
+		return true
+	case NamespaceModeInclude:
+		return slices.Contains(nf.List, namespace)
+	case NamespaceModeExclude:
+		return !slices.Contains(nf.List, namespace)
+	default:
+		return true
+	}
+}
+
+// PerformanceSettings defines performance-related configuration
+type PerformanceSettings struct {
+	ParallelCollectors int
+	BatchSize          int
+	TimeoutSeconds     int
+	RateLimitPerSecond int
+}
+
+// Validate checks if performance settings are valid
+func (ps *PerformanceSettings) Validate() error {
+	if ps.ParallelCollectors < 0 {
+		return fmt.Errorf("parallel_collectors must be >= 0")
+	}
+	if ps.BatchSize < 0 {
+		return fmt.Errorf("batch_size must be >= 0")
+	}
+	if ps.TimeoutSeconds < 0 {
+		return fmt.Errorf("timeout_seconds must be >= 0")
+	}
+	if ps.RateLimitPerSecond < 0 {
+		return fmt.Errorf("rate_limit_per_second must be >= 0")
+	}
+	return nil
+}
+
+// SetDefaults sets default values for performance settings
+func (ps *PerformanceSettings) SetDefaults() {
+	if ps.ParallelCollectors == 0 {
+		ps.ParallelCollectors = 5
+	}
+	if ps.BatchSize == 0 {
+		ps.BatchSize = 100
+	}
+	if ps.TimeoutSeconds == 0 {
+		ps.TimeoutSeconds = 300
+	}
+	if ps.RateLimitPerSecond == 0 {
+		ps.RateLimitPerSecond = 10
+	}
+}
+
 // CollectionsConfig represents the root configuration for resource collection
 type CollectionsConfig struct {
-	Version     string               `yaml:"version"`
-	Metadata    ConfigMetadata       `yaml:"metadata"`
-	Settings    PerformanceSettings  `yaml:"settings,omitempty"`
-	Namespaces  NamespaceFilter      `yaml:"namespaces,omitempty"`
-	Collections []ResourceCollection `yaml:"collections"`
+	Settings    PerformanceSettings
+	Namespaces  NamespaceFilter
+	Collections []ResourceCollection
 }
 
 // ResourceCollection defines how to collect a specific resource type
 type ResourceCollection struct {
-	Name              string        `yaml:"name"`
-	Nicknames         []string      `yaml:"nicknames,omitempty"`
-	ResourceType      string        `yaml:"resource_type"`
-	Description       string        `yaml:"description,omitempty"`
-	APIVersion        string        `yaml:"api_version"`
-	APIGroup          string        `yaml:"api_group"`
-	Plural            string        `yaml:"plural"`
-	Namespaced        bool          `yaml:"namespaced"`
-	ClusterScoped     bool          `yaml:"cluster_scoped"`
-	Enabled           bool          `yaml:"enabled"`
-	SupportedClusters []ClusterType `yaml:"supported_clusters"`
-	Custom            bool          `yaml:"custom,omitempty"`     // Flag for CRDs
-	RateLimit         int           `yaml:"rate_limit,omitempty"` // Per-resource rate limit
+	Name              string
+	Nicknames         []string
+	ResourceType      string
+	Description       string
+	APIVersion        string
+	APIGroup          string
+	Plural            string
+	Namespaced        bool
+	ClusterScoped     bool
+	Enabled           bool
+	SupportedClusters []utils.ClusterType
+	Custom            bool // Flag for CRDs
+	RateLimit         int  // Per-resource rate limit
 }
 
 // Validate checks if the collections configuration is valid
 func (c *CollectionsConfig) Validate() error {
-	// Validate version
-	if c.Version == "" {
-		return fmt.Errorf("version is required")
-	}
-	if c.Version != string(ConfigVersion1_0) {
-		return fmt.Errorf("unsupported config version: %s (supported: %s)", c.Version, ConfigVersion1_0)
-	}
-
-	// Validate metadata
-	if err := c.Metadata.Validate(); err != nil {
-		return fmt.Errorf("metadata validation failed: %w", err)
-	}
-
 	// Validate settings
 	if err := c.Settings.Validate(); err != nil {
 		return fmt.Errorf("settings validation failed: %w", err)
@@ -149,7 +224,7 @@ func (rc *ResourceCollection) Validate() error {
 	}
 
 	for _, cluster := range rc.SupportedClusters {
-		if cluster != ClusterTypeKubernetes && cluster != ClusterTypeOpenShift {
+		if cluster != utils.ClusterTypeKubernetes && cluster != utils.ClusterTypeOpenShift {
 			return fmt.Errorf("invalid cluster type: %s (valid: kubernetes, openshift)", cluster)
 		}
 	}
@@ -182,8 +257,9 @@ func (rc *ResourceCollection) SetDefaults() {
 	if !rc.Namespaced && !rc.ClusterScoped {
 		// Common cluster-scoped resources
 		clusterScopedResources := []string{"nodes", "persistentvolumes", "clusterroles", "clusterrolebindings", "crds", "namespaces"}
+		nameLower := strings.ToLower(rc.Name)
 		for _, csr := range clusterScopedResources {
-			if strings.Contains(strings.ToLower(rc.Name), csr) {
+			if strings.Contains(nameLower, csr) {
 				rc.ClusterScoped = true
 				return
 			}
@@ -199,10 +275,8 @@ func (c *CollectionsConfig) GetByName(name string) *ResourceCollection {
 		if c.Collections[i].Name == name {
 			return &c.Collections[i]
 		}
-		for _, nickname := range c.Collections[i].Nicknames {
-			if nickname == name {
-				return &c.Collections[i]
-			}
+		if slices.Contains(c.Collections[i].Nicknames, name) {
+			return &c.Collections[i]
 		}
 	}
 	return nil
@@ -230,7 +304,7 @@ func (c *CollectionsConfig) GetEnabledCollections() []ResourceCollection {
 }
 
 // GetCollectionsForCluster returns collections supported by the given cluster type
-func (c *CollectionsConfig) GetCollectionsForCluster(clusterType ClusterType) []ResourceCollection {
+func (c *CollectionsConfig) GetCollectionsForCluster(clusterType utils.ClusterType) []ResourceCollection {
 	var supported []ResourceCollection
 	for _, collection := range c.Collections {
 		if collection.SupportsCluster(clusterType) {
@@ -241,13 +315,8 @@ func (c *CollectionsConfig) GetCollectionsForCluster(clusterType ClusterType) []
 }
 
 // SupportsCluster checks if this collection supports the given cluster type
-func (rc *ResourceCollection) SupportsCluster(clusterType ClusterType) bool {
-	for _, supported := range rc.SupportedClusters {
-		if supported == clusterType {
-			return true
-		}
-	}
-	return false
+func (rc *ResourceCollection) SupportsCluster(clusterType utils.ClusterType) bool {
+	return slices.Contains(rc.SupportedClusters, clusterType)
 }
 
 // isValidName checks if a name is valid (lowercase, alphanumeric, hyphens, underscores)

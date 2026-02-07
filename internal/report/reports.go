@@ -400,8 +400,16 @@ func (g *Generator) generateLimitsReport() ([]*Report, error) {
 		}
 
 		for _, pod := range namespace.Pods {
-			// Check if pod has no resource limits
-			if pod.CPULimit == "" && pod.MemoryLimit == "" {
+			// Check if any container lacks resource limits
+			missingLimits := false
+			for _, container := range pod.Containers {
+				if container.CPULimit == "" || container.MemoryLimit == "" {
+					missingLimits = true
+					break
+				}
+			}
+
+			if missingLimits {
 				podReport := map[string]any{
 					"name":           pod.Name,
 					"resourceLimits": "null",

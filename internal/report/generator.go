@@ -2,8 +2,10 @@ package report
 
 import (
 	"bufio"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 	"time"
@@ -79,35 +81,52 @@ func (g *Generator) loadData() error {
 	}
 	defer file.Close()
 
-	scanner := bufio.NewScanner(file)
+	reader := bufio.NewReader(file)
 	lineNum := 0
 
-	for scanner.Scan() {
+	for {
+		lineBytes, err := reader.ReadBytes('\n')
+		if err != nil && len(lineBytes) == 0 {
+			if err == io.EOF {
+				break
+			}
+			return fmt.Errorf("error reading file: %w", err)
+		}
+
 		lineNum++
-		line := strings.TrimSpace(scanner.Text())
+		line := strings.TrimSpace(string(lineBytes))
 		if line == "" {
+			if err == io.EOF {
+				break
+			}
 			continue
 		}
 
 		var rawItem map[string]any
 		if err := json.Unmarshal([]byte(line), &rawItem); err != nil {
 			g.log.Debug("Failed to parse JSON line", "line", lineNum, "error", err)
+			if err == io.EOF {
+				break
+			}
 			continue
 		}
 
 		itemType, ok := rawItem["type"].(string)
 		if !ok {
 			g.log.Debug("Missing or invalid type field", "line", lineNum)
+			if err == io.EOF {
+				break
+			}
 			continue
 		}
 
 		if err := g.processItem(itemType, rawItem); err != nil {
 			g.log.Debug("Failed to process item", "type", itemType, "line", lineNum, "error", err)
 		}
-	}
 
-	if err := scanner.Err(); err != nil {
-		return fmt.Errorf("error reading file: %w", err)
+		if err == io.EOF {
+			break
+		}
 	}
 
 	g.log.Info("Loaded data", "namespaces", len(g.data.Namespaces))
@@ -116,13 +135,19 @@ func (g *Generator) loadData() error {
 
 // processItem processes a single item from the JSONL file
 func (g *Generator) processItem(itemType string, rawItem map[string]interface{}) error {
-	switch itemType {
-	case "pod":
-		return g.processPod(rawItem)
-	case "secret":
-		return g.processSecret(rawItem)
-	case "rbac":
-		return g.processRBAC(rawItem)
+	resource, _ := rawItem["resource"].(map[string]any)
+	kind := strings.ToLower(getString(resource, "kind"))
+	typeKey := strings.ToLower(itemType)
+
+	switch {
+	case kind == "pod" || typeKey == "pod" || typeKey == "pods":
+		return g.processPod(resource)
+	case kind == "secret" || typeKey == "secret" || typeKey == "secrets":
+		return g.processSecret(resource)
+	case kind == "role" || kind == "clusterrole" || kind == "rolebinding" || kind == "clusterrolebinding" ||
+		typeKey == "role" || typeKey == "roles" || typeKey == "clusterrole" || typeKey == "clusterroles" ||
+		typeKey == "rolebinding" || typeKey == "rolebindings" || typeKey == "clusterrolebinding" || typeKey == "clusterrolebindings":
+		return g.processRBAC(resource)
 	default:
 		// Skip unknown types
 		return nil
@@ -147,36 +172,31 @@ func (g *Generator) getOrCreateNamespace(name string) *Namespace {
 }
 
 // processPod processes a pod from the JSONL
-func (g *Generator) processPod(rawItem map[string]any) error {
-	resource, ok := rawItem["resource"].(map[string]any)
-	if !ok {
+func (g *Generator) processPod(resource map[string]any) error {
+	if resource == nil {
 		return fmt.Errorf("invalid pod resource")
 	}
 
-	name, _ := resource["name"].(string)
-	namespace, _ := resource["namespace"].(string)
-	nodeName, _ := resource["node_name"].(string)
-	hostNetwork, _ := resource["host_network"].(bool)
-	serviceAccount, _ := resource["service_account"].(string)
+	metadata := getMap(resource, "metadata")
+	spec := getMap(resource, "spec")
+
+	name := getString(metadata, "name")
+	namespace := getString(metadata, "namespace")
+	nodeName := getString(spec, "nodeName")
+	hostNetwork := getBool(spec, "hostNetwork")
+	serviceAccount := getString(spec, "serviceAccountName")
 
 	var createdAt time.Time
-	if createdAtStr, ok := resource["created_at"].(string); ok {
+	if createdAtStr := getString(metadata, "creationTimestamp"); createdAtStr != "" {
 		if t, err := time.Parse(time.RFC3339, createdAtStr); err == nil {
 			createdAt = t
 		}
 	}
 
-	labels := make(map[string]string)
-	if labelMap, ok := resource["labels"].(map[string]any); ok {
-		for k, v := range labelMap {
-			if str, ok := v.(string); ok {
-				labels[k] = str
-			}
-		}
-	}
+	labels := getStringMap(metadata, "labels")
 
 	containers := make([]*Container, 0)
-	if containerList, ok := resource["containers"].([]any); ok {
+	if containerList, ok := spec["containers"].([]any); ok {
 		for _, c := range containerList {
 			if containerMap, ok := c.(map[string]any); ok {
 				container := g.parseContainer(containerMap)
@@ -198,21 +218,7 @@ func (g *Generator) processPod(rawItem map[string]any) error {
 		Labels:         labels,
 	}
 
-	if cpuReq, ok := resource["cpu_request"].(string); ok {
-		pod.CPURequest = cpuReq
-	}
-	if cpuLimit, ok := resource["cpu_limit"].(string); ok {
-		pod.CPULimit = cpuLimit
-	}
-	if memReq, ok := resource["memory_request"].(string); ok {
-		pod.MemoryRequest = memReq
-	}
-	if memLimit, ok := resource["memory_limit"].(string); ok {
-		pod.MemoryLimit = memLimit
-	}
-
-	// Parse pod-level security context
-	if secCtx, ok := resource["security_context"].(map[string]any); ok {
+	if secCtx, ok := spec["securityContext"].(map[string]any); ok {
 		pod.SecurityContext = g.parseSecurityContext(secCtx)
 	}
 
@@ -224,8 +230,8 @@ func (g *Generator) processPod(rawItem map[string]any) error {
 
 // parseContainer parses a container from the resource
 func (g *Generator) parseContainer(containerMap map[string]any) *Container {
-	name, _ := containerMap["name"].(string)
-	image, _ := containerMap["image"].(string)
+	name := getString(containerMap, "name")
+	image := getString(containerMap, "image")
 
 	container := &Container{
 		Name:  name,
@@ -233,21 +239,27 @@ func (g *Generator) parseContainer(containerMap map[string]any) *Container {
 	}
 
 	// Parse resource limits/requests
-	if cpuReq, ok := containerMap["cpu_request"].(string); ok {
-		container.CPURequest = cpuReq
-	}
-	if cpuLimit, ok := containerMap["cpu_limit"].(string); ok {
-		container.CPULimit = cpuLimit
-	}
-	if memReq, ok := containerMap["memory_request"].(string); ok {
-		container.MemoryRequest = memReq
-	}
-	if memLimit, ok := containerMap["memory_limit"].(string); ok {
-		container.MemoryLimit = memLimit
+	if resources, ok := containerMap["resources"].(map[string]any); ok {
+		if requests, ok := resources["requests"].(map[string]any); ok {
+			if cpuReq := getString(requests, "cpu"); cpuReq != "" {
+				container.CPURequest = cpuReq
+			}
+			if memReq := getString(requests, "memory"); memReq != "" {
+				container.MemoryRequest = memReq
+			}
+		}
+		if limits, ok := resources["limits"].(map[string]any); ok {
+			if cpuLimit := getString(limits, "cpu"); cpuLimit != "" {
+				container.CPULimit = cpuLimit
+			}
+			if memLimit := getString(limits, "memory"); memLimit != "" {
+				container.MemoryLimit = memLimit
+			}
+		}
 	}
 
 	// Parse security context
-	if secCtx, ok := containerMap["security_context"].(map[string]any); ok {
+	if secCtx, ok := containerMap["securityContext"].(map[string]any); ok {
 		container.SecurityContext = g.parseSecurityContext(secCtx)
 	}
 
@@ -258,16 +270,15 @@ func (g *Generator) parseContainer(containerMap map[string]any) *Container {
 func (g *Generator) parseSecurityContext(secCtx map[string]any) *SecurityContext {
 	sc := &SecurityContext{}
 
-	if runAsUser, ok := secCtx["run_as_user"].(float64); ok {
-		uid := int64(runAsUser)
-		sc.RunAsUser = &uid
+	if runAsUser := getInt64(secCtx, "runAsUser"); runAsUser != nil {
+		sc.RunAsUser = runAsUser
 	}
 
-	if runAsNonRoot, ok := secCtx["run_as_non_root"].(bool); ok {
+	if runAsNonRoot, ok := secCtx["runAsNonRoot"].(bool); ok {
 		sc.RunAsNonRoot = &runAsNonRoot
 	}
 
-	if allowPrivEsc, ok := secCtx["allow_priv_esc"].(bool); ok {
+	if allowPrivEsc, ok := secCtx["allowPrivilegeEscalation"].(bool); ok {
 		sc.AllowPrivilegeEscalation = &allowPrivEsc
 	}
 
@@ -275,16 +286,16 @@ func (g *Generator) parseSecurityContext(secCtx map[string]any) *SecurityContext
 		sc.Privileged = &privileged
 	}
 
-	if capsMap, ok := secCtx["linux_capabilities"].(map[string]interface{}); ok {
+	if capsMap, ok := secCtx["capabilities"].(map[string]interface{}); ok {
 		caps := &Capabilities{}
-		if addList, ok := capsMap["capabilities_add"].([]interface{}); ok {
+		if addList, ok := capsMap["add"].([]interface{}); ok {
 			for _, cap := range addList {
 				if capStr, ok := cap.(string); ok {
 					caps.Add = append(caps.Add, capStr)
 				}
 			}
 		}
-		if dropList, ok := capsMap["capabilities_drop"].([]interface{}); ok {
+		if dropList, ok := capsMap["drop"].([]interface{}); ok {
 			for _, cap := range dropList {
 				if capStr, ok := cap.(string); ok {
 					caps.Drop = append(caps.Drop, capStr)
@@ -294,26 +305,36 @@ func (g *Generator) parseSecurityContext(secCtx map[string]any) *SecurityContext
 		sc.Capabilities = caps
 	}
 
-	if seccomp, ok := secCtx["seccomp_profile"].(string); ok {
-		sc.SeccompProfile = seccomp
+	if seccompMap, ok := secCtx["seccompProfile"].(map[string]any); ok {
+		seccompType := getString(seccompMap, "type")
+		if seccompType == "Localhost" {
+			if localhost := getString(seccompMap, "localhostProfile"); localhost != "" {
+				sc.SeccompProfile = fmt.Sprintf("Localhost:%s", localhost)
+			} else {
+				sc.SeccompProfile = seccompType
+			}
+		} else {
+			sc.SeccompProfile = seccompType
+		}
 	}
 
 	return sc
 }
 
 // processSecret processes a secret from the JSONL
-func (g *Generator) processSecret(rawItem map[string]any) error {
-	resource, ok := rawItem["resource"].(map[string]any)
-	if !ok {
+func (g *Generator) processSecret(resource map[string]any) error {
+	if resource == nil {
 		return fmt.Errorf("invalid secret resource")
 	}
 
-	name, _ := resource["name"].(string)
-	namespace, _ := resource["namespace"].(string)
-	secretType, _ := resource["type"].(string)
+	metadata := getMap(resource, "metadata")
+
+	name := getString(metadata, "name")
+	namespace := getString(metadata, "namespace")
+	secretType := getString(resource, "type")
 
 	var createdAt time.Time
-	if createdAtStr, ok := resource["created_at"].(string); ok {
+	if createdAtStr := getString(metadata, "creationTimestamp"); createdAtStr != "" {
 		if t, err := time.Parse(time.RFC3339, createdAtStr); err == nil {
 			createdAt = t
 		}
@@ -321,20 +342,20 @@ func (g *Generator) processSecret(rawItem map[string]any) error {
 
 	// Parse data keys
 	var dataKeys []string
-	if keys, ok := resource["data_keys"].([]any); ok {
-		for _, key := range keys {
-			if keyStr, ok := key.(string); ok {
-				dataKeys = append(dataKeys, keyStr)
-			}
-		}
-	}
-
-	// Parse data (for token extraction)
 	data := make(map[string]string)
 	if dataMap, ok := resource["data"].(map[string]any); ok {
 		for k, v := range dataMap {
-			if str, ok := v.(string); ok {
-				data[k] = str
+			dataKeys = append(dataKeys, k)
+			if k == "token" {
+				if str, ok := v.(string); ok {
+					decoded, err := base64.StdEncoding.DecodeString(str)
+					if err != nil {
+						g.log.Debug("Failed to decode secret token", "secret", name, "namespace", namespace, "error", err)
+						data[k] = str
+					} else {
+						data[k] = string(decoded)
+					}
+				}
 			}
 		}
 	}
@@ -353,22 +374,27 @@ func (g *Generator) processSecret(rawItem map[string]any) error {
 
 	// If this is a service account token, also create/update the service account
 	if strings.Contains(secretType, "service-account-token") {
-		g.processServiceAccountToken(secret)
+		annotations := getStringMap(metadata, "annotations")
+		g.processServiceAccountToken(secret, annotations)
 	}
 
 	return nil
 }
 
 // processServiceAccountToken processes a service account token from a secret
-func (g *Generator) processServiceAccountToken(secret *Secret) {
-	// Extract service account name from annotations or name
+func (g *Generator) processServiceAccountToken(secret *Secret, annotations map[string]string) {
 	var saName string
-	// This would need to be extracted from metadata.annotations["kubernetes.io/service-account.name"]
-	// For now, we'll derive it from the secret name pattern
-	if strings.HasSuffix(secret.Name, "-token") {
-		saName = strings.TrimSuffix(secret.Name, "-token")
-	} else {
-		saName = secret.Name
+	if annotations != nil {
+		if name, ok := annotations["kubernetes.io/service-account.name"]; ok {
+			saName = name
+		}
+	}
+	if saName == "" {
+		if strings.HasSuffix(secret.Name, "-token") {
+			saName = strings.TrimSuffix(secret.Name, "-token")
+		} else {
+			saName = secret.Name
+		}
 	}
 
 	ns := g.getOrCreateNamespace(secret.Namespace)
@@ -398,18 +424,19 @@ func (g *Generator) processServiceAccountToken(secret *Secret) {
 }
 
 // processRBAC processes RBAC resources from the JSONL
-func (g *Generator) processRBAC(rawItem map[string]any) error {
-	resource, ok := rawItem["resource"].(map[string]any)
-	if !ok {
+func (g *Generator) processRBAC(resource map[string]any) error {
+	if resource == nil {
 		return fmt.Errorf("invalid rbac resource")
 	}
 
-	name, _ := resource["name"].(string)
-	namespace, _ := resource["namespace"].(string) // May be empty for cluster resources
-	kind, _ := resource["kind"].(string)
+	metadata := getMap(resource, "metadata")
+
+	name := getString(metadata, "name")
+	namespace := getString(metadata, "namespace") // May be empty for cluster resources
+	kind := getString(resource, "kind")
 
 	var createdAt time.Time
-	if createdAtStr, ok := resource["created_at"].(string); ok {
+	if createdAtStr := getString(metadata, "creationTimestamp"); createdAtStr != "" {
 		if t, err := time.Parse(time.RFC3339, createdAtStr); err == nil {
 			createdAt = t
 		}
@@ -428,7 +455,7 @@ func (g *Generator) processRBAC(rawItem map[string]any) error {
 			if ruleMap, ok := r.(map[string]any); ok {
 				rule := PolicyRule{}
 
-				if apiGroups, ok := ruleMap["api_groups"].([]any); ok {
+				if apiGroups, ok := ruleMap["apiGroups"].([]any); ok {
 					for _, ag := range apiGroups {
 						if agStr, ok := ag.(string); ok {
 							rule.APIGroups = append(rule.APIGroups, agStr)
@@ -452,7 +479,7 @@ func (g *Generator) processRBAC(rawItem map[string]any) error {
 					}
 				}
 
-				if resourceNames, ok := ruleMap["resource_names"].([]any); ok {
+				if resourceNames, ok := ruleMap["resourceNames"].([]any); ok {
 					for _, rn := range resourceNames {
 						if rnStr, ok := rn.(string); ok {
 							rule.ResourceNames = append(rule.ResourceNames, rnStr)
@@ -470,20 +497,20 @@ func (g *Generator) processRBAC(rawItem map[string]any) error {
 		for _, s := range subjectsList {
 			if subjectMap, ok := s.(map[string]any); ok {
 				subject := Subject{}
-				subject.Kind, _ = subjectMap["kind"].(string)
-				subject.Name, _ = subjectMap["name"].(string)
-				subject.Namespace, _ = subjectMap["namespace"].(string)
+				subject.Kind = getString(subjectMap, "kind")
+				subject.Name = getString(subjectMap, "name")
+				subject.Namespace = getString(subjectMap, "namespace")
 				rbac.Subjects = append(rbac.Subjects, subject)
 			}
 		}
 	}
 
 	// Parse role ref if present (for bindings)
-	if roleRefMap, ok := resource["role_ref"].(map[string]any); ok {
+	if roleRefMap, ok := resource["roleRef"].(map[string]any); ok {
 		roleRef := &RoleRef{}
-		roleRef.Kind, _ = roleRefMap["kind"].(string)
-		roleRef.Name, _ = roleRefMap["name"].(string)
-		roleRef.APIGroup, _ = roleRefMap["api_group"].(string)
+		roleRef.Kind = getString(roleRefMap, "kind")
+		roleRef.Name = getString(roleRefMap, "name")
+		roleRef.APIGroup = getString(roleRefMap, "apiGroup")
 		rbac.RoleRef = roleRef
 	}
 
@@ -498,4 +525,76 @@ func (g *Generator) processRBAC(rawItem map[string]any) error {
 	}
 
 	return nil
+}
+
+func getMap(obj map[string]any, key string) map[string]any {
+	if obj == nil {
+		return nil
+	}
+	if value, ok := obj[key].(map[string]any); ok {
+		return value
+	}
+	return nil
+}
+
+func getString(obj map[string]any, key string) string {
+	if obj == nil {
+		return ""
+	}
+	if value, ok := obj[key].(string); ok {
+		return value
+	}
+	return ""
+}
+
+func getBool(obj map[string]any, key string) bool {
+	if obj == nil {
+		return false
+	}
+	if value, ok := obj[key].(bool); ok {
+		return value
+	}
+	return false
+}
+
+func getInt64(obj map[string]any, key string) *int64 {
+	if obj == nil {
+		return nil
+	}
+	switch value := obj[key].(type) {
+	case float64:
+		v := int64(value)
+		return &v
+	case int64:
+		v := value
+		return &v
+	case int:
+		v := int64(value)
+		return &v
+	case json.Number:
+		if v, err := value.Int64(); err == nil {
+			return &v
+		}
+	}
+	return nil
+}
+
+func getStringMap(obj map[string]any, key string) map[string]string {
+	if obj == nil {
+		return nil
+	}
+	raw, ok := obj[key].(map[string]any)
+	if !ok {
+		return nil
+	}
+	mapped := make(map[string]string, len(raw))
+	for k, v := range raw {
+		if str, ok := v.(string); ok {
+			mapped[k] = str
+		}
+	}
+	if len(mapped) == 0 {
+		return nil
+	}
+	return mapped
 }

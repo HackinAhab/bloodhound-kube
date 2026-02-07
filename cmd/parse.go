@@ -14,7 +14,6 @@ var (
 	inputFile     string
 	outputFile    string
 	parseLogLevel string
-	configDir     string
 )
 
 var parseCmd = &cobra.Command{
@@ -111,7 +110,6 @@ func init() {
 	parseCmd.Flags().StringVarP(&outputFile, "output", "o", "", "Output JSON file (prints to stdout if not specified)")
 	parseCmd.Flags().StringP("cluster", "c", "unknown", "Kubernetes cluster name for metadata")
 	parseCmd.Flags().StringVarP(&parseLogLevel, "log", "l", "info", "Log level (debug, info, warn, error)")
-	parseCmd.Flags().StringVar(&configDir, "config-dir", "config", "Directory containing configuration files (collections.yaml, parsers.yaml, policies/*.rego)")
 
 	rootCmd.AddCommand(parseCmd)
 }

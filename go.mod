@@ -3,6 +3,7 @@ module bloodhound-kube
 go 1.25.0
 
 require (
+	github.com/TheManticoreProject/gopengraph v1.0.2
 	github.com/open-policy-agent/opa v1.13.1
 	github.com/spf13/cobra v1.10.2
 	gopkg.in/yaml.v3 v3.0.1

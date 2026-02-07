@@ -102,13 +102,13 @@ func parseJSONLToResources(jsonlData []byte) ([]map[string]any, error) {
 // Processes in chunks of 10K for memory efficiency
 func createNodesWithOPA(resources []map[string]any) ([]BloodHoundNode, error) {
 	// Create OPA engine and load node policies
-	engine, err := relationships.NewOPAEngine("config/policies")
+	engine, err := relationships.NewOPAEngine("rego/edges")
 	if err != nil {
 		return nil, fmt.Errorf("failed to create OPA engine: %w", err)
 	}
 
 	// Load node creation policies
-	if err := engine.SetNodePolicyDir("config/policies/nodes"); err != nil {
+	if err := engine.SetNodePolicyDir("rego/nodes"); err != nil {
 		return nil, fmt.Errorf("failed to load node policies: %w", err)
 	}
 
@@ -170,7 +170,7 @@ func ParseFromJSONL(jsonlData []byte) ([]ResourceData, error) {
 // createRelationships applies OPA/Rego policies to create edges between nodes
 func createRelationships(nodes []BloodHoundNode) ([]BloodHoundEdge, error) {
 	// Create OPA engine with policy directory
-	engine, err := relationships.NewOPAEngine("config/policies")
+	engine, err := relationships.NewOPAEngine("rego/edges")
 	if err != nil {
 		return nil, fmt.Errorf("failed to create OPA engine: %w", err)
 	}

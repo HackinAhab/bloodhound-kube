@@ -37,13 +37,14 @@ analyze_containers(spec) := containers if {
 	containers := [container |
 		some i
 		c := spec.containers[i]
+		sec := object.get(c, "securityContext", {})
 		container := {
 			"name": c.name,
 			"image": c.image,
-			"privileged": object.get(c.securityContext, "privileged", false),
-			"run_as_user": object.get(c.securityContext, "runAsUser", null),
-			"run_as_non_root": object.get(c.securityContext, "runAsNonRoot", false),
-			"read_only_root_filesystem": object.get(c.securityContext, "readOnlyRootFilesystem", false),
+			"privileged": object.get(sec, "privileged", false),
+			"run_as_user": object.get(sec, "runAsUser", null),
+			"run_as_non_root": object.get(sec, "runAsNonRoot", false),
+			"read_only_root_filesystem": object.get(sec, "readOnlyRootFilesystem", false),
 			"capabilities": extract_capabilities(c),
 			"volume_mounts": extract_volume_mounts(c),
 			"env_from": extract_env_from(c),
@@ -61,10 +62,11 @@ analyze_init_containers(spec) := containers if {
 	containers := [container |
 		some i
 		c := spec.initContainers[i]
+		sec := object.get(c, "securityContext", {})
 		container := {
 			"name": c.name,
 			"image": c.image,
-			"privileged": object.get(c.securityContext, "privileged", false),
+			"privileged": object.get(sec, "privileged", false),
 		}
 	]
 }
@@ -75,20 +77,23 @@ analyze_init_containers(spec) := [] if {
 
 # Extract capabilities
 extract_capabilities(container) := caps if {
-	container.securityContext.capabilities
+	sec := object.get(container, "securityContext", {})
+	sec.capabilities
 	caps := {
-		"add": object.get(container.securityContext.capabilities, "add", []),
-		"drop": object.get(container.securityContext.capabilities, "drop", []),
+		"add": object.get(sec.capabilities, "add", []),
+		"drop": object.get(sec.capabilities, "drop", []),
 		"has_dangerous": has_dangerous_caps(container),
 	}
 }
 
 extract_capabilities(container) := {} if {
-	not container.securityContext.capabilities
+	sec := object.get(container, "securityContext", {})
+	not sec.capabilities
 }
 
 has_dangerous_caps(container) if {
-	cap := container.securityContext.capabilities.add[_]
+	sec := object.get(container, "securityContext", {})
+	cap := object.get(sec, ["capabilities", "add"], [])[_]
 	cap in base.dangerous_capabilities
 }
 
@@ -129,15 +134,19 @@ extract_env_from(container) := [] if {
 }
 
 # Check if container references secrets
-references_secrets(container) if {
+has_secret_ref(container) if {
 	ef := container.envFrom[_]
 	ef.secretRef
 }
 
-references_secrets(container) if {
+has_secret_ref(container) if {
 	env := container.env[_]
 	env.valueFrom.secretKeyRef
 }
+
+references_secrets(container) := true if {
+	has_secret_ref(container)
+} else := false
 
 # Analyze volumes
 analyze_volumes(spec) := volumes if {
@@ -222,52 +231,46 @@ calculate_security_risk(spec) := score if {
 
 privileged_risk(spec) := 30 if {
 	is_privileged_pod(spec)
-}
-
-privileged_risk(spec) := 0
+} else := 0
 
 host_namespace_risk(spec) := 20 if {
 	spec.hostNetwork == true
-}
-
-host_namespace_risk(spec) := 15 if {
+} else := 15 if {
 	spec.hostPID == true
-}
-
-host_namespace_risk(spec) := 10 if {
+} else := 10 if {
 	spec.hostIPC == true
-}
-
-host_namespace_risk(spec) := 0
+} else := 0
 
 capabilities_risk(spec) := 25 if {
 	container := spec.containers[_]
 	base.has_dangerous_capabilities(container)
-}
-
-capabilities_risk(spec) := 0
+} else := 0
 
 root_risk(spec) := 15 if {
 	runs_as_root_pod(spec)
-}
-
-root_risk(spec) := 0
+} else := 0
 
 volume_risk(spec) := 20 if {
 	volume := spec.volumes[_]
 	is_sensitive_volume(volume)
-}
-
-volume_risk(spec) := 0
+} else := 0
 
 # Helper: Check if pod is privileged
-is_privileged_pod(spec) if {
+has_privileged_container(spec) if {
 	container := spec.containers[_]
 	base.is_privileged(container)
 }
 
+is_privileged_pod(spec) := true if {
+	has_privileged_container(spec)
+} else := false
+
 # Helper: Check if pod runs as root
-runs_as_root_pod(spec) if {
+has_root_container(spec) if {
 	container := spec.containers[_]
 	base.runs_as_root(container)
 }
+
+runs_as_root_pod(spec) := true if {
+	has_root_container(spec)
+} else := false

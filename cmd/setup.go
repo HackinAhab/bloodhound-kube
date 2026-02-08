@@ -20,6 +20,7 @@ var (
 	setupTimeout     int
 	setupLogLevel    string
 	setupReset       bool
+	setupResetDB     bool
 )
 
 var setupCmd = &cobra.Command{
@@ -72,7 +73,15 @@ Examples:
 			defer cancel()
 		}
 
-		if setupReset && !hasModel && !hasQueries {
+		if setupResetDB {
+			log.Info("Resetting entire database")
+			if err := client.ResetDatabase(ctx); err != nil {
+				return fmt.Errorf("failed to reset database: %w", err)
+			}
+			fmt.Println("Database reset successfully.")
+		}
+
+		if setupReset && !hasModel && !hasQueries && !setupResetDB {
 			log.Info("Resetting custom nodes")
 			if err := client.ResetCustomNodes(ctx); err != nil {
 				return fmt.Errorf("failed to reset custom nodes: %w", err)
@@ -133,6 +142,7 @@ func init() {
 	setupCmd.Flags().IntVar(&setupTimeout, "timeout", 30, "Timeout in seconds for setup operations")
 	setupCmd.Flags().StringVarP(&setupLogLevel, "log", "l", "info", "Log level (debug, info, warn, error)")
 	setupCmd.Flags().BoolVar(&setupReset, "reset", false, "Reset existing custom data before uploading")
+	setupCmd.Flags().BoolVar(&setupResetDB, "reset-db", false, "Reset the entire database before uploading")
 
 	rootCmd.AddCommand(setupCmd)
 }

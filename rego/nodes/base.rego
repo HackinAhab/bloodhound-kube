@@ -5,10 +5,12 @@ package nodes.base
 
 import rego.v1
 
+import data.nodes.helpers
+
 # Default node structure
 default_node(resource_type, kinds, namespace, name, properties) := node if {
 	node := {
-		"id": generate_node_id(resource_type, namespace, name),
+		"id": helpers.generate_id(kinds[0], namespace, name),
 		"kinds": kinds,
 		"properties": object.union(properties, {
 			"name": name,

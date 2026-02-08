@@ -56,3 +56,58 @@ nodes contains node if {
         }
     }
 }
+
+# PersistentVolumeClaim → Node
+nodes contains node if {
+    resource := input.resources[_]
+    resource.kind == "PersistentVolumeClaim"
+
+    access_modes := object.get(resource.spec, "accessModes", [])
+    storage_class := object.get(resource.spec, "storageClassName", "")
+    volume_name := object.get(resource.spec, "volumeName", "")
+    capacity := object.get(resource.status, ["capacity", "storage"], "")
+
+    node := {
+        "id": helpers.generate_id("PersistentVolumeClaim", resource.metadata.namespace, resource.metadata.name),
+        "kinds": ["PersistentVolumeClaim"],
+        "properties": {
+            "name": helpers.get_name(resource),
+            "namespace": helpers.get_namespace(resource),
+            "resource_type": "persistentvolumeclaim",
+            "labels": helpers.get_labels(resource),
+            "annotations": helpers.get_annotations(resource),
+            "access_modes": access_modes,
+            "storage_class": storage_class,
+            "volume_name": volume_name,
+            "capacity": capacity,
+            "phase": object.get(resource.status, "phase", ""),
+        }
+    }
+}
+
+# PersistentVolume → Node
+nodes contains node if {
+    resource := input.resources[_]
+    resource.kind == "PersistentVolume"
+
+    access_modes := object.get(resource.spec, "accessModes", [])
+    storage_class := object.get(resource.spec, "storageClassName", "")
+    capacity := object.get(resource.spec, ["capacity", "storage"], "")
+    claim_ref := object.get(resource.spec, "claimRef", {})
+
+    node := {
+        "id": helpers.generate_id("PersistentVolume", "", resource.metadata.name),
+        "kinds": ["PersistentVolume"],
+        "properties": {
+            "name": helpers.get_name(resource),
+            "resource_type": "persistentvolume",
+            "labels": helpers.get_labels(resource),
+            "annotations": helpers.get_annotations(resource),
+            "access_modes": access_modes,
+            "storage_class": storage_class,
+            "capacity": capacity,
+            "claimRef": claim_ref,
+            "phase": object.get(resource.status, "phase", ""),
+        }
+    }
+}

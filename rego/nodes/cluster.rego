@@ -9,9 +9,12 @@ nodes contains node if {
     resource := input.resources[_]
     resource.kind == "Node"
     
-    addresses := [a | a := resource.status.addresses[_]]
-    conditions := [c | c := resource.status.conditions[_]]
-    taints := object.get(resource.spec, "taints", [])
+    status := object.get(resource, "status", {})
+    spec := object.get(resource, "spec", {})
+
+    addresses := object.get(status, "addresses", [])
+    conditions := object.get(status, "conditions", [])
+    taints := object.get(spec, "taints", [])
     
     node := {
         "id": helpers.generate_id("Node", "", resource.metadata.name),
@@ -24,9 +27,41 @@ nodes contains node if {
             "addresses": addresses,
             "conditions": conditions,
             "taints": taints,
-            "unschedulable": object.get(resource.spec, "unschedulable", false),
-            "pod_cidr": object.get(resource.spec, "podCIDR", ""),
-            "provider_id": object.get(resource.spec, "providerID", ""),
+            "unschedulable": object.get(spec, "unschedulable", false),
+            "pod_cidr": object.get(spec, "podCIDR", ""),
+            "provider_id": object.get(spec, "providerID", ""),
+        }
+    }
+}
+
+# NodeList → Node
+nodes contains node if {
+    resource := input.resources[_]
+    resource.kind == "NodeList"
+
+    item := resource.items[_]
+
+    status := object.get(item, "status", {})
+    spec := object.get(item, "spec", {})
+
+    addresses := object.get(status, "addresses", [])
+    conditions := object.get(status, "conditions", [])
+    taints := object.get(spec, "taints", [])
+
+    node := {
+        "id": helpers.generate_id("Node", "", item.metadata.name),
+        "kinds": ["Node"],
+        "properties": {
+            "name": helpers.get_name(item),
+            "resource_type": "node",
+            "labels": helpers.get_labels(item),
+            "annotations": helpers.get_annotations(item),
+            "addresses": addresses,
+            "conditions": conditions,
+            "taints": taints,
+            "unschedulable": object.get(spec, "unschedulable", false),
+            "pod_cidr": object.get(spec, "podCIDR", ""),
+            "provider_id": object.get(spec, "providerID", ""),
         }
     }
 }

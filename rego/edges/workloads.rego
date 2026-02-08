@@ -35,7 +35,7 @@ pod_scheduled_on_node contains edge if {
 pod_uses_serviceaccount contains edge if {
 	namespace := input.namespaces[ns]
 	pod := namespace.pod[_]
-	sa := namespace.service_account[_]
+	sa := namespace.serviceaccount[_]
 	
 	sa_name := object.get(pod.properties, "service_account", "default")
 	sa.properties.name == sa_name
@@ -47,7 +47,7 @@ pod_uses_serviceaccount contains edge if {
 deployment_uses_serviceaccount contains edge if {
 	namespace := input.namespaces[ns]
 	deployment := namespace.deployment[_]
-	sa := namespace.service_account[_]
+	sa := namespace.serviceaccount[_]
 	
 	sa_name := object.get(deployment.properties.pod_template, "service_account", "default")
 	sa.properties.name == sa_name

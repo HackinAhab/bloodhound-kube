@@ -4,57 +4,6 @@ import rego.v1
 
 import data.nodes.helpers
 
-# Service → Node
-nodes contains node if {
-    resource := input.resources[_]
-    resource.kind == "Service"
-    
-    selector := object.get(resource.spec, "selector", {})
-    ports := [p | p := resource.spec.ports[_]]
-    
-    node := {
-        "id": helpers.generate_id("Service", resource.metadata.namespace, resource.metadata.name),
-        "kinds": ["Service"],
-        "properties": {
-            "name": helpers.get_name(resource),
-            "namespace": helpers.get_namespace(resource),
-            "resource_type": "service",
-            "labels": helpers.get_labels(resource),
-            "annotations": helpers.get_annotations(resource),
-            "selector": selector,
-            "ports": ports,
-            "service_type": object.get(resource.spec, "type", "ClusterIP"),
-            "cluster_ip": object.get(resource.spec, "clusterIP", ""),
-            "external_ips": object.get(resource.spec, "externalIPs", []),
-        }
-    }
-}
-
-# Ingress → Node
-nodes contains node if {
-    resource := input.resources[_]
-    resource.kind == "Ingress"
-    
-    rules := [r | r := resource.spec.rules[_]]
-    tls := object.get(resource.spec, "tls", [])
-    
-    node := {
-        "id": helpers.generate_id("Ingress", resource.metadata.namespace, resource.metadata.name),
-        "kinds": ["Ingress"],
-        "properties": {
-            "name": helpers.get_name(resource),
-            "namespace": helpers.get_namespace(resource),
-            "resource_type": "ingress",
-            "labels": helpers.get_labels(resource),
-            "annotations": helpers.get_annotations(resource),
-            "rules": rules,
-            "tls": tls,
-            "has_tls": count(tls) > 0,
-            "ingress_class": object.get(resource.spec, "ingressClassName", object.get(resource.metadata.annotations, "kubernetes.io/ingress.class", "")),
-        }
-    }
-}
-
 # NetworkPolicy → Node
 nodes contains node if {
     resource := input.resources[_]

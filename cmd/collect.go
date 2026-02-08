@@ -69,6 +69,276 @@ func parseOutputPath(output string) (dir, filename string) {
 	return dir, filename
 }
 
+func runCollect(cmd *cobra.Command, args []string, log *utils.Logger) (string, error) {
+	log.Debug("Starting collection command")
+
+	if allNamespaces && cmd.Flags().Changed("namespace") {
+		return "", fmt.Errorf("cannot use -A (all namespaces) and -n (namespace) flags together")
+	}
+
+	if (server != "" && token == "") || (server == "" && token != "") {
+		return "", fmt.Errorf("--server and --token flags must be used together")
+	}
+
+	var clusterTypeEnum utils.ClusterType
+	switch clusterType {
+	case "kubernetes", "k8s":
+		clusterTypeEnum = utils.ClusterTypeKubernetes
+	case "openshift", "ocp":
+		clusterTypeEnum = utils.ClusterTypeOpenShift
+	case "auto", "":
+		clusterTypeEnum = utils.ClusterTypeAuto
+	default:
+		return "", fmt.Errorf("invalid cluster type %q, must be one of: kubernetes, openshift, auto", clusterType)
+	}
+
+	cfg := utils.ClientConfig{
+		Kubeconfig:  kubeconfig,
+		Server:      server,
+		Token:       token,
+		ClusterType: clusterTypeEnum,
+	}
+
+	c, err := collector.New(cfg, log)
+	if err != nil {
+		return "", fmt.Errorf("failed to create collector: %w", err)
+	}
+
+	// Set redacted flag on collector
+	c.SetRedacted(redacted)
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(timeout)*time.Second)
+	defer cancel()
+
+	// Get dynamic client for CRD support
+	dynamicClient, err := c.GetDynamicClient()
+	if err != nil {
+		return "", fmt.Errorf("failed to get dynamic client: %w", err)
+	}
+
+	explicitTypes := len(resourceTypes) > 0
+
+	discoveryAutoEnabled := discoveryAuto
+	if !cmd.Flags().Changed("discovery-auto") && !explicitTypes && discoveryAllowlist == "" {
+		discoveryAutoEnabled = true
+	}
+
+	if discoveryList {
+		resources, err := collector.DiscoverResources(ctx, c.GetClients(), log)
+		if err != nil {
+			return "", fmt.Errorf("failed to discover resources: %w", err)
+		}
+		printDiscoveryTable(resources)
+		return "", nil
+	}
+
+	var typesToCollect []string
+	var usingDiscovery bool
+	var allowlistEntries []collector.AllowlistEntry
+	allowlistProvided := discoveryAllowlist != ""
+
+	if allowlistProvided {
+		allowlistEntries, err = collector.ParseAllowlistFile(discoveryAllowlist)
+		if err != nil {
+			return "", fmt.Errorf("failed to read allowlist file: %w", err)
+		}
+		log.Info("Using discovery allowlist file", "path", discoveryAllowlist, "entries", len(allowlistEntries))
+	}
+
+	resources, err := collector.DiscoverResources(ctx, c.GetClients(), log)
+	if err != nil {
+		return "", fmt.Errorf("failed to discover resources: %w", err)
+	}
+	usingDiscovery = true
+
+	if explicitTypes {
+		collectionsCfg, err := collector.BuildCollectionsConfigFromDiscovery(resources)
+		if err != nil {
+			return "", fmt.Errorf("failed to build collections from discovery: %w", err)
+		}
+		if err := collector.DefaultRegistry.InitializeFromConfig(c.GetClients(), log, collectionsCfg, dynamicClient); err != nil {
+			return "", fmt.Errorf("failed to initialize collection registry: %w", err)
+		}
+		log.Info("Successfully initialized collection registry", "handlers", len(collectionsCfg.Collections), "discovery", usingDiscovery)
+	} else {
+		filteredResources := resources
+		source := "all"
+		if allowlistProvided {
+			defaults, err := collector.DefaultDiscoveryAllowlist()
+			if err != nil {
+				return "", fmt.Errorf("failed to load default allowlist: %w", err)
+			}
+			defaults = collector.MergeAllowlists(defaults, allowlistEntries)
+			filteredResources = collector.FilterDiscoveredResources(resources, defaults)
+			source = "default-allowlist+file"
+		} else if !discoveryAutoEnabled {
+			defaults, err := collector.DefaultDiscoveryAllowlist()
+			if err != nil {
+				return "", fmt.Errorf("failed to load default allowlist: %w", err)
+			}
+			filteredResources = collector.FilterDiscoveredResources(resources, defaults)
+			source = "default-allowlist"
+		}
+
+		if len(filteredResources) == 0 {
+			return "", fmt.Errorf("no resources matched discovery filters (%s)", source)
+		}
+
+		includeCRDs := true
+		crdCount := countCRDResources(filteredResources)
+		if crdCount >= defaultCRDPromptThreshold && !discoveryAccept {
+			if isInteractive() {
+				accepted, err := promptForCRDs(filteredResources)
+				if err != nil {
+					return "", err
+				}
+				includeCRDs = accepted
+			} else {
+				includeCRDs = false
+				log.Warn("Skipping CRDs in non-interactive mode", "crd_count", crdCount)
+			}
+		}
+		if !includeCRDs {
+			if discoveryAutoEnabled {
+				defaults, err := collector.DefaultDiscoveryAllowlist()
+				if err != nil {
+					return "", fmt.Errorf("failed to load default allowlist: %w", err)
+				}
+				if allowlistProvided {
+					defaults = collector.MergeAllowlists(defaults, allowlistEntries)
+					source = "default-allowlist+file"
+				} else {
+					source = "default-allowlist"
+				}
+				filteredResources = collector.FilterDiscoveredResources(resources, defaults)
+				log.Info("CRDs skipped, falling back to default collections", "source", source)
+			} else {
+				filteredResources = filterCRDResources(filteredResources, false)
+			}
+		}
+
+		collectionsCfg, err := collector.BuildCollectionsConfigFromDiscovery(filteredResources)
+		if err != nil {
+			return "", fmt.Errorf("failed to build collections from discovery: %w", err)
+		}
+		if err := collector.DefaultRegistry.InitializeFromConfig(c.GetClients(), log, collectionsCfg, dynamicClient); err != nil {
+			return "", fmt.Errorf("failed to initialize collection registry: %w", err)
+		}
+		log.Info("Successfully initialized collection registry", "handlers", len(collectionsCfg.Collections), "discovery", usingDiscovery, "source", source)
+	}
+
+	allResourceTypes = collector.DefaultRegistry.GetAllNames()
+
+	log.Debug("Resource type selection", "inputResourceTypes", resourceTypes, "allResourceTypes", allResourceTypes)
+
+	typesToCollect = resourceTypes
+	if len(typesToCollect) == 0 {
+		typesToCollect = allResourceTypes
+		log.Debug("No specific types provided, using all available types", "typesToCollect", typesToCollect)
+	} else {
+		log.Debug("Using specific types provided", "typesToCollect", typesToCollect)
+	}
+
+	if err := collector.DefaultRegistry.ValidateTypes(typesToCollect); err != nil {
+		return "", err
+	}
+
+	var existingCheckpoint *collector.Checkpoint
+	var resumeFilename string
+
+	if resume {
+		var defaultCheckpointPath string
+		if checkpointFile == "" {
+			outputDir, outputFilename := parseOutputPath(output)
+			defaultCheckpointPath = collector.DefaultCheckpointPath(outputDir, outputFilename)
+		} else {
+			defaultCheckpointPath = checkpointFile
+		}
+
+		if !collector.CheckpointExists(defaultCheckpointPath) {
+			return "", fmt.Errorf("checkpoint file not found: %s", defaultCheckpointPath)
+		}
+
+		existingCheckpoint, err = collector.LoadCheckpoint(defaultCheckpointPath)
+		if err != nil {
+			return "", fmt.Errorf("failed to load checkpoint: %w", err)
+		}
+
+		resumeFilename = existingCheckpoint.OutputFile
+		checkpointFile = defaultCheckpointPath
+
+		log.Info("Resuming collection", "checkpoint", checkpointFile, "output", resumeFilename)
+		completed, total, pct := existingCheckpoint.GetProgress()
+		log.Info("Previous progress", "completed", completed, "total", total, "percentage", fmt.Sprintf("%.1f%%", pct))
+	}
+
+	var namespacesToCollect []string
+	if allNamespaces {
+		namespacesToCollect, err = c.ListNamespaces(ctx)
+		if err != nil {
+			return "", fmt.Errorf("failed to list namespaces: %w", err)
+		}
+	} else {
+		namespacesToCollect, err = utils.ParseNamespaces(namespaces, kubeconfig)
+		if err != nil {
+			return "", fmt.Errorf("failed to parse namespaces: %w", err)
+		}
+	}
+
+	var outputDir, filename string
+	if resume && resumeFilename != "" {
+		// When resuming, use the filename from checkpoint but parse the output for directory
+		outputDir, _ = parseOutputPath(output)
+		filename = resumeFilename
+	} else {
+		outputDir, filename = parseOutputPath(output)
+	}
+
+	if checkpointFile == "" {
+		checkpointFile = collector.DefaultCheckpointPath(outputDir, filename)
+	}
+
+	var asyncWriter *utils.AsyncWriter
+	if resume {
+		asyncWriter, err = utils.NewAsyncWriterAppend(outputDir, filename, log)
+		if err != nil {
+			return "", fmt.Errorf("failed to create async writer for append: %w", err)
+		}
+		log.Info("Resuming collection, appending to existing file", "file", filename)
+	} else {
+		asyncWriter, err = utils.NewAsyncWriter(outputDir, filename, log)
+		if err != nil {
+			return "", fmt.Errorf("failed to create async writer: %w", err)
+		}
+	}
+	defer asyncWriter.Close()
+
+	duration, counts, totalCollected, errors := collector.RunCollectionWithCheckpoint(ctx, c, asyncWriter, typesToCollect, namespacesToCollect, filename, concurrency, log, existingCheckpoint, checkpointFile)
+
+	var scopeMsg string
+	if len(namespacesToCollect) > 1 {
+		scopeMsg = fmt.Sprintf("from all namespaces (%d namespaces)", len(namespacesToCollect))
+	} else {
+		scopeMsg = fmt.Sprintf("from namespace %s", namespacesToCollect[0])
+	}
+
+	fmt.Printf("Collected %d resources (%s) %s from %s cluster in %v and wrote to %s\n",
+		totalCollected, strings.Join(typesToCollect, ", "), scopeMsg, c.GetPlatform(), duration, filename)
+
+	resourcesPerSecond := float64(totalCollected) / duration.Seconds()
+	fmt.Printf("Performance: %.1f resources/sec with %d workers\n", resourcesPerSecond, concurrency)
+
+	for resourceType, count := range counts {
+		fmt.Printf("  - %s: %d\n", resourceType, count)
+	}
+
+	if len(errors) > 0 {
+		return "", fmt.Errorf("collection completed with %d errors", len(errors))
+	}
+
+	return filepath.Join(outputDir, filename), nil
+}
+
 var collectCmd = &cobra.Command{
 	Use:   "collect",
 	Short: "Collect Kubernetes resources",
@@ -121,273 +391,8 @@ Examples:
 		}
 		log := utils.New(effectiveLogLevel)
 
-		log.Debug("Starting collection command", "logLevel", effectiveLogLevel)
-
-		if allNamespaces && cmd.Flags().Changed("namespace") {
-			return fmt.Errorf("cannot use -A (all namespaces) and -n (namespace) flags together")
-		}
-
-		if (server != "" && token == "") || (server == "" && token != "") {
-			return fmt.Errorf("--server and --token flags must be used together")
-		}
-
-		var clusterTypeEnum utils.ClusterType
-		switch clusterType {
-		case "kubernetes", "k8s":
-			clusterTypeEnum = utils.ClusterTypeKubernetes
-		case "openshift", "ocp":
-			clusterTypeEnum = utils.ClusterTypeOpenShift
-		case "auto", "":
-			clusterTypeEnum = utils.ClusterTypeAuto
-		default:
-			return fmt.Errorf("invalid cluster type %q, must be one of: kubernetes, openshift, auto", clusterType)
-		}
-
-		cfg := utils.ClientConfig{
-			Kubeconfig:  kubeconfig,
-			Server:      server,
-			Token:       token,
-			ClusterType: clusterTypeEnum,
-		}
-
-		c, err := collector.New(cfg, log)
-		if err != nil {
-			return fmt.Errorf("failed to create collector: %w", err)
-		}
-
-		// Set redacted flag on collector
-		c.SetRedacted(redacted)
-
-		ctx, cancel := context.WithTimeout(context.Background(), time.Duration(timeout)*time.Second)
-		defer cancel()
-
-		// Get dynamic client for CRD support
-		dynamicClient, err := c.GetDynamicClient()
-		if err != nil {
-			return fmt.Errorf("failed to get dynamic client: %w", err)
-		}
-
-		explicitTypes := len(resourceTypes) > 0
-
-		discoveryAutoEnabled := discoveryAuto
-		if !cmd.Flags().Changed("discovery-auto") && !explicitTypes && discoveryAllowlist == "" {
-			discoveryAutoEnabled = true
-		}
-
-		if discoveryList {
-			resources, err := collector.DiscoverResources(ctx, c.GetClients(), log)
-			if err != nil {
-				return fmt.Errorf("failed to discover resources: %w", err)
-			}
-			printDiscoveryTable(resources)
-			return nil
-		}
-
-		var typesToCollect []string
-		var usingDiscovery bool
-		var allowlistEntries []collector.AllowlistEntry
-		allowlistProvided := discoveryAllowlist != ""
-
-		if allowlistProvided {
-			allowlistEntries, err = collector.ParseAllowlistFile(discoveryAllowlist)
-			if err != nil {
-				return fmt.Errorf("failed to read allowlist file: %w", err)
-			}
-			log.Info("Using discovery allowlist file", "path", discoveryAllowlist, "entries", len(allowlistEntries))
-		}
-
-		resources, err := collector.DiscoverResources(ctx, c.GetClients(), log)
-		if err != nil {
-			return fmt.Errorf("failed to discover resources: %w", err)
-		}
-		usingDiscovery = true
-
-		if explicitTypes {
-			collectionsCfg, err := collector.BuildCollectionsConfigFromDiscovery(resources)
-			if err != nil {
-				return fmt.Errorf("failed to build collections from discovery: %w", err)
-			}
-			if err := collector.DefaultRegistry.InitializeFromConfig(c.GetClients(), log, collectionsCfg, dynamicClient); err != nil {
-				return fmt.Errorf("failed to initialize collection registry: %w", err)
-			}
-			log.Info("Successfully initialized collection registry", "handlers", len(collectionsCfg.Collections), "discovery", usingDiscovery)
-		} else {
-			filteredResources := resources
-			source := "all"
-			if allowlistProvided {
-				defaults, err := collector.DefaultDiscoveryAllowlist()
-				if err != nil {
-					return fmt.Errorf("failed to load default allowlist: %w", err)
-				}
-				defaults = collector.MergeAllowlists(defaults, allowlistEntries)
-				filteredResources = collector.FilterDiscoveredResources(resources, defaults)
-				source = "default-allowlist+file"
-			} else if !discoveryAutoEnabled {
-				defaults, err := collector.DefaultDiscoveryAllowlist()
-				if err != nil {
-					return fmt.Errorf("failed to load default allowlist: %w", err)
-				}
-				filteredResources = collector.FilterDiscoveredResources(resources, defaults)
-				source = "default-allowlist"
-			}
-
-			if len(filteredResources) == 0 {
-				return fmt.Errorf("no resources matched discovery filters (%s)", source)
-			}
-
-			includeCRDs := true
-			crdCount := countCRDResources(filteredResources)
-			if crdCount >= defaultCRDPromptThreshold && !discoveryAccept {
-				if isInteractive() {
-					accepted, err := promptForCRDs(filteredResources)
-					if err != nil {
-						return err
-					}
-					includeCRDs = accepted
-				} else {
-					includeCRDs = false
-					log.Warn("Skipping CRDs in non-interactive mode", "crd_count", crdCount)
-				}
-			}
-			if !includeCRDs {
-				if discoveryAutoEnabled {
-					defaults, err := collector.DefaultDiscoveryAllowlist()
-					if err != nil {
-						return fmt.Errorf("failed to load default allowlist: %w", err)
-					}
-					if allowlistProvided {
-						defaults = collector.MergeAllowlists(defaults, allowlistEntries)
-						source = "default-allowlist+file"
-					} else {
-						source = "default-allowlist"
-					}
-					filteredResources = collector.FilterDiscoveredResources(resources, defaults)
-					log.Info("CRDs skipped, falling back to default collections", "source", source)
-				} else {
-					filteredResources = filterCRDResources(filteredResources, false)
-				}
-			}
-
-			collectionsCfg, err := collector.BuildCollectionsConfigFromDiscovery(filteredResources)
-			if err != nil {
-				return fmt.Errorf("failed to build collections from discovery: %w", err)
-			}
-			if err := collector.DefaultRegistry.InitializeFromConfig(c.GetClients(), log, collectionsCfg, dynamicClient); err != nil {
-				return fmt.Errorf("failed to initialize collection registry: %w", err)
-			}
-			log.Info("Successfully initialized collection registry", "handlers", len(collectionsCfg.Collections), "discovery", usingDiscovery, "source", source)
-		}
-
-		allResourceTypes = collector.DefaultRegistry.GetAllNames()
-
-		log.Debug("Resource type selection", "inputResourceTypes", resourceTypes, "allResourceTypes", allResourceTypes)
-
-		typesToCollect = resourceTypes
-		if len(typesToCollect) == 0 {
-			typesToCollect = allResourceTypes
-			log.Debug("No specific types provided, using all available types", "typesToCollect", typesToCollect)
-		} else {
-			log.Debug("Using specific types provided", "typesToCollect", typesToCollect)
-		}
-
-		if err := collector.DefaultRegistry.ValidateTypes(typesToCollect); err != nil {
-			return err
-		}
-
-		var existingCheckpoint *collector.Checkpoint
-		var resumeFilename string
-
-		if resume {
-			var defaultCheckpointPath string
-			if checkpointFile == "" {
-				outputDir, outputFilename := parseOutputPath(output)
-				defaultCheckpointPath = collector.DefaultCheckpointPath(outputDir, outputFilename)
-			} else {
-				defaultCheckpointPath = checkpointFile
-			}
-
-			if !collector.CheckpointExists(defaultCheckpointPath) {
-				return fmt.Errorf("checkpoint file not found: %s", defaultCheckpointPath)
-			}
-
-			existingCheckpoint, err = collector.LoadCheckpoint(defaultCheckpointPath)
-			if err != nil {
-				return fmt.Errorf("failed to load checkpoint: %w", err)
-			}
-
-			resumeFilename = existingCheckpoint.OutputFile
-			checkpointFile = defaultCheckpointPath
-
-			log.Info("Resuming collection", "checkpoint", checkpointFile, "output", resumeFilename)
-			completed, total, pct := existingCheckpoint.GetProgress()
-			log.Info("Previous progress", "completed", completed, "total", total, "percentage", fmt.Sprintf("%.1f%%", pct))
-		}
-
-		var namespacesToCollect []string
-		if allNamespaces {
-			namespacesToCollect, err = c.ListNamespaces(ctx)
-			if err != nil {
-				return fmt.Errorf("failed to list namespaces: %w", err)
-			}
-		} else {
-			namespacesToCollect, err = utils.ParseNamespaces(namespaces, kubeconfig)
-			if err != nil {
-				return fmt.Errorf("failed to parse namespaces: %w", err)
-			}
-		}
-
-		var outputDir, filename string
-		if resume && resumeFilename != "" {
-			// When resuming, use the filename from checkpoint but parse the output for directory
-			outputDir, _ = parseOutputPath(output)
-			filename = resumeFilename
-		} else {
-			outputDir, filename = parseOutputPath(output)
-		}
-
-		if checkpointFile == "" {
-			checkpointFile = collector.DefaultCheckpointPath(outputDir, filename)
-		}
-
-		var asyncWriter *utils.AsyncWriter
-		if resume {
-			asyncWriter, err = utils.NewAsyncWriterAppend(outputDir, filename, log)
-			if err != nil {
-				return fmt.Errorf("failed to create async writer for append: %w", err)
-			}
-			log.Info("Resuming collection, appending to existing file", "file", filename)
-		} else {
-			asyncWriter, err = utils.NewAsyncWriter(outputDir, filename, log)
-			if err != nil {
-				return fmt.Errorf("failed to create async writer: %w", err)
-			}
-		}
-		defer asyncWriter.Close()
-
-		duration, counts, totalCollected, errors := collector.RunCollectionWithCheckpoint(ctx, c, asyncWriter, typesToCollect, namespacesToCollect, filename, concurrency, log, existingCheckpoint, checkpointFile)
-
-		var scopeMsg string
-		if len(namespacesToCollect) > 1 {
-			scopeMsg = fmt.Sprintf("from all namespaces (%d namespaces)", len(namespacesToCollect))
-		} else {
-			scopeMsg = fmt.Sprintf("from namespace %s", namespacesToCollect[0])
-		}
-
-		fmt.Printf("Collected %d resources (%s) %s from %s cluster in %v and wrote to %s\n",
-			totalCollected, strings.Join(typesToCollect, ", "), scopeMsg, c.GetPlatform(), duration, filename)
-
-		resourcesPerSecond := float64(totalCollected) / duration.Seconds()
-		fmt.Printf("Performance: %.1f resources/sec with %d workers\n", resourcesPerSecond, concurrency)
-
-		for resourceType, count := range counts {
-			fmt.Printf("  - %s: %d\n", resourceType, count)
-		}
-
-		if len(errors) > 0 {
-			return fmt.Errorf("collection completed with %d errors", len(errors))
-		}
-
-		return nil
+		_, err := runCollect(cmd, args, log)
+		return err
 	},
 }
 
@@ -396,29 +401,32 @@ func getAvailableResourcesHelp() string {
 }
 
 func init() {
+	addCollectFlags(collectCmd)
+	rootCmd.AddCommand(collectCmd)
+}
+
+func addCollectFlags(cmd *cobra.Command) {
 	// Create help text with dynamic resource types list including nicknames
 	resourceTypeHelp := getAvailableResourcesHelp()
 
-	collectCmd.Flags().StringVarP(&namespaces, "namespace", "n", "", "Kubernetes namespace(s) - comma-delimited for multiple (defaults to current context namespace)")
-	collectCmd.Flags().BoolVarP(&allNamespaces, "all-namespaces", "A", false, "Collect from all namespaces (cannot be used with -n)")
-	collectCmd.Flags().IntVarP(&concurrency, "concurrency", "c", 10, "Number of concurrent workers for streaming collection")
-	collectCmd.Flags().IntVarP(&timeout, "timeout", "", 300, "Timeout in seconds for the entire collection")
-	collectCmd.Flags().StringVarP(&logLevel, "log", "l", "info", "Log level (debug, info, warn, error)")
-	collectCmd.Flags().StringVarP(&output, "output", "o", "", "Output file path (can be directory, filename, or full path). Defaults to bloodhound-kube-YYYY-MM-DD-HHMMSS.jsonl in current directory")
-	collectCmd.Flags().StringSliceVarP(&resourceTypes, "type", "t", []string{}, resourceTypeHelp)
-	collectCmd.Flags().StringVar(&kubeconfig, "kubeconfig", "", "Path to kubeconfig file (overrides KUBECONFIG and ~/.kube/config)")
-	collectCmd.Flags().StringVarP(&server, "server", "s", "", "Kubernetes API server address (requires --token)")
-	collectCmd.Flags().StringVar(&token, "token", "", "Bearer token for authentication (requires --server)")
-	collectCmd.Flags().StringVarP(&clusterType, "cluster-type", "T", "auto", "Cluster type: kubernetes, openshift, or auto (auto-detect)")
-	collectCmd.Flags().BoolVar(&resume, "resume", false, "Resume from previous interrupted collection")
-	collectCmd.Flags().StringVar(&checkpointFile, "checkpoint-file", "", "Path to checkpoint file (auto-generated if not specified)")
-	collectCmd.Flags().BoolVar(&redacted, "redacted", false, "Redact secrets and sensitive data during collection")
-	collectCmd.Flags().BoolVar(&discoveryList, "discovery-list", false, "List discovered API resources and exit")
-	collectCmd.Flags().BoolVar(&discoveryAuto, "discovery-auto", false, "Collect all discovered resources when resources are not specified")
-	collectCmd.Flags().BoolVar(&discoveryAccept, "discovery-auto-accept", false, "Automatically accept CRD discovery without prompting")
-	collectCmd.Flags().StringVar(&discoveryAllowlist, "discovery-allowlist", "", "Path to newline-delimited allowlist of API resources (group/version/resource or group/resource)")
-
-	rootCmd.AddCommand(collectCmd)
+	cmd.Flags().StringVarP(&namespaces, "namespace", "n", "", "Kubernetes namespace(s) - comma-delimited for multiple (defaults to current context namespace)")
+	cmd.Flags().BoolVarP(&allNamespaces, "all-namespaces", "A", false, "Collect from all namespaces (cannot be used with -n)")
+	cmd.Flags().IntVarP(&concurrency, "concurrency", "c", 10, "Number of concurrent workers for streaming collection")
+	cmd.Flags().IntVarP(&timeout, "timeout", "", 300, "Timeout in seconds for the entire collection")
+	cmd.Flags().StringVarP(&logLevel, "log", "l", "info", "Log level (debug, info, warn, error)")
+	cmd.Flags().StringVarP(&output, "output", "o", "", "Output file path (can be directory, filename, or full path). Defaults to bloodhound-kube-YYYY-MM-DD-HHMMSS.jsonl in current directory")
+	cmd.Flags().StringSliceVarP(&resourceTypes, "type", "t", []string{}, resourceTypeHelp)
+	cmd.Flags().StringVar(&kubeconfig, "kubeconfig", "", "Path to kubeconfig file (overrides KUBECONFIG and ~/.kube/config)")
+	cmd.Flags().StringVarP(&server, "server", "s", "", "Kubernetes API server address (requires --token)")
+	cmd.Flags().StringVar(&token, "token", "", "Bearer token for authentication (requires --server)")
+	cmd.Flags().StringVarP(&clusterType, "cluster-type", "T", "auto", "Cluster type: kubernetes, openshift, or auto (auto-detect)")
+	cmd.Flags().BoolVar(&resume, "resume", false, "Resume from previous interrupted collection")
+	cmd.Flags().StringVar(&checkpointFile, "checkpoint-file", "", "Path to checkpoint file (auto-generated if not specified)")
+	cmd.Flags().BoolVar(&redacted, "redacted", false, "Redact secrets and sensitive data during collection")
+	cmd.Flags().BoolVar(&discoveryList, "discovery-list", false, "List discovered API resources and exit")
+	cmd.Flags().BoolVar(&discoveryAuto, "discovery-auto", false, "Collect all discovered resources when resources are not specified")
+	cmd.Flags().BoolVar(&discoveryAccept, "discovery-auto-accept", false, "Automatically accept CRD discovery without prompting")
+	cmd.Flags().StringVar(&discoveryAllowlist, "discovery-allowlist", "", "Path to newline-delimited allowlist of API resources (group/version/resource or group/resource)")
 }
 
 func printDiscoveryTable(resources []collector.DiscoveryResource) {
@@ -515,10 +523,7 @@ func promptForCRDs(resources []collector.DiscoveryResource) (bool, error) {
 		return groups[i].count > groups[j].count
 	})
 
-	maxGroups := 5
-	if len(groups) < maxGroups {
-		maxGroups = len(groups)
-	}
+	maxGroups := min(len(groups), 5)
 
 	var groupSummary []string
 	for i := 0; i < maxGroups; i++ {

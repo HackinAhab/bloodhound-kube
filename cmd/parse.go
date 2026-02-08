@@ -16,6 +16,70 @@ var (
 	parseLogLevel string
 )
 
+func runParseFromFile(inputPath, outputPath, clusterName string, log *utils.Logger) error {
+	if inputPath == "" {
+		log.Error("Input file is required")
+		return fmt.Errorf("input file is required")
+	}
+
+	log.Info("Reading input file", "file", inputPath)
+	data, err := os.ReadFile(inputPath)
+	if err != nil {
+		log.Error("Failed to read input file", "file", inputPath, "error", err)
+		return fmt.Errorf("failed to read input file: %w", err)
+	}
+	log.Debug("Successfully read input file", "size", len(data))
+
+	log.Debug("Using cluster name", "cluster", clusterName)
+
+	log.Info("Parsing JSONL data")
+	resources, err := parser.ParseFromJSONL(data)
+	if err != nil {
+		log.Error("Failed to parse JSONL", "error", err)
+		return fmt.Errorf("failed to parse JSONL: %w", err)
+	}
+	log.Debug("Successfully parsed JSONL", "resourceCount", len(resources))
+	log.Info("Begin processing resources", "resourceCount", len(resources), "workers", 20)
+	graph, err := parser.ConvertToBloodHoundResult(data, clusterName)
+	if err != nil {
+		log.Error("Failed to process data concurrently", "error", err)
+		return fmt.Errorf("failed to process data concurrently: %w", err)
+	}
+	log.Debug("Processing completed successfully")
+
+	// Output as JSON
+	log.Info("Marshaling result to JSON")
+	jsonData, err := graph.ExportJSON(true)
+	if err != nil {
+		log.Error("Failed to marshal JSON", "error", err)
+		return fmt.Errorf("failed to marshal JSON: %w", err)
+	}
+	log.Debug("JSON marshaling completed", "size", len(jsonData))
+
+	if outputPath != "" {
+		log.Info("Writing output to file", "file", outputPath)
+		if err := os.WriteFile(outputPath, []byte(jsonData), 0644); err != nil {
+			log.Error("Failed to write output file", "file", outputPath, "error", err)
+			return fmt.Errorf("failed to write output file: %w", err)
+		}
+		fmt.Printf("BloodHound-compliant data written to: %s\n", outputPath)
+
+		nodeCount := 0
+		edgeCount := 0
+		if graph != nil {
+			nodeCount = graph.GetNodeCount()
+			edgeCount = graph.GetEdgeCount()
+		}
+		fmt.Printf("Processed %d nodes and %d edges from cluster: %s\n",
+			nodeCount, edgeCount, clusterName)
+		return nil
+	}
+
+	log.Debug("Writing output to stdout")
+	fmt.Print(jsonData)
+	return nil
+}
+
 var parseCmd = &cobra.Command{
 	Use:   "parse",
 	Short: "Parse collected resources to BloodHound format",
@@ -37,71 +101,13 @@ Examples:
 
 		log.Debug("Starting parse command", "logLevel", effectiveLogLevel)
 
-		if inputFile == "" {
-			log.Error("Input file is required")
-			return fmt.Errorf("input file is required")
-		}
-
-		log.Info("Reading input file", "file", inputFile)
-		data, err := os.ReadFile(inputFile)
-		if err != nil {
-			log.Error("Failed to read input file", "file", inputFile, "error", err)
-			return fmt.Errorf("failed to read input file: %w", err)
-		}
-		log.Debug("Successfully read input file", "size", len(data))
-
 		// Determine cluster name
 		clusterName := "unknown"
 		if cluster, _ := cmd.Flags().GetString("cluster"); cluster != "" {
 			clusterName = cluster
 		}
-		log.Debug("Using cluster name", "cluster", clusterName)
 
-		log.Info("Parsing JSONL data")
-		resources, err := parser.ParseFromJSONL(data)
-		if err != nil {
-			log.Error("Failed to parse JSONL", "error", err)
-			return fmt.Errorf("failed to parse JSONL: %w", err)
-		}
-		log.Debug("Successfully parsed JSONL", "resourceCount", len(resources))
-		log.Info("Begin processing resources", "resourceCount", len(resources), "workers", 20)
-		graph, err := parser.ConvertToBloodHoundResult(data, clusterName)
-		if err != nil {
-			log.Error("Failed to process data concurrently", "error", err)
-			return fmt.Errorf("failed to process data concurrently: %w", err)
-		}
-		log.Debug("Processing completed successfully")
-
-		// Output as JSON
-		log.Info("Marshaling result to JSON")
-		jsonData, err := graph.ExportJSON(true)
-		if err != nil {
-			log.Error("Failed to marshal JSON", "error", err)
-			return fmt.Errorf("failed to marshal JSON: %w", err)
-		}
-		log.Debug("JSON marshaling completed", "size", len(jsonData))
-
-		if outputFile != "" {
-			log.Info("Writing output to file", "file", outputFile)
-			if err := os.WriteFile(outputFile, []byte(jsonData), 0644); err != nil {
-				log.Error("Failed to write output file", "file", outputFile, "error", err)
-				return fmt.Errorf("failed to write output file: %w", err)
-			}
-			fmt.Printf("BloodHound-compliant data written to: %s\n", outputFile)
-
-			nodeCount := 0
-			edgeCount := 0
-			if graph != nil {
-				nodeCount = graph.GetNodeCount()
-				edgeCount = graph.GetEdgeCount()
-			}
-			fmt.Printf("Processed %d nodes and %d edges from cluster: %s\n",
-				nodeCount, edgeCount, clusterName)
-		} else {
-			log.Debug("Writing output to stdout")
-			fmt.Print(jsonData)
-		}
-		return nil
+		return runParseFromFile(inputFile, outputFile, clusterName, log)
 	},
 }
 

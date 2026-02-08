@@ -100,11 +100,35 @@ func responseError(action string, resp *http.Response) error {
 	return fmt.Errorf("%s failed with status %d: %s", action, resp.StatusCode, trimmed)
 }
 
+func (c *Client) ResetDatabase(ctx context.Context) error {
+	payload := `{"deleteCollectedGraphData": true,"deleteFileIngestHistory": true,"deleteDataQualityHistory": true,"deleteAssetGroupSelectors": []}`
+	req, err := c.newRequest(ctx, http.MethodPost, c.baseURL+"/api/v2/clear-database", strings.NewReader(payload))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("reset database: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusNoContent {
+		return responseError("reset database", resp)
+	}
+	return nil
+}
+
 func (c *Client) ResetCustomData(ctx context.Context) error {
 	if err := c.ResetCustomNodes(ctx); err != nil {
 		return err
 	}
 	if err := c.ResetQueries(ctx); err != nil {
+		return err
+	}
+
+	if err := c.ResetDatabase(ctx); err != nil {
 		return err
 	}
 	return nil

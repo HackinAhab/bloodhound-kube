@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 	"maps"
-	"os"
-	"path/filepath"
 	"sync"
 
 	"github.com/open-policy-agent/opa/v1/ast"
@@ -49,26 +47,23 @@ func NewOPAEngine(policyDir string) (*OPAEngine, error) {
 func (e *OPAEngine) compilePolicies() error {
 	ctx := context.Background()
 
-	// Check if policy directory exists
-	if _, err := os.Stat(e.policyDir); os.IsNotExist(err) {
-		return fmt.Errorf("policy directory does not exist: %s", e.policyDir)
-	}
-
-	// Find all .rego files in policy directory
-	policyFiles, err := filepath.Glob(filepath.Join(e.policyDir, "*.rego"))
+	compiler, policyFiles, err := loadPolicyModules(e.policyDir, false)
 	if err != nil {
-		return fmt.Errorf("failed to find policy files: %w", err)
+		return err
 	}
 
-	if len(policyFiles) == 0 {
-		return fmt.Errorf("no policy files found in %s", e.policyDir)
+	var query *rego.Rego
+	if compiler != nil {
+		query = rego.New(
+			rego.Query("data.kubernetes.relationships"),
+			rego.Compiler(compiler),
+		)
+	} else {
+		query = rego.New(
+			rego.Query("data.kubernetes.relationships"),
+			rego.Load(policyFiles, nil),
+		)
 	}
-
-	// Load all policies
-	query := rego.New(
-		rego.Query("data.kubernetes.relationships"),
-		rego.Load(policyFiles, nil),
-	)
 
 	// Prepare query for efficient evaluation
 	prepared, err := query.PrepareForEval(ctx)
@@ -106,16 +101,16 @@ func (e *OPAEngine) ApplyRules(nodes []BloodHoundNode) ([]BloodHoundEdge, error)
 // prepareHierarchicalInput organizes nodes by namespace and type for efficient querying
 func (e *OPAEngine) prepareHierarchicalInput(nodes []BloodHoundNode) map[string]any {
 	input := map[string]any{
-		"cluster_scoped": make(map[string][]interface{}),
-		"namespaces":     make(map[string]map[string][]interface{}),
+		"cluster_scoped": make(map[string][]any),
+		"namespaces":     make(map[string]map[string][]any),
 	}
 
-	clusterScoped := input["cluster_scoped"].(map[string][]interface{})
-	namespaces := input["namespaces"].(map[string]map[string][]interface{})
+	clusterScoped := input["cluster_scoped"].(map[string][]any)
+	namespaces := input["namespaces"].(map[string]map[string][]any)
 
 	for _, node := range nodes {
 		// Convert to interface{} for OPA
-		nodeData := map[string]interface{}{
+		nodeData := map[string]any{
 			"id":         node.ID,
 			"kinds":      node.Kinds,
 			"properties": node.Properties,
@@ -130,7 +125,7 @@ func (e *OPAEngine) prepareHierarchicalInput(nodes []BloodHoundNode) map[string]
 		} else {
 			// Namespace-scoped resource
 			if namespaces[namespace] == nil {
-				namespaces[namespace] = make(map[string][]interface{})
+				namespaces[namespace] = make(map[string][]any)
 			}
 			namespaces[namespace][resourceType] = append(namespaces[namespace][resourceType], nodeData)
 		}
@@ -277,36 +272,25 @@ func (e *OPAEngine) compileNodePolicies() error {
 
 	ctx := context.Background()
 
-	// Check if node policy directory exists
-	if _, err := os.Stat(e.nodePolicyDir); os.IsNotExist(err) {
-		return fmt.Errorf("node policy directory does not exist: %s", e.nodePolicyDir)
-	}
-
-	// Find all .rego files in node policy directory (including subdirectories)
-	var policyFiles []string
-	err := filepath.Walk(e.nodePolicyDir, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-		if !info.IsDir() && filepath.Ext(path) == ".rego" {
-			policyFiles = append(policyFiles, path)
-		}
-		return nil
-	})
+	compiler, policyFiles, err := loadPolicyModules(e.nodePolicyDir, true)
 	if err != nil {
-		return fmt.Errorf("failed to find node policy files: %w", err)
-	}
-
-	if len(policyFiles) == 0 {
-		return fmt.Errorf("no policy files found in %s", e.nodePolicyDir)
+		return err
 	}
 
 	// Create query to get all nodes from all packages
 	// Query pattern: data.nodes.* to get nodes from all node policy packages
-	query := rego.New(
-		rego.Query("data.nodes"),
-		rego.Load(policyFiles, nil),
-	)
+	var query *rego.Rego
+	if compiler != nil {
+		query = rego.New(
+			rego.Query("data.nodes"),
+			rego.Compiler(compiler),
+		)
+	} else {
+		query = rego.New(
+			rego.Query("data.nodes"),
+			rego.Load(policyFiles, nil),
+		)
+	}
 
 	// Prepare query for efficient evaluation
 	prepared, err := query.PrepareForEval(ctx)

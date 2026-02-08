@@ -103,6 +103,11 @@ Flags:
   -t, --type strings             Resource types to collect (defaults to discovered types)
 ```
 
+## Embedded Rego policies (optional)
+- Default builds load policies from disk under `rego/`.
+- To build a self-contained binary with embedded policies: `go build -tags embedded -o bh-kube`.
+- With just: `just build-embedded`.
+
 ### Discovery and allowlists
 - Default behavior runs discovery and collects resources from the built-in allowlist.
 - `--discovery-auto` collects all discovered resources and prompts on large CRD sets unless `--discovery-auto-accept` is passed.

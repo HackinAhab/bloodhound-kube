@@ -50,19 +50,15 @@ extract_ports(spec) := [] if {
 }
 
 # Check if service is headless
-is_headless(spec) if {
+is_headless(spec) := true if {
 	spec.clusterIP == "None"
-}
+} else := false
 
 # Check if service is external-facing
-is_external_service(spec) if {
+is_external_service(spec) := true if {
 	spec.type == "LoadBalancer"
-}
-
-is_external_service(spec) if {
+} else := true if {
 	spec.type == "NodePort"
-}
-
-is_external_service(spec) if {
+} else := true if {
 	count(spec.externalIPs) > 0
-}
+} else := false

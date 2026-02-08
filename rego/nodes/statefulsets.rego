@@ -20,7 +20,6 @@ nodes contains node if {
             "resource_type": "statefulset",
             "labels": helpers.get_labels(resource),
             "annotations": helpers.get_annotations(resource),
-            "replicas": object.get(resource.spec, "replicas", 1),
             "selector": selector,
             "service_name": object.get(resource.spec, "serviceName", ""),
         }

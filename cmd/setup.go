@@ -19,6 +19,7 @@ var (
 	setupInsecure    bool
 	setupTimeout     int
 	setupLogLevel    string
+	setupReset       bool
 )
 
 var setupCmd = &cobra.Command{
@@ -26,8 +27,8 @@ var setupCmd = &cobra.Command{
 	Short: "Upload custom BloodHound types and queries",
 	Long: `Upload custom node models and saved queries to a BloodHound server.
 
-This command clears existing custom nodes, uploads the provided model JSON, and
-imports saved queries from the configured JSON file.
+This command can reset existing custom data before uploading new models or
+queries, depending on the flags provided.
 
 Examples:
   # Upload custom types using a local BloodHound server
@@ -50,8 +51,8 @@ Examples:
 
 		hasModel := cmd.Flags().Changed("model-file")
 		hasQueries := cmd.Flags().Changed("queries-file")
-		if !hasModel && !hasQueries {
-			return fmt.Errorf("provide --model-file, --queries-file, or both")
+		if !hasModel && !hasQueries && !setupReset {
+			return fmt.Errorf("provide --model-file, --queries-file, or --reset")
 		}
 
 		client, err := setup.NewClient(setup.Config{
@@ -71,13 +72,28 @@ Examples:
 			defer cancel()
 		}
 
+		if setupReset && !hasModel && !hasQueries {
+			log.Info("Resetting custom nodes")
+			if err := client.ResetCustomNodes(ctx); err != nil {
+				return fmt.Errorf("failed to reset custom nodes: %w", err)
+			}
+			log.Info("Resetting custom queries")
+			if err := client.ResetQueries(ctx); err != nil {
+				return fmt.Errorf("failed to reset custom queries: %w", err)
+			}
+			fmt.Println("Custom data reset successfully.")
+			return nil
+		}
+
 		if hasModel {
 			if setupModelFile == "" {
 				return fmt.Errorf("model file is required when --model-file is set")
 			}
-			log.Info("Resetting custom nodes")
-			if err := client.ResetCustomNodes(ctx); err != nil {
-				return fmt.Errorf("failed to reset custom nodes: %w", err)
+			if setupReset {
+				log.Info("Resetting custom nodes")
+				if err := client.ResetCustomNodes(ctx); err != nil {
+					return fmt.Errorf("failed to reset custom nodes: %w", err)
+				}
 			}
 
 			log.Info("Uploading model", "file", setupModelFile)
@@ -90,6 +106,12 @@ Examples:
 		if hasQueries {
 			if setupQueriesFile == "" {
 				return fmt.Errorf("queries file is required when --queries-file is set")
+			}
+			if setupReset {
+				log.Info("Resetting custom queries")
+				if err := client.ResetQueries(ctx); err != nil {
+					return fmt.Errorf("failed to reset custom queries: %w", err)
+				}
 			}
 			log.Info("Uploading custom queries", "file", setupQueriesFile)
 			queryCount, err := client.UploadQueriesFromFile(ctx, setupQueriesFile)
@@ -110,6 +132,7 @@ func init() {
 	setupCmd.Flags().BoolVar(&setupInsecure, "insecure", true, "Skip TLS certificate verification")
 	setupCmd.Flags().IntVar(&setupTimeout, "timeout", 30, "Timeout in seconds for setup operations")
 	setupCmd.Flags().StringVarP(&setupLogLevel, "log", "l", "info", "Log level (debug, info, warn, error)")
+	setupCmd.Flags().BoolVar(&setupReset, "reset", false, "Reset existing custom data before uploading")
 
 	rootCmd.AddCommand(setupCmd)
 }

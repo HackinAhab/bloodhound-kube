@@ -9,6 +9,11 @@
             "name": "All Object Nodes",
             "description": "Retrieves all nodes in the graph, limited to 1000.",
             "query": "MATCH (n)\nRETURN n\nLIMIT 1000"
+        },
+        {
+            "name": "All Paths From Secrets",
+            "description": "Retrieves all paths starting from nodes labeled 'Secret",
+            "query": "MATCH p=(s:Secret)-[*]->(t)\nRETURN p"
         }
     ]
 }

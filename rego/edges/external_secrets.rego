@@ -48,7 +48,7 @@ external_secret_manages_secret contains edge if {
 	target_name != ""
 	secret.properties.name == target_name
 
-	edge := helpers.create_edge(external_secret, secret, "ManagedBy")
+	edge := helpers.create_edge(secret,external_secret, "ManagedBy")
 }
 
 # ExternalSecret manages Secret (default target name)
@@ -61,5 +61,5 @@ external_secret_manages_secret_default contains edge if {
 	target_name == ""
 	secret.properties.name == external_secret.properties.name
 
-	edge := helpers.create_edge(external_secret, secret, "ManagedBy")
+	edge := helpers.create_edge(secret, external_secret, "ManagedBy")
 }

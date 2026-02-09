@@ -33,14 +33,18 @@ generate_node_id(resource_type, namespace, name) := id if {
 
 # Extract common metadata
 extract_metadata(resource) := metadata if {
+	labels_map := object.get(resource.metadata, "labels", {})
+	annotations_map := object.get(resource.metadata, "annotations", {})
 	metadata := {
 		"name": resource.metadata.name,
 		"namespace": object.get(resource.metadata, "namespace", ""),
 		"uid": object.get(resource.metadata, "uid", ""),
-		"labels": helpers.labels_to_list(resource),
-		"annotations": helpers.annotations_to_list(resource),
-		"labels_map": object.get(resource.metadata, "labels", {}),
-		"annotations_map": object.get(resource.metadata, "annotations", {}),
+		"labels": helpers.labels_map_to_list(labels_map),
+		"annotations": helpers.annotations_map_to_list(annotations_map),
+		"__private": {
+			"labels_map": labels_map,
+			"annotations_map": annotations_map,
+		},
 		"created_at": object.get(resource.metadata, "creationTimestamp", ""),
 	}
 }

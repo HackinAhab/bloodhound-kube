@@ -21,6 +21,20 @@
         "color": "#FF9800"
       }
     },
+    "DaemonSet": {
+      "icon": {
+        "type": "font-awesome",
+        "name": "boxes-stacked",
+        "color": "#FF9800"
+      }
+    },
+    "StatefulSet": {
+      "icon": {
+        "type": "font-awesome",
+        "name": "boxes-stacked",
+        "color": "#FF9800"
+      }
+    },
     "Service": {
       "icon": {
         "type": "font-awesome",
@@ -35,10 +49,66 @@
         "color": "#FFE28E"
       }
     },
+    "ConfigMap": {
+      "icon": {
+        "type": "font-awesome",
+        "name": "key",
+        "color": "#FFE28E"
+      }
+    },
     "ServiceAccount": {
       "icon": {
         "type": "font-awesome",
         "name": "user",
+        "color": "#FFE28E"
+      }
+    },
+    "Role": {
+      "icon": {
+        "type": "font-awesome",
+        "name": "id-badge",
+        "color": "#0306C8"
+      }
+    },
+    "RoleBinding": {
+      "icon": {
+        "type": "font-awesome",
+        "name": "newspaper",
+        "color": "#FFE28E"
+      }
+    },
+    "ClusterRole": {
+      "icon": {
+        "type": "font-awesome",
+        "name": "id-badge",
+        "color": "#0306C8"
+      }
+    },
+    "ClusterRoleBinding": {
+      "icon": {
+        "type": "font-awesome",
+        "name": "newspaper",
+        "color": "#FFE28E"
+      }
+    },
+    "PersistentVolume": {
+      "icon": {
+        "type": "font-awesome",
+        "name": "database",
+        "color": "#FFF2E5"
+      }
+    },
+    "PersistentVolumeClaim": {
+      "icon": {
+        "type": "font-awesome",
+        "name": "hdd",
+        "color": "#FFF2E5"
+      }
+    },
+    "NetworkPolicy": {
+      "icon": {
+        "type": "font-awesome",
+        "name": "book-atlas",
         "color": "#FFE28E"
       }
     },

@@ -10,9 +10,9 @@ secret_mounted_by_pod contains edge if {
 	secret := namespace.secret[_]
 	pod := namespace.pod[_]
 
-	volume := pod.properties.volumes[_]
+	volume := pod.properties.__private.volumes[_]
 	volume.type == "secret"
-	volume.secret_name == secret.properties.name
+	volume.secretName == secret.properties.name
 
 	edge := helpers.create_edge(secret, pod, "MountedBy")
 }
@@ -23,9 +23,9 @@ configmap_mounted_by_pod contains edge if {
 	cm := namespace.configmap[_]
 	pod := namespace.pod[_]
 
-	volume := pod.properties.volumes[_]
+	volume := pod.properties.__private.volumes[_]
 	volume.type == "configmap"
-	volume.configmap_name == cm.properties.name
+	volume.configMapName == cm.properties.name
 
 	edge := helpers.create_edge(cm, pod, "MountedBy")
 }
@@ -36,12 +36,12 @@ secret_env_referenced_by_pod contains edge if {
 	secret := namespace.secret[_]
 	pod := namespace.pod[_]
 
-	container := pod.properties.containers[_]
-	container.has_secrets == true
+	container := pod.properties.__private.containers[_]
+	container.hasSecrets == true
 
-	env_source := container.env_from[_]
-	env_source.secret_ref
-	env_source.secret_ref.name == secret.properties.name
+	env_source := container.envFrom[_]
+	env_source.secretRef
+	env_source.secretRef.name == secret.properties.name
 
 	edge := helpers.create_edge(secret, pod, "ReferencedBy")
 }
@@ -52,10 +52,10 @@ configmap_env_referenced_by_pod contains edge if {
 	cm := namespace.configmap[_]
 	pod := namespace.pod[_]
 
-	container := pod.properties.containers[_]
-	env_source := container.env_from[_]
-	env_source.configmap_ref
-	env_source.configmap_ref.name == cm.properties.name
+	container := pod.properties.__private.containers[_]
+	env_source := container.envFrom[_]
+	env_source.configMapRef
+	env_source.configMapRef.name == cm.properties.name
 
 	edge := helpers.create_edge(cm, pod, "ReferencedBy")
 }
@@ -66,10 +66,10 @@ tls_secret_used_by_ingress contains edge if {
 	secret := namespace.secret[_]
 	ingress := namespace.ingress[_]
 
-	secret.properties.is_tls_secret == true
+	secret.properties.isTlsSecret == true
 
 	tls_config := ingress.properties.tls[_]
-	tls_config.secret_name == secret.properties.name
+	tls_config.secretName == secret.properties.name
 
 	edge := helpers.create_edge(secret, ingress, "SecuresWith")
 }
@@ -80,7 +80,7 @@ service_account_token_belongs_to_account contains edge if {
 	secret := namespace.secret[_]
 	sa := namespace.serviceaccount[_]
 
-	secret.properties.is_service_account_token == true
+	secret.properties.isServiceAccountToken == true
 
 	sa_secret := sa.properties.secrets[_]
 	sa_secret == secret.properties.name
@@ -94,7 +94,7 @@ pod_uses_service_account contains edge if {
 	pod := namespace.pod[_]
 	sa := namespace.serviceaccount[_]
 
-	pod.properties.service_account == sa.properties.name
+	pod.properties.serviceAccount == sa.properties.name
 
 	edge := helpers.create_edge(pod, sa, "Uses")
 }

@@ -12,10 +12,10 @@ external_secret_uses_secretstore contains edge if {
 	external_secret := namespace.externalsecret[_]
 	secret_store := namespace.secretstore[_]
 
-	store_name := object.get(external_secret.properties, "store_name", "")
+	store_name := object.get(external_secret.properties, "storeName", "")
 	store_name != ""
 
-	store_kind := lower(object.get(external_secret.properties, "store_kind", "SecretStore"))
+	store_kind := lower(object.get(external_secret.properties, "storeKind", "SecretStore"))
 	store_kind == "secretstore"
 	secret_store.properties.name == store_name
 
@@ -28,10 +28,10 @@ external_secret_uses_clustersecretstore contains edge if {
 	external_secret := namespace.externalsecret[_]
 	cluster_store := input.cluster_scoped.clustersecretstore[_]
 
-	store_name := object.get(external_secret.properties, "store_name", "")
+	store_name := object.get(external_secret.properties, "storeName", "")
 	store_name != ""
 
-	store_kind := lower(object.get(external_secret.properties, "store_kind", "SecretStore"))
+	store_kind := lower(object.get(external_secret.properties, "storeKind", "SecretStore"))
 	store_kind == "clustersecretstore"
 	cluster_store.properties.name == store_name
 
@@ -44,7 +44,7 @@ external_secret_manages_secret contains edge if {
 	external_secret := namespace.externalsecret[_]
 	secret := namespace.secret[_]
 
-	target_name := object.get(external_secret.properties, "target_name", "")
+	target_name := object.get(external_secret.properties, "targetName", "")
 	target_name != ""
 	secret.properties.name == target_name
 
@@ -57,7 +57,7 @@ external_secret_manages_secret_default contains edge if {
 	external_secret := namespace.externalsecret[_]
 	secret := namespace.secret[_]
 
-	target_name := object.get(external_secret.properties, "target_name", "")
+	target_name := object.get(external_secret.properties, "targetName", "")
 	target_name == ""
 	secret.properties.name == external_secret.properties.name
 

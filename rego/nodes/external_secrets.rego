@@ -27,9 +27,11 @@ nodes contains node if {
             "resource_type": "secretstore",
             "labels": helpers.labels_to_list(resource),
             "annotations": helpers.annotations_to_list(resource),
-            "labels_map": helpers.get_labels(resource),
-            "annotations_map": helpers.get_annotations(resource),
-            "provider_type": provider_type,
+            "__private": {
+                "labels_map": helpers.get_labels(resource),
+                "annotations_map": helpers.get_annotations(resource),
+            },
+            "providerType": provider_type,
         }
     }
 }
@@ -52,9 +54,11 @@ nodes contains node if {
             "resource_type": "secretstore",
             "labels": helpers.labels_to_list(resource),
             "annotations": helpers.annotations_to_list(resource),
-            "labels_map": helpers.get_labels(resource),
-            "annotations_map": helpers.get_annotations(resource),
-            "provider_type": "",
+            "__private": {
+                "labels_map": helpers.get_labels(resource),
+                "annotations_map": helpers.get_annotations(resource),
+            },
+            "providerType": "",
         }
     }
 }
@@ -78,9 +82,11 @@ nodes contains node if {
             "resource_type": "clustersecretstore",
             "labels": helpers.labels_to_list(resource),
             "annotations": helpers.annotations_to_list(resource),
-            "labels_map": helpers.get_labels(resource),
-            "annotations_map": helpers.get_annotations(resource),
-            "provider_type": provider_type,
+            "__private": {
+                "labels_map": helpers.get_labels(resource),
+                "annotations_map": helpers.get_annotations(resource),
+            },
+            "providerType": provider_type,
         }
     }
 }
@@ -102,9 +108,11 @@ nodes contains node if {
             "resource_type": "clustersecretstore",
             "labels": helpers.labels_to_list(resource),
             "annotations": helpers.annotations_to_list(resource),
-            "labels_map": helpers.get_labels(resource),
-            "annotations_map": helpers.get_annotations(resource),
-            "provider_type": "",
+            "__private": {
+                "labels_map": helpers.get_labels(resource),
+                "annotations_map": helpers.get_annotations(resource),
+            },
+            "providerType": "",
         }
     }
 }
@@ -139,15 +147,17 @@ nodes contains node if {
             "resource_type": "externalsecret",
             "labels": helpers.labels_to_list(resource),
             "annotations": helpers.annotations_to_list(resource),
-            "labels_map": helpers.get_labels(resource),
-            "annotations_map": helpers.get_annotations(resource),
-            "store_name": object.get(store_ref, "name", ""),
-            "store_kind": object.get(store_ref, "kind", "SecretStore"),
-            "target_name": object.get(object.get(resource, ["spec", "target"], {}), "name", ""),
-            "refresh_interval": object.get(resource, ["spec", "refreshInterval"], ""),
-            "creation_policy": object.get(object.get(resource, ["spec", "target"], {}), "creationPolicy", ""),
-            "data_keys": data_keys,
-            "data_from_types": data_from_types,
+            "__private": {
+                "labels_map": helpers.get_labels(resource),
+                "annotations_map": helpers.get_annotations(resource),
+            },
+            "storeName": object.get(store_ref, "name", ""),
+            "storeKind": object.get(store_ref, "kind", "SecretStore"),
+            "targetName": object.get(object.get(resource, ["spec", "target"], {}), "name", ""),
+            "refreshInterval": object.get(resource, ["spec", "refreshInterval"], ""),
+            "creationPolicy": object.get(object.get(resource, ["spec", "target"], {}), "creationPolicy", ""),
+            "dataKeys": data_keys,
+            "dataFromTypes": data_from_types,
         }
     }
 }

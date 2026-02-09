@@ -10,7 +10,7 @@ pod_scheduled_on_node contains edge if {
 	namespace := input.namespaces[ns]
 	pod := namespace.pod[_]
 
-	pod.properties.node_name == node.properties.name
+	pod.properties.nodeName == node.properties.name
 
 	edge := helpers.create_edge(pod, node, "ScheduledOn")
 }
@@ -21,8 +21,8 @@ persistent_volume_claim_used_by_pod contains edge if {
 	pvc := namespace.persistentvolumeclaim[_]
 	pod := namespace.pod[_]
 
-	volume := pod.properties.volumes[_]
-	volume.pvc_name == pvc.properties.name
+	volume := pod.properties.__private.volumes[_]
+	volume.pvcName == pvc.properties.name
 
 	edge := helpers.create_edge(pvc, pod, "UsedBy")
 }

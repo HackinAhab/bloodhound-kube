@@ -23,14 +23,16 @@ nodes contains node if {
             "resource_type": "networkpolicy",
 	"labels": helpers.labels_to_list(resource),
 	"annotations": helpers.annotations_to_list(resource),
-	"labels_map": helpers.get_labels(resource),
-	"annotations_map": helpers.get_annotations(resource),
-            "pod_selector": pod_selector,
-            "ingress_rules": ingress_rules,
-            "egress_rules": egress_rules,
-            "policy_types": policy_types,
-            "has_ingress_rules": count(ingress_rules) > 0,
-            "has_egress_rules": count(egress_rules) > 0,
+	"__private": {
+		"labels_map": helpers.get_labels(resource),
+		"annotations_map": helpers.get_annotations(resource),
+	},
+            "podSelector": pod_selector,
+            "ingressRules": ingress_rules,
+            "egressRules": egress_rules,
+            "policyTypes": policy_types,
+            "hasIngressRules": count(ingress_rules) > 0,
+            "hasEgressRules": count(egress_rules) > 0,
         }
     }
 }

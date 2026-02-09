@@ -13,7 +13,7 @@ deployment_owns_pod contains edge if {
 	pod := namespace.pod[_]
 	
 	# Match pod labels against deployment selector
-	helpers.labels_match_selector(pod.properties.labels_map, deployment.properties.selector)
+	helpers.labels_match_selector(pod.properties.__private.labels_map, deployment.properties.__private.selector_map)
 	
 	edge := helpers.create_edge(deployment, pod, "Owns")
 }
@@ -22,11 +22,11 @@ deployment_owns_pod contains edge if {
 pod_scheduled_on_node contains edge if {
 	namespace := input.namespaces[ns]
 	pod := namespace.pod[_]
-	pod.properties.node_name != ""
+	pod.properties.nodeName != ""
 	
 	# Find the node
 	node := input.cluster_scoped.node[_]
-	node.properties.name == pod.properties.node_name
+	node.properties.name == pod.properties.nodeName
 	
 	edge := helpers.create_edge(pod, node, "ScheduledOn")
 }
@@ -37,7 +37,7 @@ pod_uses_serviceaccount contains edge if {
 	pod := namespace.pod[_]
 	sa := namespace.serviceaccount[_]
 	
-	sa_name := object.get(pod.properties, "service_account", "default")
+	sa_name := object.get(pod.properties, "serviceAccount", "default")
 	sa.properties.name == sa_name
 	
 	edge := helpers.create_edge(pod, sa, "Uses")
@@ -49,7 +49,7 @@ deployment_uses_serviceaccount contains edge if {
 	deployment := namespace.deployment[_]
 	sa := namespace.serviceaccount[_]
 	
-	sa_name := object.get(deployment.properties.pod_template, "service_account", "default")
+	sa_name := object.get(deployment.properties.pod_template, "serviceAccount", "default")
 	sa.properties.name == sa_name
 	
 	edge := helpers.create_edge(deployment, sa, "Uses")
@@ -62,9 +62,9 @@ service_exposes_pod contains edge if {
 	pod := namespace.pod[_]
 	
 	# Service selector must match pod labels
-	service.properties.selector
-	count(service.properties.selector) > 0
-	helpers.labels_match_selector(pod.properties.labels_map, service.properties.selector)
+	service.properties.__private.selector_map
+	count(service.properties.__private.selector_map) > 0
+	helpers.labels_match_selector(pod.properties.__private.labels_map, service.properties.__private.selector_map)
 	
 	edge := helpers.create_edge(service, pod, "Exposes")
 }
@@ -76,9 +76,9 @@ service_exposes_deployment contains edge if {
 	deployment := namespace.deployment[_]
 	
 	# Service selector must match deployment selector
-	service.properties.selector
-	count(service.properties.selector) > 0
-	helpers.labels_match_selector(deployment.properties.selector, service.properties.selector)
+	service.properties.__private.selector_map
+	count(service.properties.__private.selector_map) > 0
+	helpers.labels_match_selector(deployment.properties.__private.selector_map, service.properties.__private.selector_map)
 	
 	edge := helpers.create_edge(service, deployment, "Exposes")
 }
@@ -92,7 +92,7 @@ ingress_routes_to_service contains edge if {
 	# Check if any ingress rule references this service
 	rule := ingress.properties.rules[_]
 	path := rule.paths[_]
-	path.backend_service == service.properties.name
+	path.backendService == service.properties.name
 	
 	edge := helpers.create_edge(ingress, service, "RoutesTo")
 }

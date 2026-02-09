@@ -9,7 +9,7 @@ nodes contains node if {
     resource := input.resources[_]
     resource.kind == "StatefulSet"
 
-    selector := object.get(resource.spec, ["selector", "matchLabels"], {})
+	selector_map := object.get(resource.spec, ["selector", "matchLabels"], {})
 
     node := {
         "id": helpers.generate_id("StatefulSet", resource.metadata.namespace, resource.metadata.name),
@@ -20,10 +20,13 @@ nodes contains node if {
             "resource_type": "statefulset",
 		"labels": helpers.labels_to_list(resource),
 		"annotations": helpers.annotations_to_list(resource),
-		"labels_map": helpers.get_labels(resource),
-		"annotations_map": helpers.get_annotations(resource),
-            "selector": selector,
-            "service_name": object.get(resource.spec, "serviceName", ""),
-        }
-    }
+		"selector": helpers.labels_map_to_list(selector_map),
+		"__private": {
+			"labels_map": helpers.get_labels(resource),
+			"annotations_map": helpers.get_annotations(resource),
+			"selector_map": selector_map,
+		},
+		"serviceName": object.get(resource.spec, "serviceName", ""),
+	}
+}
 }

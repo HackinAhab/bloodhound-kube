@@ -9,7 +9,7 @@ nodes contains node if {
     resource := input.resources[_]
     resource.kind == "DaemonSet"
 
-    selector := object.get(resource.spec, ["selector", "matchLabels"], {})
+	selector_map := object.get(resource.spec, ["selector", "matchLabels"], {})
 
     node := {
         "id": helpers.generate_id("DaemonSet", resource.metadata.namespace, resource.metadata.name),
@@ -20,10 +20,13 @@ nodes contains node if {
             "resource_type": "daemonset",
 		"labels": helpers.labels_to_list(resource),
 		"annotations": helpers.annotations_to_list(resource),
-		"labels_map": helpers.get_labels(resource),
-		"annotations_map": helpers.get_annotations(resource),
-            "selector": selector,
-            "update_strategy": object.get(resource.spec, ["updateStrategy", "type"], "RollingUpdate"),
-        }
-    }
+		"selector": helpers.labels_map_to_list(selector_map),
+		"__private": {
+			"labels_map": helpers.get_labels(resource),
+			"annotations_map": helpers.get_annotations(resource),
+			"selector_map": selector_map,
+		},
+		"update_strategy": object.get(resource.spec, ["updateStrategy", "type"], "RollingUpdate"),
+	}
+}
 }

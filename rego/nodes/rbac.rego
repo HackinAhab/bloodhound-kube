@@ -89,11 +89,13 @@ nodes contains node if {
             "resource_type": "serviceaccount",
 		"labels": helpers.labels_to_list(resource),
 		"annotations": helpers.annotations_to_list(resource),
-		"labels_map": helpers.get_labels(resource),
-		"annotations_map": helpers.get_annotations(resource),
+		"__private": {
+			"labels_map": helpers.get_labels(resource),
+			"annotations_map": helpers.get_annotations(resource),
+		},
             "secrets": secrets,
-            "image_pull_secrets": image_pull_secrets,
-            "automount_service_account_token": object.get(resource, "automountServiceAccountToken", true),
+            "imagePullSecrets": image_pull_secrets,
+            "automountServiceAccountToken": object.get(resource, "automountServiceAccountToken", true),
         }
     }
 }
@@ -112,8 +114,10 @@ nodes contains node if {
 			"resource_type": "role",
 		"labels": helpers.labels_to_list(resource),
 		"annotations": helpers.annotations_to_list(resource),
-		"labels_map": helpers.get_labels(resource),
-		"annotations_map": helpers.get_annotations(resource),
+		"__private": {
+			"labels_map": helpers.get_labels(resource),
+			"annotations_map": helpers.get_annotations(resource),
+		},
 		"perms": perms(rules),
 		}
 	}
@@ -133,8 +137,10 @@ nodes contains node if {
 			"resource_type": "clusterrole",
 		"labels": helpers.labels_to_list(resource),
 		"annotations": helpers.annotations_to_list(resource),
-		"labels_map": helpers.get_labels(resource),
-		"annotations_map": helpers.get_annotations(resource),
+		"__private": {
+			"labels_map": helpers.get_labels(resource),
+			"annotations_map": helpers.get_annotations(resource),
+		},
 		"perms": perms(rules),
 		}
 	}
@@ -157,12 +163,14 @@ nodes contains node if {
             "resource_type": "rolebinding",
 		"labels": helpers.labels_to_list(resource),
 		"annotations": helpers.annotations_to_list(resource),
-		"labels_map": helpers.get_labels(resource),
-		"annotations_map": helpers.get_annotations(resource),
+		"__private": {
+			"labels_map": helpers.get_labels(resource),
+			"annotations_map": helpers.get_annotations(resource),
+		},
             "subjects": subjects,
-            "role_ref": role_ref,
-            "role_name": object.get(role_ref, "name", ""),
-            "role_kind": object.get(role_ref, "kind", ""),
+            "roleRef": role_ref,
+            "roleName": object.get(role_ref, "name", ""),
+            "roleKind": object.get(role_ref, "kind", ""),
         }
     }
 }
@@ -183,12 +191,14 @@ nodes contains node if {
             "resource_type": "clusterrolebinding",
 		"labels": helpers.labels_to_list(resource),
 		"annotations": helpers.annotations_to_list(resource),
-		"labels_map": helpers.get_labels(resource),
-		"annotations_map": helpers.get_annotations(resource),
+		"__private": {
+			"labels_map": helpers.get_labels(resource),
+			"annotations_map": helpers.get_annotations(resource),
+		},
             "subjects": subjects,
-            "role_ref": role_ref,
-            "role_name": object.get(role_ref, "name", ""),
-            "role_kind": object.get(role_ref, "kind", ""),
+            "roleRef": role_ref,
+            "roleName": object.get(role_ref, "name", ""),
+            "roleKind": object.get(role_ref, "kind", ""),
         }
     }
 }

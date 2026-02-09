@@ -5,6 +5,7 @@ package nodes.services
 
 import rego.v1
 import data.nodes.base
+import data.nodes.helpers
 
 # Main service node creation
 nodes contains node if {
@@ -13,17 +14,22 @@ nodes contains node if {
 	resource.kind == "Service"
 	metadata := base.extract_metadata(resource)
 	
+	selector_map := object.get(resource.spec, "selector", {})
+	private := object.union(metadata.__private, {
+		"selector_map": selector_map,
+	})
 	properties := object.union(metadata, {
-		"service_type": object.get(resource.spec, "type", "ClusterIP"),
-		"cluster_ip": object.get(resource.spec, "clusterIP", ""),
-		"external_ips": object.get(resource.spec, "externalIPs", []),
-		"load_balancer_ip": object.get(resource.spec, "loadBalancerIP", ""),
-		"selector": object.get(resource.spec, "selector", {}),
+		"serviceType": object.get(resource.spec, "type", "ClusterIP"),
+		"clusterIP": object.get(resource.spec, "clusterIP", ""),
+		"externalIPs": object.get(resource.spec, "externalIPs", []),
+		"loadBalancerIP": object.get(resource.spec, "loadBalancerIP", ""),
+		"selector": helpers.labels_map_to_list(selector_map),
+		"__private": private,
 		"ports": extract_ports(resource.spec),
-		"session_affinity": object.get(resource.spec, "sessionAffinity", "None"),
-		"external_traffic_policy": object.get(resource.spec, "externalTrafficPolicy", ""),
-		"is_headless": is_headless(resource.spec),
-		"is_external": is_external_service(resource.spec),
+		"sessionAffinity": object.get(resource.spec, "sessionAffinity", "None"),
+		"externalTrafficPolicy": object.get(resource.spec, "externalTrafficPolicy", ""),
+		"isHeadless": is_headless(resource.spec),
+		"isExternal": is_external_service(resource.spec),
 	})
 	
 	node := base.default_node("service", ["Service"], metadata.namespace, metadata.name, properties)
@@ -39,8 +45,8 @@ extract_ports(spec) := ports if {
 			"name": object.get(p, "name", ""),
 			"protocol": object.get(p, "protocol", "TCP"),
 			"port": p.port,
-			"target_port": p.targetPort,
-			"node_port": object.get(p, "nodePort", 0),
+			"targetPort": p.targetPort,
+			"nodePort": object.get(p, "nodePort", 0),
 		}
 	]
 }

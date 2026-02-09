@@ -64,6 +64,18 @@ get_annotations(resource) := annotations if {
     annotations := object.get(resource, ["metadata", "annotations"], {})
 }
 
+# Convert label map to sorted list of "key=value"
+labels_map_to_list(labels) := items if {
+	keys := sort(object.keys(labels))
+	items := [sprintf("%s=%v", [k, labels[k]]) | k := keys[_]]
+}
+
+# Convert annotation map to sorted list of "key=value"
+annotations_map_to_list(annotations) := items if {
+	keys := sort(object.keys(annotations))
+	items := [sprintf("%s=%v", [k, annotations[k]]) | k := keys[_]]
+}
+
 # Convert labels to sorted list of "key=value"
 labels_to_list(resource) := items if {
 	labels := get_labels(resource)

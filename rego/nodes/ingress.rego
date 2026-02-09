@@ -14,11 +14,11 @@ nodes contains node if {
 	metadata := base.extract_metadata(resource)
 	
 	properties := object.union(metadata, {
-		"ingress_class": object.get(resource.spec, "ingressClassName", ""),
+		"ingressClass": object.get(resource.spec, "ingressClassName", ""),
 		"rules": extract_rules(resource.spec),
 		"tls": extract_tls_config(resource.spec),
-		"has_tls": has_tls_config(resource.spec),
-		"default_backend": extract_default_backend(resource.spec),
+		"hasTls": has_tls_config(resource.spec),
+		"defaultBackend": extract_default_backend(resource.spec),
 	})
 	
 	node := base.default_node("ingress", ["Ingress"], metadata.namespace, metadata.name, properties)
@@ -49,9 +49,9 @@ extract_paths(rule) := paths if {
 		p := rule.http.paths[i]
 		path := {
 			"path": object.get(p, "path", "/"),
-			"path_type": object.get(p, "pathType", "Prefix"),
-			"backend_service": object.get(p.backend.service, "name", ""),
-			"backend_port": object.get(p.backend.service.port, "number", 0),
+			"pathType": object.get(p, "pathType", "Prefix"),
+			"backendService": object.get(p.backend.service, "name", ""),
+			"backendPort": object.get(p.backend.service.port, "number", 0),
 		}
 	]
 }
@@ -68,7 +68,7 @@ extract_tls_config(spec) := tls_configs if {
 		t := spec.tls[i]
 		tls := {
 			"hosts": object.get(t, "hosts", []),
-			"secret_name": object.get(t, "secretName", ""),
+			"secretName": object.get(t, "secretName", ""),
 		}
 	]
 }
@@ -87,8 +87,8 @@ has_tls_config(spec) if {
 extract_default_backend(spec) := backend if {
 	spec.defaultBackend
 	backend := {
-		"service_name": object.get(spec.defaultBackend.service, "name", ""),
-		"service_port": object.get(spec.defaultBackend.service.port, "number", 0),
+		"serviceName": object.get(spec.defaultBackend.service, "name", ""),
+		"servicePort": object.get(spec.defaultBackend.service.port, "number", 0),
 	}
 }
 

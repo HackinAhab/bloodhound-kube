@@ -102,7 +102,7 @@ func SanitizeProperties(input map[string]any) map[string]any {
 	for key, value := range flattened {
 		// Preserve label and annotation maps as they are used for edge generation
 		// This is a bit of a hack, but it allows us to keep the original maps for edge generation while still flattening other properties.
-		if key == "labels_map" || key == "annotations_map" || strings.HasPrefix(key, "labels_map_") || strings.HasPrefix(key, "annotations_map_") {
+		if key == "__private" || strings.Contains(key, "__private_") {
 			continue
 		}
 		if value == nil {

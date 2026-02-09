@@ -24,9 +24,9 @@ nodes contains node if {
 
 	properties := object.union(metadata, {
 		"hostnames": hostnames,
-		"parent_refs": parent_refs,
-		"backend_ref_keys": backend_ref_keys,
-		"backend_refs_count": count(backend_ref_keys),
+		"parentRefs": parent_refs,
+		"backendRefKeys": backend_ref_keys,
+		"backendRefsCount": count(backend_ref_keys),
 	})
 
 	node := base.default_node("httproute", ["HTTPRoute"], metadata.namespace, metadata.name, properties)

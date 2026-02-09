@@ -14,6 +14,11 @@
             "name": "All Paths From Secrets",
             "description": "Retrieves all paths starting from nodes labeled 'Secret",
             "query": "MATCH p=(s:Secret)-[*]->(t)\nRETURN p"
+        },
+        {
+            "name": "All Paths from Pods running as root",
+            "description": "Retrieves all paths starting from nodes labeled 'Pod' that have the property 'runAsRoot' set to true.",
+            "query": "MATCH p=(s:Pod)-[]->()\nWHERE s.runAsRoot = True\nRETURN p"
         }
     ]
 }

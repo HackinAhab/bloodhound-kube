@@ -11,8 +11,8 @@ cluster_role_to_sa_via_binding contains edge if {
 	namespace := input.namespaces[ns]
 	sa := namespace.serviceaccount[_]
 
-	binding.properties.role_name == cluster_role.properties.name
-	binding.properties.role_kind == "ClusterRole"
+	binding.properties.roleName == cluster_role.properties.name
+	binding.properties.roleKind == "ClusterRole"
 
 	subject := binding.properties.subjects[_]
 	subject.kind == "ServiceAccount"
@@ -29,8 +29,8 @@ role_to_sa_via_binding contains edge if {
 	binding := namespace.rolebinding[_]
 	sa := namespace.serviceaccount[_]
 
-	binding.properties.role_name == role.properties.name
-	binding.properties.role_kind == "Role"
+	binding.properties.roleName == role.properties.name
+	binding.properties.roleKind == "Role"
 
 	subject := binding.properties.subjects[_]
 	subject.kind == "ServiceAccount"
@@ -76,8 +76,8 @@ cluster_role_to_sa_cross_namespace contains edge if {
 	sa := namespace.serviceaccount[_]
 
 	# Check ClusterRoleBinding
-	binding.properties.role_name == cluster_role.properties.name
-	binding.properties.role_kind == "ClusterRole"
+	binding.properties.roleName == cluster_role.properties.name
+	binding.properties.roleKind == "ClusterRole"
 
 	subject := binding.properties.subjects[_]
 	subject.kind == "ServiceAccount"
@@ -94,8 +94,8 @@ cluster_role_to_sa_cross_namespace contains edge if {
 
 	# Check RoleBinding referencing ClusterRole
 	binding := namespace.rolebinding[_]
-	binding.properties.role_name == cluster_role.properties.name
-	binding.properties.role_kind == "ClusterRole"
+	binding.properties.roleName == cluster_role.properties.name
+	binding.properties.roleKind == "ClusterRole"
 
 	subject := binding.properties.subjects[_]
 	subject.kind == "ServiceAccount"
@@ -111,8 +111,8 @@ service_account_token_belongs_to_account contains edge if {
 	secret := namespace.secret[_]
 	sa := namespace.serviceaccount[_]
 
-	secret.properties.secret_type == "kubernetes.io/service-account-token"
-	secret.properties.annotations["kubernetes.io/service-account.name"] == sa.properties.name
+	secret.properties.isServiceAccountToken == true
+	secret.properties.__private.annotations_map["kubernetes.io/service-account.name"] == sa.properties.name
 
 	edge := helpers.create_edge(secret, sa, "BelongsTo")
 }

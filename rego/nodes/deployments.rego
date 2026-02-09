@@ -5,6 +5,7 @@ package nodes.deployments
 
 import rego.v1
 import data.nodes.base
+import data.nodes.helpers
 
 # Main deployment node creation
 nodes contains node if {
@@ -13,13 +14,16 @@ nodes contains node if {
 	resource.kind == "Deployment"
 	metadata := base.extract_metadata(resource)
 	
+	selector_map := object.get(resource.spec.selector, "matchLabels", {})
+	private := object.union(metadata.__private, {
+		"selector_map": selector_map,
+	})
 	properties := object.union(metadata, {
 		"replicas": object.get(resource.spec, "replicas", 1),
-		"selector": object.get(resource.spec.selector, "matchLabels", {}),
+		"selector": helpers.labels_map_to_list(selector_map),
+		"__private": private,
 		"strategy_type": object.get(resource.spec.strategy, "type", "RollingUpdate"),
 		"pod_template": analyze_pod_template(resource.spec.template),
-		"min_ready_seconds": object.get(resource.spec, "minReadySeconds", 0),
-		"revision_history_limit": object.get(resource.spec, "revisionHistoryLimit", 10),
 	})
 	
 	node := base.default_node("deployment", ["Deployment"], metadata.namespace, metadata.name, properties)
@@ -27,14 +31,31 @@ nodes contains node if {
 
 # Analyze pod template
 analyze_pod_template(template) := pod_info if {
+	labels_map := object.get(template.metadata, "labels", {})
+	annotations_map := object.get(template.metadata, "annotations", {})
 	pod_info := {
-		"labels": object.get(template.metadata, "labels", {}),
-		"annotations": object.get(template.metadata, "annotations", {}),
-		"service_account": object.get(template.spec, "serviceAccountName", "default"),
+		"labels": helpers.labels_map_to_list(labels_map),
+		"annotations": helpers.annotations_map_to_list(annotations_map),
+		"__private": {
+			"labels_map": labels_map,
+			"annotations_map": annotations_map,
+		},
+		"serviceAccount": object.get(template.spec, "serviceAccountName", "default"),
 		"containers": extract_container_info(template.spec),
+		"containerImages": extract_container_images(template.spec),
 		"volumes": extract_volume_info(template.spec),
-		"security_context": object.get(template.spec, "securityContext", {}),
+		"securityContext": object.get(template.spec, "securityContext", {}),
 	}
+}
+
+# Extract container images
+extract_container_images(spec) := images if {
+	spec.containers
+	images := [c.image | c := spec.containers[_]]
+}
+
+extract_container_images(spec) := [] if {
+	not spec.containers
 }
 
 # Extract container information
@@ -46,9 +67,9 @@ extract_container_info(spec) := containers if {
 		container := {
 			"name": c.name,
 			"image": c.image,
-			"pull_policy": object.get(c, "imagePullPolicy", "IfNotPresent"),
-			"env_from_secrets": has_env_from_secrets(c),
-			"env_from_configmaps": has_env_from_configmaps(c),
+			"pullPolicy": object.get(c, "imagePullPolicy", "IfNotPresent"),
+			"envFromSecrets": has_env_from_secrets(c),
+			"envFromConfigMaps": has_env_from_configmaps(c),
 		}
 	]
 }

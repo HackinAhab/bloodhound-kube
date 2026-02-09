@@ -37,8 +37,10 @@ extract_metadata(resource) := metadata if {
 		"name": resource.metadata.name,
 		"namespace": object.get(resource.metadata, "namespace", ""),
 		"uid": object.get(resource.metadata, "uid", ""),
-		"labels": object.get(resource.metadata, "labels", {}),
-		"annotations": object.get(resource.metadata, "annotations", {}),
+		"labels": helpers.labels_to_list(resource),
+		"annotations": helpers.annotations_to_list(resource),
+		"labels_map": object.get(resource.metadata, "labels", {}),
+		"annotations_map": object.get(resource.metadata, "annotations", {}),
 		"created_at": object.get(resource.metadata, "creationTimestamp", ""),
 	}
 }

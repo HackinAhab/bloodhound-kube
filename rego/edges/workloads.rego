@@ -13,7 +13,7 @@ deployment_owns_pod contains edge if {
 	pod := namespace.pod[_]
 	
 	# Match pod labels against deployment selector
-	helpers.labels_match_selector(pod.properties.labels, deployment.properties.selector)
+	helpers.labels_match_selector(pod.properties.labels_map, deployment.properties.selector)
 	
 	edge := helpers.create_edge(deployment, pod, "Owns")
 }
@@ -64,7 +64,7 @@ service_exposes_pod contains edge if {
 	# Service selector must match pod labels
 	service.properties.selector
 	count(service.properties.selector) > 0
-	helpers.labels_match_selector(pod.properties.labels, service.properties.selector)
+	helpers.labels_match_selector(pod.properties.labels_map, service.properties.selector)
 	
 	edge := helpers.create_edge(service, pod, "Exposes")
 }

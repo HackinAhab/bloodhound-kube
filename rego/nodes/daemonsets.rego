@@ -18,8 +18,10 @@ nodes contains node if {
             "name": helpers.get_name(resource),
             "namespace": helpers.get_namespace(resource),
             "resource_type": "daemonset",
-            "labels": helpers.get_labels(resource),
-            "annotations": helpers.get_annotations(resource),
+		"labels": helpers.labels_to_list(resource),
+		"annotations": helpers.annotations_to_list(resource),
+		"labels_map": helpers.get_labels(resource),
+		"annotations_map": helpers.get_annotations(resource),
             "selector": selector,
             "update_strategy": object.get(resource.spec, ["updateStrategy", "type"], "RollingUpdate"),
         }

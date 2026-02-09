@@ -7,9 +7,9 @@ import (
 var globalLogLevel string
 
 var rootCmd = &cobra.Command{
-	Use:   "kube-bloodhound",
-	Short: "A Kubernetes resource collector",
-	Long:  "A CLI tool to collect and format Kubernetes resources into JSON",
+	Use:   "bloodhound-kube",
+	Short: "A Kubernetes resource collector for Bloodhound",
+	Long:  "A CLI tool to collect and format Kubernetes resources into Bloodhound OpenGraph compatible JSON",
 }
 
 func Execute() error {

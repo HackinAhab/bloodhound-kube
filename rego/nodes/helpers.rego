@@ -64,6 +64,20 @@ get_annotations(resource) := annotations if {
     annotations := object.get(resource, ["metadata", "annotations"], {})
 }
 
+# Convert labels to sorted list of "key=value"
+labels_to_list(resource) := items if {
+	labels := get_labels(resource)
+	keys := sort(object.keys(labels))
+	items := [sprintf("%s=%v", [k, labels[k]]) | k := keys[_]]
+}
+
+# Convert annotations to sorted list of "key=value"
+annotations_to_list(resource) := items if {
+	annotations := get_annotations(resource)
+	keys := sort(object.keys(annotations))
+	items := [sprintf("%s=%v", [k, annotations[k]]) | k := keys[_]]
+}
+
 # Get namespace safely
 get_namespace(resource) := namespace if {
     namespace := object.get(resource, ["metadata", "namespace"], "")

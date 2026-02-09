@@ -22,8 +22,10 @@ nodes contains node if {
         "properties": {
             "name": helpers.get_name(resource),
             "resource_type": "node",
-            "labels": helpers.get_labels(resource),
-            "annotations": helpers.get_annotations(resource),
+		"labels": helpers.labels_to_list(resource),
+		"annotations": helpers.annotations_to_list(resource),
+		"labels_map": helpers.get_labels(resource),
+		"annotations_map": helpers.get_annotations(resource),
             "addresses": addresses,
             "conditions": conditions,
             "taints": taints,
@@ -77,8 +79,10 @@ nodes contains node if {
         "properties": {
             "name": helpers.get_name(resource),
             "resource_type": "namespace",
-            "labels": helpers.get_labels(resource),
-            "annotations": helpers.get_annotations(resource),
+		"labels": helpers.labels_to_list(resource),
+		"annotations": helpers.annotations_to_list(resource),
+		"labels_map": helpers.get_labels(resource),
+		"annotations_map": helpers.get_annotations(resource),
             "status": object.get(resource.status, "phase", "Active"),
         }
     }

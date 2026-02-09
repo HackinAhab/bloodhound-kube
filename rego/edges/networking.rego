@@ -10,7 +10,7 @@ service_exposes_pods contains edge if {
 	service := namespace.service[_]
 	pod := namespace.pod[_]
 
-	helpers.is_subset(service.properties.selector, pod.properties.labels)
+	helpers.is_subset(service.properties.selector, pod.properties.labels_map)
 
 	edge := helpers.create_edge(service, pod, "Exposes")
 }
@@ -80,7 +80,7 @@ network_policy_applies_to_pods contains edge if {
 	netpol := namespace.networkpolicy[_]
 	pod := namespace.pod[_]
 
-	helpers.is_subset(netpol.properties.pod_selector, pod.properties.labels)
+	helpers.is_subset(netpol.properties.pod_selector, pod.properties.labels_map)
 
 	edge := helpers.create_edge(netpol, pod, "AppliesTo")
 }

@@ -11,6 +11,8 @@ nodes contains node if {
     
     data_keys := object.get(resource, "data", {})
     keys := object.keys(data_keys)
+    sorted_keys := sort(keys)
+    data_entries := [sprintf("%s:%v", [k, data_keys[k]]) | k := sorted_keys[_]]
     
     node := {
         "id": helpers.generate_id("Secret", resource.metadata.namespace, resource.metadata.name),
@@ -22,6 +24,7 @@ nodes contains node if {
             "secretType": object.get(resource, "type", "Opaque"),
             "dataKeys": keys,
             "dataKeysCount": count(keys),
+            "dataValues": data_entries,
             "hasSensitiveKeys": helpers.has_sensitive_keys(keys),
             "certificates": object.get(resource, "certificates", {}),
             "redactedKeys": object.get(resource, "redactedKeys", []),
@@ -45,6 +48,8 @@ nodes contains node if {
     
     data_keys := object.get(resource, "data", {})
     keys := object.keys(data_keys)
+    sorted_keys := sort(keys)
+    data_entries := [sprintf("%s:%v", [k, data_keys[k]]) | k := sorted_keys[_]]
     
     node := {
         "id": helpers.generate_id("ConfigMap", resource.metadata.namespace, resource.metadata.name),
@@ -55,6 +60,7 @@ nodes contains node if {
             "resource_type": "configmap",
             "dataKeys": keys,
             "dataKeysCount": count(keys),
+            "dataValues": data_entries,
 			"labels": helpers.labels_to_list(resource),
 			"annotations": helpers.annotations_to_list(resource),
 			"__private": {

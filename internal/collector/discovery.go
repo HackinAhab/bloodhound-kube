@@ -4,6 +4,7 @@ import (
 	"bloodhound-kube/internal/utils"
 	"context"
 	"errors"
+	"slices"
 	"sort"
 	"strings"
 
@@ -123,7 +124,7 @@ func BuildCollectionsConfigFromDiscovery(resources []DiscoveryResource) (*Collec
 
 		collections = append(collections, ResourceCollection{
 			Name:              name,
-			ResourceType:      name,
+			ResourceType:      normalizeResourceType(name),
 			APIVersion:        res.GroupVersion,
 			APIGroup:          res.Group,
 			Plural:            res.Resource,
@@ -147,11 +148,10 @@ func BuildCollectionsConfigFromDiscovery(resources []DiscoveryResource) (*Collec
 	return cfg, nil
 }
 
+func normalizeResourceType(name string) string {
+	return strings.ReplaceAll(name, "-", "_")
+}
+
 func hasVerb(verbs []string, verb string) bool {
-	for _, v := range verbs {
-		if v == verb {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(verbs, verb)
 }

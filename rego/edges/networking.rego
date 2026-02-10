@@ -21,7 +21,7 @@ service_exposes_deployment contains edge if {
 	service := namespace.service[_]
 	deployment := namespace.deployment[_]
 
-	labels := object.get(deployment.properties, ["pod_template", "__private", "labels_map"], deployment.properties.__private.selector_map)
+	labels := object.get(deployment.properties, ["podTemplate", "__private", "labels_map"], object.get(deployment.properties, ["pod_template", "__private", "labels_map"], deployment.properties.__private.selector_map))
 	helpers.is_subset(service.properties.__private.selector_map, labels)
 
 	edge := helpers.create_edge(service, deployment, "Exposes")

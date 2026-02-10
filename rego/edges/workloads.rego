@@ -49,7 +49,7 @@ deployment_uses_serviceaccount contains edge if {
 	deployment := namespace.deployment[_]
 	sa := namespace.serviceaccount[_]
 	
-	sa_name := object.get(deployment.properties.pod_template, "serviceAccount", "default")
+	sa_name := object.get(object.get(deployment.properties, "podTemplate", deployment.properties.pod_template), "serviceAccount", "default")
 	sa.properties.name == sa_name
 	
 	edge := helpers.create_edge(deployment, sa, "Uses")

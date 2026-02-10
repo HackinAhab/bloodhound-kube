@@ -9,7 +9,7 @@ httproute_routes_to_service contains edge if {
 	route_ns := input.namespaces[ns]
 	route := route_ns.httproute[_]
 
-	key := route.properties.backend_ref_keys[_]
+	key := object.get(route.properties, "backendRefKeys", object.get(route.properties, "backend_ref_keys", []))[_]
 	parts := split(key, "/")
 	backend_ns := parts[0]
 	backend_name := parts[1]
@@ -26,7 +26,7 @@ httproute_routes_to_service contains edge if {
 	route_ns := input.namespaces[ns]
 	route := route_ns.httproute[_]
 
-	key := route.properties.backend_ref_keys[_]
+	key := object.get(route.properties, "backendRefKeys", object.get(route.properties, "backend_ref_keys", []))[_]
 	parts := split(key, "/")
 	backend_ns := parts[0]
 	backend_name := parts[1]

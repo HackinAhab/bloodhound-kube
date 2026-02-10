@@ -112,6 +112,13 @@
         "color": "#FFE28E"
       }
     },
+    "SecurityContextConstraint": {
+      "icon": {
+        "type": "font-awesome",
+        "name": "book-atlas",
+        "color": "#FFE28E"
+      }
+    },
     "ExternalSecret": {
       "icon": {
         "type": "font-awesome",

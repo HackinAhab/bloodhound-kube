@@ -24,15 +24,16 @@ nodes contains node if {
 		"containerImages": extract_container_images(resource.spec),
 		"volumes": analyze_volumes_summary(resource.spec),
 		"__private": private,
+		"securityContextConstraint": object.get(object.get(resource.metadata, "annotations", {}), "openshift.io/scc", ""),
 		"serviceAccount": object.get(resource.spec, "serviceAccountName", "default"),
 		"nodeName": object.get(resource.spec, "nodeName", ""),
-		"hostNetwork": object.get(resource.spec, "hostNetwork", false),
-		"hostPid": object.get(resource.spec, "hostPID", false),
-		"hostIpc": object.get(resource.spec, "hostIPC", false),
-		"runAsUser": object.get(sec, "runAsUser", null),
-		"runAsGroup": object.get(sec, "runAsGroup", null),
-		"runAsNonRoot": object.get(sec, "runAsNonRoot", false),
-		"fsGroup": object.get(sec, "fsGroup", null),
+		"hostNetwork": object.get(resource.spec, "hostNetwork", "NotSet"),
+		"hostPid": object.get(resource.spec, "hostPID", "NotSet"),
+		"hostIpc": object.get(resource.spec, "hostIPC", "NotSet"),
+		"runAsUser": object.get(sec, "runAsUser", "NotSet"),
+		"runAsGroup": object.get(sec, "runAsGroup", "NotSet"),
+		"runAsNonRoot": object.get(sec, "runAsNonRoot", "NotSet"),
+		"fsGroup": object.get(sec, "fsGroup", "NotSet"),
 		"supplementalGroups": object.get(sec, "supplementalGroups", []),
 		"seccompProfile": object.get(seccomp, "type", ""),
 		"seLinuxOptions": selinux_summary(sec),
@@ -61,10 +62,10 @@ analyze_containers_detail(spec) := containers if {
 		container := {
 			"name": c.name,
 			"image": c.image,
-			"privileged": object.get(sec, "privileged", false),
-			"runAsUser": object.get(sec, "runAsUser", null),
-			"runAsNonRoot": object.get(sec, "runAsNonRoot", false),
-			"readOnlyRootFilesystem": object.get(sec, "readOnlyRootFilesystem", false),
+			"privileged": object.get(sec, "privileged", "NotSet"),
+			"runAsUser": object.get(sec, "runAsUser", "NotSet"),
+			"runAsNonRoot": object.get(sec, "runAsNonRoot", "NotSet"),
+			"readOnlyRootFilesystem": object.get(sec, "readOnlyRootFilesystem", "NotSet"),
 			"envFrom": extract_env_from(c),
 			"hasSecrets": references_secrets(c),
 		}
@@ -85,7 +86,7 @@ analyze_init_containers_detail(spec) := containers if {
 		container := {
 			"name": c.name,
 			"image": c.image,
-			"privileged": object.get(sec, "privileged", false),
+			"privileged": object.get(sec, "privileged", "NotSet"),
 		}
 	]
 }

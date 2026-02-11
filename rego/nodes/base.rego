@@ -107,25 +107,6 @@ has_host_ipc(pod_spec) if {
 	pod_spec.hostIPC == true
 }
 
-# Extract sensitive capabilities
-dangerous_capabilities := [
-	"SYS_ADMIN",
-	"NET_ADMIN",
-	"SYS_MODULE",
-	"SYS_RAWIO",
-	"SYS_PTRACE",
-	"SYS_BOOT",
-	"MAC_ADMIN",
-	"MAC_OVERRIDE",
-	"PERFMON",
-	"BPF",
-]
-
-has_dangerous_capabilities(container) if {
-	cap := container.securityContext.capabilities.add[_]
-	cap in dangerous_capabilities
-}
-
 # Volume type checks
 is_host_path_volume(volume) if {
 	volume.hostPath

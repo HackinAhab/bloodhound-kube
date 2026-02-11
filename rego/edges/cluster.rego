@@ -4,17 +4,6 @@ import rego.v1
 
 import data.kubernetes.helpers
 
-# Pod scheduled on Node
-pod_scheduled_on_node contains edge if {
-	node := input.cluster_scoped.node[_]
-	namespace := input.namespaces[ns]
-	pod := namespace.pod[_]
-
-	pod.properties.nodeName == node.properties.name
-
-	edge := helpers.create_edge(pod, node, "ScheduledOn")
-}
-
 # PersistentVolumeClaim used by Pod
 persistent_volume_claim_used_by_pod contains edge if {
 	namespace := input.namespaces[ns]

@@ -15,18 +15,23 @@ nodes contains node if {
 	
 	sec := object.get(resource.spec, "securityContext", {})
 	seccomp := object.get(sec, "seccompProfile", {})
+	cap_add := extract_capabilities_add(resource.spec)
+	cap_drop := extract_capabilities_drop(resource.spec)
 	private := object.union(metadata.__private, {
 		"containers": analyze_containers_detail(resource.spec),
 		"volumes": analyze_volumes_detail(resource.spec),
+		"capabilitiesAdd": cap_add,
+		"capabilitiesDrop": cap_drop,
 	})
+
 	properties := object.union(metadata, {
-		"containers": analyze_containers_summary(resource.spec),
-		"containerImages": extract_container_images(resource.spec),
-		"volumes": analyze_volumes_summary(resource.spec),
 		"__private": private,
 		"securityContextConstraint": object.get(object.get(resource.metadata, "annotations", {}), "openshift.io/scc", ""),
-		"serviceAccount": object.get(resource.spec, "serviceAccountName", "default"),
 		"nodeName": object.get(resource.spec, "nodeName", ""),
+		"containers": analyze_containers_summary(resource.spec),
+		"containerImages": extract_container_images(resource.spec),
+		"capabilitiesAdd": cap_add,
+		"capabilitiesDrop": cap_drop,
 		"hostNetwork": object.get(resource.spec, "hostNetwork", "NotSet"),
 		"hostPid": object.get(resource.spec, "hostPID", "NotSet"),
 		"hostIpc": object.get(resource.spec, "hostIPC", "NotSet"),
@@ -37,6 +42,8 @@ nodes contains node if {
 		"supplementalGroups": object.get(sec, "supplementalGroups", []),
 		"seccompProfile": object.get(seccomp, "type", ""),
 		"seLinuxOptions": selinux_summary(sec),
+		"volumes": analyze_volumes_summary(resource.spec),
+		"serviceAccount": object.get(resource.spec, "serviceAccountName", "default"),
 	})
 	
 node := base.default_node("pod", ["Pod"], metadata.namespace, metadata.name, properties)
@@ -231,6 +238,7 @@ is_sensitive_volume(volume) if {
 
 is_sensitive_volume(volume) if {
 	volume.hostPath
+
 	sensitive_paths := ["/etc", "/var/run", "/proc", "/sys", "/dev"]
 	path := sensitive_paths[_]
 	startswith(volume.hostPath.path, path)
@@ -240,13 +248,13 @@ is_sensitive_volume(volume) if {
 analyze_pod_security(spec) := security if {
 	spec.securityContext
 	security := {
-		"runAsUser": object.get(spec.securityContext, "runAsUser", null),
-		"runAsGroup": object.get(spec.securityContext, "runAsGroup", null),
-		"runAsNonRoot": object.get(spec.securityContext, "runAsNonRoot", false),
-		"fsGroup": object.get(spec.securityContext, "fsGroup", null),
+		"runAsUser": object.get(spec.securityContext, "runAsUser", "NotSet"),
+		"runAsGroup": object.get(spec.securityContext, "runAsGroup", "NotSet"),
+		"runAsNonRoot": object.get(spec.securityContext, "runAsNonRoot", "NotSet"),
+		"fsGroup": object.get(spec.securityContext, "fsGroup", "NotSet"),
 		"supplementalGroups": object.get(spec.securityContext, "supplementalGroups", []),
-		"seccompProfile": object.get(spec.securityContext, "seccompProfile", null),
-		"seLinuxOptions": object.get(spec.securityContext, "seLinuxOptions", null),
+		"seccompProfile": object.get(spec.securityContext, "seccompProfile", "NotSet"),
+		"seLinuxOptions": object.get(spec.securityContext, "seLinuxOptions", "NotSet"),
 	}
 }
 
@@ -254,19 +262,48 @@ analyze_pod_security(spec) := {} if {
 	not spec.securityContext
 }
 
-# Calculate security risk score (0-100)
 selinux_summary(sec) := summary if {
 	options := object.get(sec, "seLinuxOptions", {})
 	count(object.keys(options)) > 0
 	summary := sprintf("user=%v, role=%v, type=%v, level=%v", [
-		object.get(options, "user", ""),
-		object.get(options, "role", ""),
-		object.get(options, "type", ""),
-		object.get(options, "level", ""),
+		object.get(options, "user", "NotSet"),
+		object.get(options, "role", "NotSet"),
+		object.get(options, "type", "NotSet"),
+		object.get(options, "level", "NotSet"),
 	])
 }
 
 selinux_summary(sec) := "" if {
 	options := object.get(sec, "seLinuxOptions", {})
 	count(object.keys(options)) == 0
+}
+
+extract_capabilities_add(spec) := caps if {
+	spec.containers
+	list := [cap |
+		c := spec.containers[_]
+		cap := object.get(c, ["securityContext", "capabilities", "add"], [])[_]
+	]
+	caps := sort(uniq(list))
+}
+
+extract_capabilities_add(spec) := [] if {
+	not spec.containers
+}
+
+extract_capabilities_drop(spec) := caps if {
+	spec.containers
+	list := [cap |
+		c := spec.containers[_]
+		cap := object.get(c, ["securityContext", "capabilities", "drop"], [])[_]
+	]
+	caps := sort(uniq(list))
+}
+
+extract_capabilities_drop(spec) := [] if {
+	not spec.containers
+}
+
+uniq(list) := unique if {
+	unique := {x | x := list[_]}
 }

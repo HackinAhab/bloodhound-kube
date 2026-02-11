@@ -23,6 +23,42 @@ create_edge(source, target, edge_type) := edge if {
 	}
 }
 
+# Create edge with properties
+create_edge_with_properties(source, target, edge_type, props) := edge if {
+	edge := {
+		"start": {
+			"match_by": "id",
+			"value": source.id,
+			"kind": source.kinds[0],
+		},
+		"end": {
+			"match_by": "id",
+			"value": target.id,
+			"kind": target.kinds[0],
+		},
+		"kind": edge_type,
+		"properties": props,
+	}
+}
+
+# Capability descriptions (add entries as needed)
+capability_descriptions := {
+	"CAP_SYS_ADMIN": "Container in pod has CAP_SYS_ADMIN capability which is a powerful capability that can allow for a wide range of actions, including privilege escalation and container escape.",
+	"CAP_NET_ADMIN": "Container in pod has CAP_NET_ADMIN capability which allows for network administration tasks and can be used for malicious purposes such as intercepting network traffic or modifying network configurations.",
+	"CAP_SYS_MODULE": "Container in pod has CAP_SYS_MODULE capability which allows for loading and unloading kernel modules, and can be used for malicious purposes such as installing rootkits or other kernel-level malware.",
+	"CAP_SYS_PTRACE": "Container in pod has CAP_SYS_PTRACE capability which allows for tracing and debugging of processes, and can be used for malicious purposes such as stealing sensitive information from other processes or performing code injection attacks.",
+	"CAP_SYS_RAWIO": "Container in pod has CAP_SYS_RAWIO capability which allows for raw I/O operations, and can be used for malicious purposes such as bypassing security controls or accessing sensitive data on the host.",
+}
+
+normalize_capability(cap) := cap if {
+	startswith(cap, "CAP_")
+}
+
+normalize_capability(cap) := norm if {
+	not startswith(cap, "CAP_")
+	norm := sprintf("CAP_%s", [cap])
+}
+
 # Create edge with via node
 create_edge_via(source, target, via, edge_type) := edge if {
 	edge := {

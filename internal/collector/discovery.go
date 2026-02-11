@@ -19,6 +19,7 @@ type DiscoveryResource struct {
 	GroupVersion string
 	Resource     string
 	Kind         string
+	ShortNames   []string
 	Namespaced   bool
 	Verbs        []string
 	IsCRD        bool
@@ -74,6 +75,7 @@ func DiscoverResources(ctx context.Context, clients *utils.Clients, log *utils.L
 				GroupVersion: list.GroupVersion,
 				Resource:     res.Name,
 				Kind:         res.Kind,
+				ShortNames:   res.ShortNames,
 				Namespaced:   res.Namespaced,
 				Verbs:        res.Verbs,
 				IsCRD:        isCRD,
@@ -125,6 +127,9 @@ func BuildCollectionsConfigFromDiscovery(resources []DiscoveryResource) (*Collec
 		collections = append(collections, ResourceCollection{
 			Name:              name,
 			ResourceType:      normalizeResourceType(name),
+			Kind:              res.Kind,
+			ShortNames:        res.ShortNames,
+			APIPath:           buildAPIPath(res.GroupVersion, res.Resource),
 			APIVersion:        res.GroupVersion,
 			APIGroup:          res.Group,
 			Plural:            res.Resource,
@@ -150,6 +155,13 @@ func BuildCollectionsConfigFromDiscovery(resources []DiscoveryResource) (*Collec
 
 func normalizeResourceType(name string) string {
 	return strings.ReplaceAll(name, "-", "_")
+}
+
+func buildAPIPath(groupVersion, resource string) string {
+	if groupVersion == "" {
+		return resource
+	}
+	return groupVersion + "/" + resource
 }
 
 func hasVerb(verbs []string, verb string) bool {

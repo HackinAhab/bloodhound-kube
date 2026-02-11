@@ -236,6 +236,12 @@ func runCollect(cmd *cobra.Command, args []string, log *utils.Logger) (string, e
 		typesToCollect = allResourceTypes
 		log.Debug("No specific types provided, using all available types", "typesToCollect", typesToCollect)
 	} else {
+		var normalizedTypes []string
+		normalizedTypes, err = collector.DefaultRegistry.NormalizeTypes(typesToCollect)
+		if err != nil {
+			return "", err
+		}
+		typesToCollect = normalizedTypes
 		log.Debug("Using specific types provided", "typesToCollect", typesToCollect)
 	}
 
@@ -397,7 +403,7 @@ Examples:
 }
 
 func getAvailableResourcesHelp() string {
-	return "Resource types to collect (defaults to discovered types)"
+	return "Resource types to collect (defaults to discovered types; accepts name, kind, shortnames, or API path)"
 }
 
 func init() {

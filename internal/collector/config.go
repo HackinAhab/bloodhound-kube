@@ -107,6 +107,9 @@ type ResourceCollection struct {
 	Name              string
 	Nicknames         []string
 	ResourceType      string
+	Kind              string
+	ShortNames        []string
+	APIPath           string
 	Description       string
 	APIVersion        string
 	APIGroup          string

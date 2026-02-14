@@ -4,11 +4,14 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/sirupsen/logrus"
 )
 
 const DefaultBaseURL = "https://localhost:8080"
@@ -18,12 +21,14 @@ type Config struct {
 	Token              string
 	InsecureSkipVerify bool
 	Timeout            time.Duration
+	Logger             logrus.FieldLogger
 }
 
 type Client struct {
 	baseURL    string
 	token      string
 	httpClient *http.Client
+	log        logrus.FieldLogger
 }
 
 type CustomNode struct {
@@ -39,13 +44,21 @@ type customNodesResponse struct {
 }
 
 func NewClient(cfg Config) (*Client, error) {
+	logger := cfg.Logger
+	if logger == nil {
+		fallback := logrus.New()
+		fallback.SetLevel(logrus.InfoLevel)
+		logger = fallback
+	}
+
 	baseURL := strings.TrimRight(cfg.BaseURL, "/")
 	if baseURL == "" {
 		baseURL = DefaultBaseURL
 	}
 
 	if cfg.Token == "" {
-		return nil, fmt.Errorf("token is required")
+		logger.Error("Token is required")
+		return nil, errors.New("setup client initialization failed")
 	}
 
 	timeout := cfg.Timeout
@@ -55,7 +68,8 @@ func NewClient(cfg Config) (*Client, error) {
 
 	transport, ok := http.DefaultTransport.(*http.Transport)
 	if !ok {
-		return nil, fmt.Errorf("unexpected default transport type")
+		logger.Error("Unexpected default transport type")
+		return nil, errors.New("setup client initialization failed")
 	}
 
 	cloned := transport.Clone()
@@ -68,13 +82,15 @@ func NewClient(cfg Config) (*Client, error) {
 			Timeout:   timeout,
 			Transport: cloned,
 		},
+		log: logger,
 	}, nil
 }
 
 func (c *Client) newRequest(ctx context.Context, method, url string, body io.Reader) (*http.Request, error) {
 	req, err := http.NewRequestWithContext(ctx, method, url, body)
 	if err != nil {
-		return nil, fmt.Errorf("create request: %w", err)
+		c.log.WithError(err).WithFields(logrus.Fields{"method": method, "url": url}).Error("Create request failed")
+		return nil, errors.New("setup request failed")
 	}
 
 	req.Header.Set("Authorization", "Bearer "+c.token)
@@ -101,6 +117,7 @@ func responseError(action string, resp *http.Response) error {
 }
 
 func (c *Client) ResetDatabase(ctx context.Context) error {
+	c.log.Info("Resetting database")
 	payload := `{"deleteCollectedGraphData": true,"deleteFileIngestHistory": true,"deleteDataQualityHistory": true,"deleteAssetGroupSelectors": []}`
 	req, err := c.newRequest(ctx, http.MethodPost, c.baseURL+"/api/v2/clear-database", strings.NewReader(payload))
 	if err != nil {
@@ -110,17 +127,23 @@ func (c *Client) ResetDatabase(ctx context.Context) error {
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return fmt.Errorf("reset database: %w", err)
+		c.log.WithError(err).Error("Reset database request failed")
+		return errors.New("reset database failed")
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusNoContent {
-		return responseError("reset database", resp)
+		err := responseError("reset database", resp)
+		c.log.WithError(err).WithField("status", resp.StatusCode).Error("Reset database failed")
+		return errors.New("reset database failed")
 	}
+
+	c.log.Info("Database reset completed")
 	return nil
 }
 
 func (c *Client) ResetCustomData(ctx context.Context) error {
+	c.log.Info("Resetting custom data")
 	if err := c.ResetCustomNodes(ctx); err != nil {
 		return err
 	}
@@ -131,5 +154,7 @@ func (c *Client) ResetCustomData(ctx context.Context) error {
 	if err := c.ResetDatabase(ctx); err != nil {
 		return err
 	}
+
+	c.log.Info("Custom data reset completed")
 	return nil
 }

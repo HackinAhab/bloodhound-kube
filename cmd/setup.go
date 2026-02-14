@@ -61,6 +61,7 @@ Examples:
 			Token:              setupToken,
 			InsecureSkipVerify: setupInsecure,
 			Timeout:            time.Duration(setupTimeout) * time.Second,
+			Logger:             log,
 		})
 		if err != nil {
 			return fmt.Errorf("failed to create setup client: %w", err)

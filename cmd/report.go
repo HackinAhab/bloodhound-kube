@@ -49,7 +49,7 @@ Examples:
   # Generate image source report with trusted registries
   bloodhound-kube report -i data.jsonl --report imgsrc --trusted-registries registries.txt`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		log := utils.New(reportLogLevel)
+		log := utils.New(reportLogLevel, globalNoColor)
 
 		if reportInputFile == "" {
 			return fmt.Errorf("input file is required (-i/--input)")

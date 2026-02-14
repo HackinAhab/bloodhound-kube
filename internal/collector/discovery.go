@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/discovery"
@@ -25,13 +26,13 @@ type DiscoveryResource struct {
 	IsCRD        bool
 }
 
-func DiscoverResources(ctx context.Context, clients *utils.Clients, log *utils.Logger) ([]DiscoveryResource, error) {
+func DiscoverResources(ctx context.Context, clients *utils.Clients, log logrus.FieldLogger) ([]DiscoveryResource, error) {
 	discoveryClient := clients.Kubernetes.Discovery()
 	resourceLists, err := discoveryClient.ServerPreferredResources()
 	if err != nil {
 		var groupDiscoveryErr *discovery.ErrGroupDiscoveryFailed
 		if errors.As(err, &groupDiscoveryErr) {
-			log.Warn("Partial API discovery", "group_count", len(groupDiscoveryErr.Groups))
+			log.WithField("group_count", len(groupDiscoveryErr.Groups)).Warn("Partial API discovery")
 		} else {
 			return nil, err
 		}
@@ -41,7 +42,7 @@ func DiscoverResources(ctx context.Context, clients *utils.Clients, log *utils.L
 	if clients.ApiExtensions != nil {
 		crdList, err := clients.ApiExtensions.ApiextensionsV1().CustomResourceDefinitions().List(ctx, metav1.ListOptions{})
 		if err != nil {
-			log.Warn("Failed to list CRDs", "error", err)
+			log.WithError(err).Warn("Failed to list CRDs")
 		} else {
 			for _, crd := range crdList.Items {
 				key := crd.Spec.Group + "/" + crd.Spec.Names.Plural
@@ -54,7 +55,7 @@ func DiscoverResources(ctx context.Context, clients *utils.Clients, log *utils.L
 	for _, list := range resourceLists {
 		gv, err := schema.ParseGroupVersion(list.GroupVersion)
 		if err != nil {
-			log.Warn("Skipping invalid group version", "group_version", list.GroupVersion, "error", err)
+			log.WithError(err).WithField("group_version", list.GroupVersion).Warn("Skipping invalid group version")
 			continue
 		}
 

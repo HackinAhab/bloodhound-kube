@@ -7,23 +7,25 @@ import (
 	"os"
 	"path/filepath"
 	"time"
+
+	"github.com/sirupsen/logrus"
 )
 
 type AsyncWriter struct {
 	file   *os.File
 	writer *bufio.Writer
-	logger *Logger
+	logger logrus.FieldLogger
 }
 
-func NewAsyncWriter(outputPath, filename string, log *Logger) (*AsyncWriter, error) {
+func NewAsyncWriter(outputPath, filename string, log logrus.FieldLogger) (*AsyncWriter, error) {
 	return newAsyncWriter(outputPath, filename, log, false)
 }
 
-func NewAsyncWriterAppend(outputPath, filename string, log *Logger) (*AsyncWriter, error) {
+func NewAsyncWriterAppend(outputPath, filename string, log logrus.FieldLogger) (*AsyncWriter, error) {
 	return newAsyncWriter(outputPath, filename, log, true)
 }
 
-func newAsyncWriter(outputPath, filename string, log *Logger, appendMode bool) (*AsyncWriter, error) {
+func newAsyncWriter(outputPath, filename string, log logrus.FieldLogger, appendMode bool) (*AsyncWriter, error) {
 	if err := os.MkdirAll(outputPath, 0755); err != nil {
 		return nil, fmt.Errorf("failed to create output directory: %w", err)
 	}
@@ -38,13 +40,13 @@ func newAsyncWriter(outputPath, filename string, log *Logger, appendMode bool) (
 		if err != nil {
 			return nil, fmt.Errorf("failed to open output file for append: %w", err)
 		}
-		log.Info("Opened output file for append", "path", filePath)
+		log.WithField("path", filePath).Info("Opened output file for append")
 	} else {
 		file, err = os.Create(filePath)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create output file: %w", err)
 		}
-		log.Info("Created output file", "path", filePath)
+		log.WithField("path", filePath).Info("Created output file")
 	}
 
 	writer := bufio.NewWriter(file)
@@ -70,7 +72,7 @@ func (w *AsyncWriter) WriteJSON(data any) error {
 }
 
 func (w *AsyncWriter) WriteJSONLBatch(data []any) error {
-	w.logger.Debug("Writing JSONL batch to file", "count", len(data))
+	w.logger.WithField("count", len(data)).Debug("Writing JSONL batch to file")
 
 	encoder := json.NewEncoder(w.writer)
 	for _, item := range data {
@@ -106,7 +108,7 @@ func (w *AsyncWriter) Close() error {
 	w.logger.Debug("Closing async writer")
 
 	if err := w.writer.Flush(); err != nil {
-		w.logger.Error("Failed to flush buffer", "error", err)
+		w.logger.WithError(err).Error("Failed to flush buffer")
 	}
 
 	if err := w.file.Close(); err != nil {

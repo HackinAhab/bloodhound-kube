@@ -60,6 +60,9 @@ Common examples:
 
 # Output control
 ./bloodhound-kube collect --output /tmp/my-collection.jsonl
+
+# Logging
+./bloodhound-kube collect --log debug --no-color
 ```
 
 ## Discovery and allowlists

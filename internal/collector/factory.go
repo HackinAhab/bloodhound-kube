@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
@@ -13,13 +14,13 @@ import (
 // CollectorFactory creates collectors from configuration
 type CollectorFactory struct {
 	clients       *utils.Clients
-	logger        *utils.Logger
+	logger        logrus.FieldLogger
 	config        *CollectionsConfig
 	dynamicClient dynamic.Interface
 }
 
 // NewCollectorFactory creates a new collector factory
-func NewCollectorFactory(clients *utils.Clients, logger *utils.Logger, collectionsConfig *CollectionsConfig, dynamicClient dynamic.Interface) (*CollectorFactory, error) {
+func NewCollectorFactory(clients *utils.Clients, logger logrus.FieldLogger, collectionsConfig *CollectionsConfig, dynamicClient dynamic.Interface) (*CollectorFactory, error) {
 	if collectionsConfig == nil {
 		return nil, fmt.Errorf("collections config is required")
 	}
@@ -74,7 +75,7 @@ func (f *CollectorFactory) CreateAllCollectors() (map[string]ResourceHandler, er
 
 		handler, err := f.CreateCollector(collection)
 		if err != nil {
-			f.logger.Warn("Failed to create collector", "resource", collection.Name, "error", err)
+			f.logger.WithError(err).WithField("resource", collection.Name).Warn("Failed to create collector")
 			continue
 		}
 
@@ -87,7 +88,7 @@ func (f *CollectorFactory) CreateAllCollectors() (map[string]ResourceHandler, er
 		}
 	}
 
-	f.logger.Info("Created collectors from config", "count", len(handlers))
+	f.logger.WithField("count", len(handlers)).Info("Created collectors from config")
 	return handlers, nil
 }
 
@@ -137,7 +138,7 @@ type GenericCollector struct {
 	apiGroup      string
 	plural        string
 	dynamicClient dynamic.Interface
-	logger        *utils.Logger
+	logger        logrus.FieldLogger
 	rateLimit     int
 }
 
@@ -201,9 +202,7 @@ func (g *GenericCollector) Collect(ctx context.Context, c *Collector, namespace 
 			}
 		}
 
-		g.logger.Debug("Collected cluster-scoped resources",
-			"type", g.resourceType,
-			"count", len(resources))
+		g.logger.WithFields(logrus.Fields{"type": g.resourceType, "count": len(resources)}).Debug("Collected cluster-scoped resources")
 
 		return resources, nil
 	} else {
@@ -225,10 +224,7 @@ func (g *GenericCollector) Collect(ctx context.Context, c *Collector, namespace 
 			}
 		}
 
-		g.logger.Debug("Collected namespaced resources",
-			"type", g.resourceType,
-			"namespace", namespace,
-			"count", len(resources))
+		g.logger.WithFields(logrus.Fields{"type": g.resourceType, "namespace": namespace, "count": len(resources)}).Debug("Collected namespaced resources")
 
 		return resources, nil
 	}

@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"sync"
 	"time"
+
+	"github.com/sirupsen/logrus"
 )
 
 type Resource struct {
@@ -21,14 +23,14 @@ type CollectionJob struct {
 	Namespace string
 }
 
-func RunCollection(ctx context.Context, c *Collector, w *utils.AsyncWriter, typesToCollect, namespacesToCollect []string, filename string, concurrency int, log *utils.Logger) (time.Duration, map[string]int, int, []error) {
+func RunCollection(ctx context.Context, c *Collector, w *utils.AsyncWriter, typesToCollect, namespacesToCollect []string, filename string, concurrency int, log logrus.FieldLogger) (time.Duration, map[string]int, int, []error) {
 	startTime := time.Now()
 	stats := NewCollectionStats()
 
 	// Validate concurrency value, specify reasonable default if invalid
 	if concurrency < 1 {
 		concurrency = 4
-		log.Warn("Invalid concurrency value, using default", "concurrency", concurrency)
+		log.WithField("concurrency", concurrency).Warn("Invalid concurrency value, using default")
 	}
 
 	jobBufferSize := max(len(typesToCollect)*len(namespacesToCollect), 100)
@@ -53,7 +55,7 @@ func RunCollection(ctx context.Context, c *Collector, w *utils.AsyncWriter, type
 		flushBatch := func() {
 			if len(batchBuffer) > 0 {
 				if err := w.WriteJSONLBatch(batchBuffer); err != nil {
-					log.Error("Failed to write batch", "error", err, "size", len(batchBuffer))
+					log.WithError(err).WithField("size", len(batchBuffer)).Error("Failed to write batch")
 					stats.AddError(err)
 				}
 				for _, item := range batchBuffer {
@@ -96,13 +98,13 @@ func RunCollection(ctx context.Context, c *Collector, w *utils.AsyncWriter, type
 	for _, resourceType := range typesToCollect {
 		handler, err := DefaultRegistry.GetHandler(resourceType)
 		if err != nil {
-			log.Error("Unknown resource type", "type", resourceType, "error", err)
+			log.WithError(err).WithField("type", resourceType).Error("Unknown resource type")
 			continue
 		}
 
 		// Skip if already added this handler (nickname deduplication)
 		if seenHandlers[handler] {
-			log.Debug("Skipping duplicate handler", "type", resourceType, "handler", handler.GetName())
+			log.WithFields(logrus.Fields{"type": resourceType, "handler": handler.GetName()}).Debug("Skipping duplicate handler")
 			continue
 		}
 		seenHandlers[handler] = true
@@ -132,28 +134,28 @@ func RunCollection(ctx context.Context, c *Collector, w *utils.AsyncWriter, type
 	<-writerDone
 
 	if err := w.Flush(); err != nil {
-		log.Error("Failed final flush", "error", err)
+		log.WithError(err).Error("Failed final flush")
 	}
 
 	counts, totalCollected, errors := stats.GetStats()
 	duration := time.Since(startTime)
 
 	if len(errors) > 0 {
-		log.Error("Collection completed with errors", "error_count", len(errors))
+		log.WithField("error_count", len(errors)).Error("Collection completed with errors")
 		for i, err := range errors {
 			if i < 5 {
-				log.Error("Collection error", "error", err)
+				log.WithError(err).Error("Collection error")
 			}
 		}
 		if len(errors) > 5 {
-			log.Error("Additional errors suppressed", "count", len(errors)-5)
+			log.WithField("count", len(errors)-5).Error("Additional errors suppressed")
 		}
 	}
 
 	return duration, counts, totalCollected, errors
 }
 
-func RunCollectionWithCheckpoint(ctx context.Context, c *Collector, w *utils.AsyncWriter, typesToCollect, namespacesToCollect []string, filename string, concurrency int, log *utils.Logger, existingCheckpoint *Checkpoint, checkpointFile string) (time.Duration, map[string]int, int, []error) {
+func RunCollectionWithCheckpoint(ctx context.Context, c *Collector, w *utils.AsyncWriter, typesToCollect, namespacesToCollect []string, filename string, concurrency int, log logrus.FieldLogger, existingCheckpoint *Checkpoint, checkpointFile string) (time.Duration, map[string]int, int, []error) {
 	startTime := time.Now()
 	stats := NewCollectionStats()
 
@@ -166,13 +168,13 @@ func RunCollectionWithCheckpoint(ctx context.Context, c *Collector, w *utils.Asy
 	for _, resourceType := range typesToCollect {
 		handler, err := DefaultRegistry.GetHandler(resourceType)
 		if err != nil {
-			log.Error("Unknown resource type", "type", resourceType, "error", err)
+			log.WithError(err).WithField("type", resourceType).Error("Unknown resource type")
 			continue
 		}
 
 		// Skip if we've already added this handler (nickname deduplication)
 		if seenHandlers[handler] {
-			log.Debug("Skipping duplicate handler", "type", resourceType, "handler", handler.GetName())
+			log.WithFields(logrus.Fields{"type": resourceType, "handler": handler.GetName()}).Debug("Skipping duplicate handler")
 			continue
 		}
 		seenHandlers[handler] = true
@@ -203,7 +205,7 @@ func RunCollectionWithCheckpoint(ctx context.Context, c *Collector, w *utils.Asy
 		}
 	}
 
-	log.Info("Collection plan", "total_jobs", len(allJobs), "completed_jobs", len(checkpoint.CompletedJobs), "pending_jobs", len(pendingJobs))
+	log.WithFields(logrus.Fields{"total_jobs": len(allJobs), "completed_jobs": len(checkpoint.CompletedJobs), "pending_jobs": len(pendingJobs)}).Info("Collection plan")
 
 	if len(pendingJobs) == 0 {
 		log.Info("All jobs already completed")
@@ -216,7 +218,7 @@ func RunCollectionWithCheckpoint(ctx context.Context, c *Collector, w *utils.Asy
 	// Validate concurrency value
 	if concurrency < 1 {
 		concurrency = 4 // sensible default
-		log.Warn("Invalid concurrency value, using default", "concurrency", concurrency)
+		log.WithField("concurrency", concurrency).Warn("Invalid concurrency value, using default")
 	}
 
 	jobBufferSize := max(len(pendingJobs), 100)
@@ -241,7 +243,7 @@ func RunCollectionWithCheckpoint(ctx context.Context, c *Collector, w *utils.Asy
 		flushBatch := func() {
 			if len(batchBuffer) > 0 {
 				if err := w.WriteJSONLBatch(batchBuffer); err != nil {
-					log.Error("Failed to write batch", "error", err, "size", len(batchBuffer))
+					log.WithError(err).WithField("size", len(batchBuffer)).Error("Failed to write batch")
 					stats.AddError(err)
 				}
 				for _, item := range batchBuffer {
@@ -281,7 +283,7 @@ func RunCollectionWithCheckpoint(ctx context.Context, c *Collector, w *utils.Asy
 
 			case <-checkpointTicker.C:
 				if err := checkpoint.Save(checkpointFile); err != nil {
-					log.Error("Failed to save checkpoint", "error", err)
+					log.WithError(err).Error("Failed to save checkpoint")
 				}
 
 			case <-flushTicker.C:
@@ -300,37 +302,37 @@ func RunCollectionWithCheckpoint(ctx context.Context, c *Collector, w *utils.Asy
 	<-writerDone
 
 	if err := w.Flush(); err != nil {
-		log.Error("Failed final flush", "error", err)
+		log.WithError(err).Error("Failed final flush")
 	}
 
 	if err := checkpoint.Save(checkpointFile); err != nil {
-		log.Error("Failed to save final checkpoint", "error", err)
+		log.WithError(err).Error("Failed to save final checkpoint")
 	}
 
 	counts, totalCollected, errors := stats.GetStats()
 	duration := time.Since(startTime)
 
 	if len(errors) > 0 {
-		log.Error("Collection completed with errors", "error_count", len(errors))
+		log.WithField("error_count", len(errors)).Error("Collection completed with errors")
 		for i, err := range errors {
 			if i < 5 {
-				log.Error("Collection error", "error", err)
+				log.WithError(err).Error("Collection error")
 			}
 		}
 		if len(errors) > 5 {
-			log.Error("Additional errors suppressed", "count", len(errors)-5)
+			log.WithField("count", len(errors)-5).Error("Additional errors suppressed")
 		}
 	}
 
 	completed, total, pct := checkpoint.GetProgress()
-	log.Info("Final progress", "completed", completed, "total", total, "percentage", fmt.Sprintf("%.1f%%", pct))
+	log.WithFields(logrus.Fields{"completed": completed, "total": total, "percentage": fmt.Sprintf("%.1f%%", pct)}).Info("Final progress")
 
 	// Remove checkpoint file after successful collection completion
 	if len(errors) == 0 && completed == total {
 		if err := RemoveCheckpoint(checkpointFile); err != nil {
-			log.Warn("Failed to remove checkpoint file after successful collection", "error", err, "checkpoint_file", checkpointFile)
+			log.WithError(err).WithField("checkpoint_file", checkpointFile).Warn("Failed to remove checkpoint file after successful collection")
 		} else {
-			log.Debug("Removed checkpoint file after successful collection", "checkpoint_file", checkpointFile)
+			log.WithField("checkpoint_file", checkpointFile).Debug("Removed checkpoint file after successful collection")
 		}
 	}
 
@@ -345,7 +347,7 @@ type CollectionResult struct {
 	Error     error
 }
 
-func checkpointWorker(ctx context.Context, c *Collector, jobs <-chan CollectionJob, results chan<- CollectionResult, log *utils.Logger) {
+func checkpointWorker(ctx context.Context, c *Collector, jobs <-chan CollectionJob, results chan<- CollectionResult, log logrus.FieldLogger) {
 	for job := range jobs {
 		select {
 		case <-ctx.Done():
@@ -365,18 +367,18 @@ func checkpointWorker(ctx context.Context, c *Collector, jobs <-chan CollectionJ
 
 		if err != nil {
 			if job.Namespace != "" {
-				log.Error("Failed to collect resources", "type", job.Handler.GetName(), "namespace", job.Namespace, "error", err, "duration", duration)
+				log.WithError(err).WithFields(logrus.Fields{"type": job.Handler.GetName(), "namespace": job.Namespace, "duration": duration}).Error("Failed to collect resources")
 			} else {
-				log.Error("Failed to collect resources", "type", job.Handler.GetName(), "error", err, "duration", duration)
+				log.WithError(err).WithFields(logrus.Fields{"type": job.Handler.GetName(), "duration": duration}).Error("Failed to collect resources")
 			}
 			result.Error = err
 		} else {
 			result.Resources = batch
 			if len(batch) > 0 {
 				if job.Namespace != "" {
-					log.Debug("Collected resources", "type", job.Handler.GetName(), "namespace", job.Namespace, "count", len(batch), "duration", duration)
+					log.WithFields(logrus.Fields{"type": job.Handler.GetName(), "namespace": job.Namespace, "count": len(batch), "duration": duration}).Debug("Collected resources")
 				} else {
-					log.Debug("Collected resources", "type", job.Handler.GetName(), "count", len(batch), "duration", duration)
+					log.WithFields(logrus.Fields{"type": job.Handler.GetName(), "count": len(batch), "duration": duration}).Debug("Collected resources")
 				}
 			}
 		}
@@ -386,7 +388,7 @@ func checkpointWorker(ctx context.Context, c *Collector, jobs <-chan CollectionJ
 		case <-ctx.Done():
 			return
 		case <-time.After(1 * time.Second):
-			log.Error("Timeout sending results", "type", job.Handler.GetName(), "namespace", job.Namespace)
+			log.WithFields(logrus.Fields{"type": job.Handler.GetName(), "namespace": job.Namespace}).Error("Timeout sending results")
 		}
 	}
 }
@@ -397,7 +399,7 @@ func generateCollectionID() string {
 	return fmt.Sprintf("%x", bytes)
 }
 
-func collectWorker(ctx context.Context, c *Collector, jobs <-chan CollectionJob, results chan<- []Resource, log *utils.Logger) {
+func collectWorker(ctx context.Context, c *Collector, jobs <-chan CollectionJob, results chan<- []Resource, log logrus.FieldLogger) {
 	for job := range jobs {
 		select {
 		case <-ctx.Done():
@@ -409,18 +411,18 @@ func collectWorker(ctx context.Context, c *Collector, jobs <-chan CollectionJob,
 		batch, err := job.Handler.Collect(ctx, c, job.Namespace)
 		if err != nil {
 			if job.Namespace != "" {
-				log.Error("Failed to collect resources", "type", job.Handler.GetName(), "namespace", job.Namespace, "error", err, "duration", time.Since(startTime))
+				log.WithError(err).WithFields(logrus.Fields{"type": job.Handler.GetName(), "namespace": job.Namespace, "duration": time.Since(startTime)}).Error("Failed to collect resources")
 			} else {
-				log.Error("Failed to collect resources", "type", job.Handler.GetName(), "error", err, "duration", time.Since(startTime))
+				log.WithError(err).WithFields(logrus.Fields{"type": job.Handler.GetName(), "duration": time.Since(startTime)}).Error("Failed to collect resources")
 			}
 			continue
 		}
 
 		if len(batch) > 0 {
 			if job.Namespace != "" {
-				log.Debug("Collected resources", "type", job.Handler.GetName(), "namespace", job.Namespace, "count", len(batch), "duration", time.Since(startTime))
+				log.WithFields(logrus.Fields{"type": job.Handler.GetName(), "namespace": job.Namespace, "count": len(batch), "duration": time.Since(startTime)}).Debug("Collected resources")
 			} else {
-				log.Debug("Collected resources", "type", job.Handler.GetName(), "count", len(batch), "duration", time.Since(startTime))
+				log.WithFields(logrus.Fields{"type": job.Handler.GetName(), "count": len(batch), "duration": time.Since(startTime)}).Debug("Collected resources")
 			}
 
 			select {
@@ -428,7 +430,7 @@ func collectWorker(ctx context.Context, c *Collector, jobs <-chan CollectionJob,
 			case <-ctx.Done():
 				return
 			case <-time.After(1 * time.Second):
-				log.Error("Timeout sending results batch", "size", len(batch))
+				log.WithField("size", len(batch)).Error("Timeout sending results batch")
 			}
 		}
 	}

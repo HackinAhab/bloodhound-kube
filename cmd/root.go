@@ -4,7 +4,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var globalLogLevel string
+var (
+	globalLogLevel string
+	globalNoColor  bool
+)
 
 var rootCmd = &cobra.Command{
 	Use:   "bloodhound-kube",
@@ -19,4 +22,5 @@ func Execute() error {
 func init() {
 	cobra.OnInitialize()
 	rootCmd.PersistentFlags().StringVarP(&globalLogLevel, "log", "l", "info", "Log level (debug, info, warn, error)")
+	rootCmd.PersistentFlags().BoolVar(&globalNoColor, "no-color", false, "Disable colored log output")
 }

@@ -58,7 +58,7 @@ Examples:
 		if !cmd.Flags().Changed("log") && globalLogLevel != "" {
 			effectiveLogLevel = globalLogLevel
 		}
-		log := utils.New(effectiveLogLevel)
+		log := utils.New(effectiveLogLevel, globalNoColor)
 
 		jsonlPath, err := runCollect(cmd, args, log)
 		if err != nil {

@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/SpecterOps/bloodhound-go-sdk/sdk"
 	"github.com/sirupsen/logrus"
 )
 
@@ -18,7 +19,8 @@ const DefaultBaseURL = "https://localhost:8080"
 
 type Config struct {
 	BaseURL            string
-	Token              string
+	TokenID            string
+	TokenKey           string
 	InsecureSkipVerify bool
 	Timeout            time.Duration
 	Logger             logrus.FieldLogger
@@ -26,8 +28,8 @@ type Config struct {
 
 type Client struct {
 	baseURL    string
-	token      string
 	httpClient *http.Client
+	auth       *sdk.HMACCredentials
 	log        logrus.FieldLogger
 }
 
@@ -56,8 +58,14 @@ func NewClient(cfg Config) (*Client, error) {
 		baseURL = DefaultBaseURL
 	}
 
-	if cfg.Token == "" {
-		logger.Error("Token is required")
+	if cfg.TokenID == "" || cfg.TokenKey == "" {
+		logger.Error("Token ID and token key are required")
+		return nil, errors.New("setup client initialization failed")
+	}
+
+	auth, err := sdk.NewSecurityProviderHMACCredentials(cfg.TokenKey, cfg.TokenID)
+	if err != nil {
+		logger.WithError(err).Error("Failed to initialize HMAC credentials")
 		return nil, errors.New("setup client initialization failed")
 	}
 
@@ -77,12 +85,12 @@ func NewClient(cfg Config) (*Client, error) {
 
 	return &Client{
 		baseURL: baseURL,
-		token:   cfg.Token,
 		httpClient: &http.Client{
 			Timeout:   timeout,
 			Transport: cloned,
 		},
-		log: logger,
+		auth: auth,
+		log:  logger,
 	}, nil
 }
 
@@ -92,8 +100,14 @@ func (c *Client) newRequest(ctx context.Context, method, url string, body io.Rea
 		c.log.WithError(err).WithFields(logrus.Fields{"method": method, "url": url}).Error("Create request failed")
 		return nil, errors.New("setup request failed")
 	}
-
-	req.Header.Set("Authorization", "Bearer "+c.token)
+	if c.auth == nil {
+		c.log.Error("HMAC credentials not configured")
+		return nil, errors.New("setup request failed")
+	}
+	if err := c.auth.Intercept(ctx, req); err != nil {
+		c.log.WithError(err).WithFields(logrus.Fields{"method": method, "url": url}).Error("Authenticate request failed")
+		return nil, errors.New("setup request failed")
+	}
 	return req, nil
 }
 

@@ -15,7 +15,8 @@ var (
 	setupModelFile   string
 	setupQueriesFile string
 	setupBaseURL     string
-	setupToken       string
+	setupTokenID     string
+	setupTokenKey    string
 	setupInsecure    bool
 	setupTimeout     int
 	setupLogLevel    string
@@ -33,10 +34,10 @@ queries, depending on the flags provided.
 
 Examples:
   # Upload custom types using a local BloodHound server
-  bloodhound-kube setup --model-file bh-setup/custom_types.json --token $BLOODHOUND_TOKEN
+  bloodhound-kube setup --model-file bh-setup/custom_types.json --token-id $BLOODHOUND_TOKEN_ID --token-key $BLOODHOUND_TOKEN_KEY
 
   # Use a remote BloodHound server with TLS verification disabled
-  bloodhound-kube setup --model-file bh-setup/custom_types.json --url https://bh.example.com:8080 --token $BLOODHOUND_TOKEN --insecure`,
+  bloodhound-kube setup --model-file bh-setup/custom_types.json --url https://bh.example.com:8080 --token-id $BLOODHOUND_TOKEN_ID --token-key $BLOODHOUND_TOKEN_KEY --insecure`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		effectiveLogLevel := setupLogLevel
 		if !cmd.Flags().Changed("log") && globalLogLevel != "" {
@@ -46,8 +47,8 @@ Examples:
 
 		log.WithField("logLevel", effectiveLogLevel).Debug("Starting setup command")
 
-		if setupToken == "" {
-			return fmt.Errorf("token is required")
+		if setupTokenID == "" || setupTokenKey == "" {
+			return fmt.Errorf("token ID and token key are required")
 		}
 
 		hasModel := cmd.Flags().Changed("model-file")
@@ -58,7 +59,8 @@ Examples:
 
 		client, err := setup.NewClient(setup.Config{
 			BaseURL:            setupBaseURL,
-			Token:              setupToken,
+			TokenID:            setupTokenID,
+			TokenKey:           setupTokenKey,
 			InsecureSkipVerify: setupInsecure,
 			Timeout:            time.Duration(setupTimeout) * time.Second,
 			Logger:             log,
@@ -138,7 +140,8 @@ func init() {
 	setupCmd.Flags().StringVar(&setupModelFile, "model-file", "", "Path to the model JSON file")
 	setupCmd.Flags().StringVar(&setupQueriesFile, "queries-file", "config/custom_queries.json", "Path to the saved queries JSON file")
 	setupCmd.Flags().StringVar(&setupBaseURL, "url", setup.DefaultBaseURL, "Base URL of the BloodHound instance")
-	setupCmd.Flags().StringVar(&setupToken, "token", "", "API token for authentication")
+	setupCmd.Flags().StringVar(&setupTokenID, "token-id", "", "API token ID for authentication")
+	setupCmd.Flags().StringVar(&setupTokenKey, "token-key", "", "API token key for authentication")
 	setupCmd.Flags().BoolVar(&setupInsecure, "insecure", true, "Skip TLS certificate verification")
 	setupCmd.Flags().IntVar(&setupTimeout, "timeout", 30, "Timeout in seconds for setup operations")
 	setupCmd.Flags().StringVarP(&setupLogLevel, "log", "l", "info", "Log level (debug, info, warn, error)")

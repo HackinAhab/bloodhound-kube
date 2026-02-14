@@ -81,6 +81,13 @@ Local image build:
 docker build -t bloodhound-kube:local .
 ```
 
+## Setup Authentication
+BloodHound API access uses HMAC credentials via token ID + token key.
+
+```bash
+bloodhound-kube setup --model-file config/custom_types.json --token-id $BLOODHOUND_TOKEN_ID --token-key $BLOODHOUND_TOKEN_KEY
+```
+
 ## Releases
 - GitHub Releases are created from `vX.Y.Z` tags and include multi-arch binaries.
 - GHCR images are built on `main` pushes; tag builds can be added if you want semver image tags.

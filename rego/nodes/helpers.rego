@@ -99,3 +99,36 @@ get_namespace(resource) := namespace if {
 get_name(resource) := name if {
     name := object.get(resource, ["metadata", "name"], "")
 }
+
+# Known resource kinds with node policies
+known_kinds := {
+    "clusterrole",
+    "clusterrolebinding",
+    "clustersecretstore",
+    "configmap",
+    "daemonset",
+    "deployment",
+    "externalsecret",
+    "httproute",
+    "ingress",
+    "namespace",
+    "networkpolicy",
+    "node",
+    "nodelist",
+    "persistentvolume",
+    "persistentvolumeclaim",
+    "pod",
+    "role",
+    "rolebinding",
+    "secret",
+    "secretstore",
+    "securitycontextconstraints",
+    "service",
+    "serviceaccount",
+    "statefulset",
+}
+
+is_known_kind(kind) if {
+    kind != null
+    lower(kind) in known_kinds
+}

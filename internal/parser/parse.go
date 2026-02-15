@@ -13,7 +13,7 @@ import (
 )
 
 // Main parsing function - OPA-based streaming approach
-func ConvertToBloodHoundResult(jsonlData []byte, clusterName string) (*gopengraph.OpenGraph, error) {
+func ConvertToBloodHoundResult(jsonlData []byte, clusterName string, policyDirs []string) (*gopengraph.OpenGraph, error) {
 	_ = clusterName
 	log := utils.DefaultLogger().Component("parser")
 	// Parse raw JSONL into resources
@@ -23,13 +23,13 @@ func ConvertToBloodHoundResult(jsonlData []byte, clusterName string) (*gopengrap
 	}
 
 	// Create nodes using OPA policies with streaming
-	nodes, err := createNodesWithOPA(resources)
+	nodes, err := createNodesWithOPA(resources, policyDirs)
 	if err != nil {
 		return nil, err
 	}
 
 	// Create relationships using OPA policies
-	edges, err := createRelationshipsWithOPA(nodes)
+	edges, err := createRelationshipsWithOPA(nodes, policyDirs)
 	if err != nil {
 		return nil, err
 	}
@@ -95,10 +95,10 @@ func parseJSONLToResources(jsonlData []byte) ([]map[string]any, error) {
 
 // createNodesWithOPA uses OPA policies to create nodes from resources
 // Processes in chunks of 10K for memory efficiency
-func createNodesWithOPA(resources []map[string]any) ([]BloodHoundNode, error) {
+func createNodesWithOPA(resources []map[string]any, policyDirs []string) ([]BloodHoundNode, error) {
 	log := utils.DefaultLogger().Component("parser")
 	// Create OPA engine and load node policies
-	engine := NewOPAEngineForNodes()
+	engine := NewOPAEngineForNodes(policyDirs)
 
 	// Load node creation policies
 	if err := engine.SetNodePolicyDir("rego/nodes"); err != nil {
@@ -127,8 +127,8 @@ func createNodesWithOPA(resources []map[string]any) ([]BloodHoundNode, error) {
 }
 
 // createRelationshipsWithOPA uses OPA policies to create edges from nodes
-func createRelationshipsWithOPA(nodes []BloodHoundNode) ([]BloodHoundEdge, error) {
-	return createRelationships(nodes)
+func createRelationshipsWithOPA(nodes []BloodHoundNode, policyDirs []string) ([]BloodHoundEdge, error) {
+	return createRelationships(nodes, policyDirs)
 }
 
 // JSONL parsing utility
@@ -156,10 +156,10 @@ func ParseFromJSONL(jsonlData []byte) ([]ResourceData, error) {
 }
 
 // createRelationships applies OPA/Rego policies to create edges between nodes
-func createRelationships(nodes []BloodHoundNode) ([]BloodHoundEdge, error) {
+func createRelationships(nodes []BloodHoundNode, policyDirs []string) ([]BloodHoundEdge, error) {
 	log := utils.DefaultLogger().Component("parser")
 	// Create OPA engine with policy directory
-	engine, err := NewOPAEngine("rego/edges")
+	engine, err := NewOPAEngine("rego/edges", policyDirs)
 	if err != nil {
 		return nil, err
 	}

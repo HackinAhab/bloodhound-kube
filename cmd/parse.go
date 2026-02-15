@@ -3,6 +3,8 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"path/filepath"
+	"strings"
 
 	"bloodhound-kube/internal/parser"
 	"bloodhound-kube/internal/utils"
@@ -14,9 +16,10 @@ var (
 	inputFile     string
 	outputFile    string
 	parseLogLevel string
+	policyDirs    string
 )
 
-func runParseFromFile(inputPath, outputPath, clusterName string, log utils.Logger) error {
+func runParseFromFile(inputPath, outputPath, clusterName string, log utils.Logger, policyDirs []string) error {
 	if inputPath == "" {
 		log.Error("Input file is required")
 		return fmt.Errorf("input file is required")
@@ -39,7 +42,7 @@ func runParseFromFile(inputPath, outputPath, clusterName string, log utils.Logge
 	}
 	log.Debug("Successfully parsed JSONL", "resourceCount", len(resources))
 	log.Info("Begin processing resources", "resourceCount", len(resources), "workers", 20)
-	graph, err := parser.ConvertToBloodHoundResult(data, clusterName)
+	graph, err := parser.ConvertToBloodHoundResult(data, clusterName, policyDirs)
 	if err != nil {
 		return err
 	}
@@ -106,8 +109,26 @@ Examples:
 			clusterName = cluster
 		}
 
-		return runParseFromFile(inputFile, outputFile, clusterName, log)
+		return runParseFromFile(inputFile, outputFile, clusterName, log, parsePolicyDirs(policyDirs))
 	},
+}
+
+func parsePolicyDirs(input string) []string {
+	if strings.TrimSpace(input) == "" {
+		return nil
+	}
+
+	parts := strings.Split(input, ",")
+	paths := make([]string, 0, len(parts))
+	for _, part := range parts {
+		trimmed := strings.TrimSpace(part)
+		if trimmed == "" {
+			continue
+		}
+		paths = append(paths, filepath.Clean(trimmed))
+	}
+
+	return paths
 }
 
 func init() {
@@ -115,6 +136,7 @@ func init() {
 	parseCmd.Flags().StringVarP(&outputFile, "output", "o", "", "Output JSON file (prints to stdout if not specified)")
 	parseCmd.Flags().StringP("cluster", "c", "unknown", "Kubernetes cluster name for metadata")
 	parseCmd.Flags().StringVarP(&parseLogLevel, "log", "l", "info", "Log level (debug, info, warn, error)")
+	parseCmd.Flags().StringVar(&policyDirs, "policy-dirs", "", "Additional policy directories (comma-separated)")
 
 	rootCmd.AddCommand(parseCmd)
 }

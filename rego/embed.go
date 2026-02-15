@@ -4,5 +4,5 @@ package regopolicies
 
 import "embed"
 
-//go:embed **/*.rego
+//go:embed edges nodes
 var FS embed.FS

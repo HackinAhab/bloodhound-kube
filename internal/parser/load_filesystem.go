@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 
 	"github.com/open-policy-agent/opa/v1/ast"
+	"github.com/sirupsen/logrus"
 )
 
 func loadPolicyModules(policyDir string, recursive bool) (*ast.Compiler, []string, error) {
@@ -40,6 +41,12 @@ func loadPolicyModules(policyDir string, recursive bool) (*ast.Compiler, []strin
 	if len(policyFiles) == 0 {
 		return nil, nil, fmt.Errorf("no policy files found in %s", policyDir)
 	}
+
+	logrus.WithFields(logrus.Fields{
+		"count":     len(policyFiles),
+		"directory": policyDir,
+		"recursive": recursive,
+	}).Debug("Loaded policy files")
 
 	return nil, policyFiles, nil
 }

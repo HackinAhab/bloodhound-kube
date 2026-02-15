@@ -43,11 +43,20 @@ func NewOPAEngine(policyDir string) (*OPAEngine, error) {
 	return engine, nil
 }
 
+// NewOPAEngineForNodes creates an engine for node policies only
+func NewOPAEngineForNodes() *OPAEngine {
+	return &OPAEngine{
+		chunkSize:    10000,
+		parallelEval: true,
+		cache:        make(map[string][]BloodHoundEdge),
+	}
+}
+
 // compilePolicies loads and compiles all Rego policies from the policy directory
 func (e *OPAEngine) compilePolicies() error {
 	ctx := context.Background()
 
-	compiler, policyFiles, err := loadPolicyModules(e.policyDir, false)
+	compiler, policyFiles, err := loadPolicyModules(e.policyDir, true)
 	if err != nil {
 		return err
 	}

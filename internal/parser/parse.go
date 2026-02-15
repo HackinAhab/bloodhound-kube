@@ -92,10 +92,7 @@ func parseJSONLToResources(jsonlData []byte) ([]map[string]any, error) {
 // Processes in chunks of 10K for memory efficiency
 func createNodesWithOPA(resources []map[string]any) ([]BloodHoundNode, error) {
 	// Create OPA engine and load node policies
-	engine, err := NewOPAEngine("rego/edges")
-	if err != nil {
-		return nil, fmt.Errorf("failed to create OPA engine: %w", err)
-	}
+	engine := NewOPAEngineForNodes()
 
 	// Load node creation policies
 	if err := engine.SetNodePolicyDir("rego/nodes"); err != nil {

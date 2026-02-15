@@ -19,6 +19,11 @@
             "name": "All Paths from Pods running as root",
             "description": "Retrieves all paths starting from nodes labeled 'Pod' that have the property 'runAsRoot' set to true.",
             "query": "MATCH p=(s:Pod)-[]->()\nWHERE s.runAsRoot = True\nRETURN p"
+        },
+        {
+            "name": "All Paths to Nodes with External IPs",
+            "description": "Retrieves all paths from HTTPRoute nodes to Nodes.",
+            "query": "MATCH p=(s:HTTPRoute)-[*1..3]->(t:K8s_Node)\nRETURN p"
         }
     ]
 }

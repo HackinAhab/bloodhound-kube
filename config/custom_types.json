@@ -1,6 +1,6 @@
 {
   "custom_types": {
-    "Node": {
+    "K8s_Node": {
       "icon": {
         "type": "font-awesome",
         "name": "microchip",
@@ -10,7 +10,7 @@
     "Pod": {
       "icon": {
         "type": "font-awesome",
-        "name": "building",
+        "name": "box-open",
         "color": "#607D8B"
       }
     },
@@ -38,8 +38,15 @@
     "Service": {
       "icon": {
         "type": "font-awesome",
-        "name": "globe",
+        "name": "sitemap",
         "color": "#9C27B0"
+      }
+    },
+    "HTTPRoute": {
+      "icon": {
+        "type": "font-awesome",
+        "name": "route",
+        "color": "#CF4E4E"
       }
     },
     "Secret": {

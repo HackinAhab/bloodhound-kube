@@ -44,8 +44,9 @@ Examples:
 			effectiveLogLevel = globalLogLevel
 		}
 		log := utils.New(effectiveLogLevel, globalNoColor)
+		utils.SetDefaultLogger(log)
 
-		log.WithField("logLevel", effectiveLogLevel).Debug("Starting setup command")
+		log.Debug("Starting setup command", "logLevel", effectiveLogLevel)
 
 		if setupTokenID == "" || setupTokenKey == "" {
 			return fmt.Errorf("token ID and token key are required")
@@ -108,7 +109,7 @@ Examples:
 				}
 			}
 
-			log.WithField("file", setupModelFile).Info("Uploading model")
+			log.Info("Uploading model", "file", setupModelFile)
 			if err := client.UploadModel(ctx, setupModelFile); err != nil {
 				return fmt.Errorf("failed to upload model: %w", err)
 			}
@@ -125,7 +126,7 @@ Examples:
 					return fmt.Errorf("failed to reset custom queries: %w", err)
 				}
 			}
-			log.WithField("file", setupQueriesFile).Info("Uploading custom queries")
+			log.Info("Uploading custom queries", "file", setupQueriesFile)
 			queryCount, err := client.UploadQueriesFromFile(ctx, setupQueriesFile)
 			if err != nil {
 				return fmt.Errorf("failed to upload custom queries: %w", err)

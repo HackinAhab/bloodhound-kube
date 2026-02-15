@@ -8,8 +8,6 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-
-	"github.com/sirupsen/logrus"
 )
 
 func (c *Client) customNodesURL() string {
@@ -17,15 +15,15 @@ func (c *Client) customNodesURL() string {
 }
 
 func (c *Client) UploadModel(ctx context.Context, modelFile string) error {
-	c.log.WithField("file", modelFile).Info("Uploading model")
+	c.log.Info("Uploading model", "file", modelFile)
 	data, err := os.ReadFile(modelFile)
 	if err != nil {
-		c.log.WithError(err).WithField("file", modelFile).Error("Read model file failed")
+		c.log.Error("Read model file failed", "file", modelFile, "error", err)
 		return errors.New("upload model failed")
 	}
 
 	if err := validateJSON(data); err != nil {
-		c.log.WithError(err).WithField("file", modelFile).Error("Invalid model JSON")
+		c.log.Error("Invalid model JSON", "file", modelFile, "error", err)
 		return errors.New("upload model failed")
 	}
 
@@ -37,18 +35,18 @@ func (c *Client) UploadModel(ctx context.Context, modelFile string) error {
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		c.log.WithError(err).Error("Upload model request failed")
+		c.log.Error("Upload model request failed", "error", err)
 		return errors.New("upload model failed")
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusCreated {
 		err := responseError("upload model", resp)
-		c.log.WithError(err).WithField("status", resp.StatusCode).Error("Upload model failed")
+		c.log.Error("Upload model failed", "status", resp.StatusCode, "error", err)
 		return errors.New("upload model failed")
 	}
 
-	c.log.WithField("file", modelFile).Info("Model upload completed")
+	c.log.Info("Model upload completed", "file", modelFile)
 
 	return nil
 }
@@ -59,7 +57,7 @@ func (c *Client) DeleteCustomNode(ctx context.Context, nodeName string) error {
 		return errors.New("delete custom node failed")
 	}
 
-	c.log.WithField("node", nodeName).Debug("Deleting custom node")
+	c.log.Debug("Deleting custom node", "node", nodeName)
 
 	url := fmt.Sprintf("%s/%s", c.customNodesURL(), nodeName)
 	req, err := c.newRequest(ctx, http.MethodDelete, url, nil)
@@ -70,18 +68,18 @@ func (c *Client) DeleteCustomNode(ctx context.Context, nodeName string) error {
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		c.log.WithError(err).WithField("node", nodeName).Error("Delete custom node request failed")
+		c.log.Error("Delete custom node request failed", "node", nodeName, "error", err)
 		return errors.New("delete custom node failed")
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		err := responseError(fmt.Sprintf("delete custom node %q", nodeName), resp)
-		c.log.WithError(err).WithFields(logrus.Fields{"node": nodeName, "status": resp.StatusCode}).Error("Delete custom node failed")
+		c.log.Error("Delete custom node failed", "node", nodeName, "status", resp.StatusCode, "error", err)
 		return errors.New("delete custom node failed")
 	}
 
-	c.log.WithField("node", nodeName).Debug("Custom node deleted")
+	c.log.Debug("Custom node deleted", "node", nodeName)
 
 	return nil
 }
@@ -96,20 +94,20 @@ func (c *Client) GetCustomNodes(ctx context.Context) ([]CustomNode, error) {
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		c.log.WithError(err).Error("Get custom nodes request failed")
+		c.log.Error("Get custom nodes request failed", "error", err)
 		return nil, errors.New("get custom nodes failed")
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		err := responseError("get custom nodes", resp)
-		c.log.WithError(err).WithField("status", resp.StatusCode).Error("Get custom nodes failed")
+		c.log.Error("Get custom nodes failed", "status", resp.StatusCode, "error", err)
 		return nil, errors.New("get custom nodes failed")
 	}
 
 	var payload customNodesResponse
 	if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
-		c.log.WithError(err).Error("Decode custom nodes response failed")
+		c.log.Error("Decode custom nodes response failed", "error", err)
 		return nil, errors.New("get custom nodes failed")
 	}
 
@@ -118,7 +116,7 @@ func (c *Client) GetCustomNodes(ctx context.Context) ([]CustomNode, error) {
 		return nil, errors.New("get custom nodes failed")
 	}
 
-	c.log.WithField("count", len(payload.Data)).Debug("Fetched custom nodes")
+	c.log.Debug("Fetched custom nodes", "count", len(payload.Data))
 	return payload.Data, nil
 }
 

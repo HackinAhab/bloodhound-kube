@@ -5,18 +5,17 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/dynamic"
 )
 
 type Collector struct {
 	clients  *utils.Clients
-	logger   logrus.FieldLogger
+	logger   utils.Logger
 	redacted bool
 }
 
-func New(cfg utils.ClientConfig, log logrus.FieldLogger) (*Collector, error) {
+func New(cfg utils.ClientConfig, log utils.Logger) (*Collector, error) {
 	clients, err := utils.NewClient(cfg)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create kubernetes clients: %w", err)
@@ -34,20 +33,20 @@ func (c *Collector) ListNamespaces(ctx context.Context) ([]string, error) {
 
 	namespaceList, err := c.clients.Kubernetes.CoreV1().Namespaces().List(ctx, metav1.ListOptions{})
 	if err != nil {
-		c.logger.WithError(err).Error("Failed to list namespaces")
+		c.logger.Error("Failed to list namespaces", "error", err)
 		return nil, fmt.Errorf("failed to list namespaces: %w", err)
 	}
 
-	c.logger.WithField("raw_count", len(namespaceList.Items)).Debug("Retrieved namespace list from API")
+	c.logger.Debug("Retrieved namespace list from API", "raw_count", len(namespaceList.Items))
 
 	var namespaces []string
 	for _, ns := range namespaceList.Items {
 		namespaces = append(namespaces, ns.Name)
-		c.logger.WithField("name", ns.Name).Debug("Found namespace")
+		c.logger.Debug("Found namespace", "name", ns.Name)
 	}
 
-	c.logger.WithField("count", len(namespaces)).Info("Successfully listed namespaces")
-	c.logger.WithField("namespaces", namespaces).Debug("Namespace enumeration completed")
+	c.logger.Info("Successfully listed namespaces", "count", len(namespaces))
+	c.logger.Debug("Namespace enumeration completed", "namespaces", namespaces)
 	return namespaces, nil
 }
 

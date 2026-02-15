@@ -6,7 +6,6 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/sirupsen/logrus"
 	"k8s.io/client-go/dynamic"
 )
 
@@ -25,7 +24,7 @@ func NewResourceRegistry() *ResourceRegistry {
 }
 
 // InitializeFromConfig initializes the registry from collection configuration.
-func (r *ResourceRegistry) InitializeFromConfig(clients *utils.Clients, logger logrus.FieldLogger, collectionsConfig *CollectionsConfig, dynamicClient dynamic.Interface) error {
+func (r *ResourceRegistry) InitializeFromConfig(clients *utils.Clients, logger utils.Logger, collectionsConfig *CollectionsConfig, dynamicClient dynamic.Interface) error {
 	factory, err := NewCollectorFactory(clients, logger, collectionsConfig, dynamicClient)
 	if err != nil {
 		return fmt.Errorf("failed to create collector factory: %w", err)

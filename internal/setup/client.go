@@ -11,8 +11,8 @@ import (
 	"strings"
 	"time"
 
+	"bloodhound-kube/internal/utils"
 	"github.com/SpecterOps/bloodhound-go-sdk/sdk"
-	"github.com/sirupsen/logrus"
 )
 
 const DefaultBaseURL = "https://localhost:8080"
@@ -23,14 +23,14 @@ type Config struct {
 	TokenKey           string
 	InsecureSkipVerify bool
 	Timeout            time.Duration
-	Logger             logrus.FieldLogger
+	Logger             utils.Logger
 }
 
 type Client struct {
 	baseURL    string
 	httpClient *http.Client
 	auth       *sdk.HMACCredentials
-	log        logrus.FieldLogger
+	log        utils.Logger
 }
 
 type CustomNode struct {
@@ -48,9 +48,7 @@ type customNodesResponse struct {
 func NewClient(cfg Config) (*Client, error) {
 	logger := cfg.Logger
 	if logger == nil {
-		fallback := logrus.New()
-		fallback.SetLevel(logrus.InfoLevel)
-		logger = fallback
+		logger = utils.New("info", false)
 	}
 
 	baseURL := strings.TrimRight(cfg.BaseURL, "/")
@@ -65,7 +63,7 @@ func NewClient(cfg Config) (*Client, error) {
 
 	auth, err := sdk.NewSecurityProviderHMACCredentials(cfg.TokenKey, cfg.TokenID)
 	if err != nil {
-		logger.WithError(err).Error("Failed to initialize HMAC credentials")
+		logger.Error("Failed to initialize HMAC credentials", "error", err)
 		return nil, errors.New("setup client initialization failed")
 	}
 
@@ -97,7 +95,7 @@ func NewClient(cfg Config) (*Client, error) {
 func (c *Client) newRequest(ctx context.Context, method, url string, body io.Reader) (*http.Request, error) {
 	req, err := http.NewRequestWithContext(ctx, method, url, body)
 	if err != nil {
-		c.log.WithError(err).WithFields(logrus.Fields{"method": method, "url": url}).Error("Create request failed")
+		c.log.Error("Create request failed", "method", method, "url", url, "error", err)
 		return nil, errors.New("setup request failed")
 	}
 	if c.auth == nil {
@@ -105,7 +103,7 @@ func (c *Client) newRequest(ctx context.Context, method, url string, body io.Rea
 		return nil, errors.New("setup request failed")
 	}
 	if err := c.auth.Intercept(ctx, req); err != nil {
-		c.log.WithError(err).WithFields(logrus.Fields{"method": method, "url": url}).Error("Authenticate request failed")
+		c.log.Error("Authenticate request failed", "method", method, "url", url, "error", err)
 		return nil, errors.New("setup request failed")
 	}
 	return req, nil
@@ -141,14 +139,14 @@ func (c *Client) ResetDatabase(ctx context.Context) error {
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		c.log.WithError(err).Error("Reset database request failed")
+		c.log.Error("Reset database request failed", "error", err)
 		return errors.New("reset database failed")
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusNoContent {
 		err := responseError("reset database", resp)
-		c.log.WithError(err).WithField("status", resp.StatusCode).Error("Reset database failed")
+		c.log.Error("Reset database failed", "status", resp.StatusCode, "error", err)
 		return errors.New("reset database failed")
 	}
 

@@ -3,7 +3,7 @@ package report
 import (
 	"time"
 
-	"github.com/sirupsen/logrus"
+	"bloodhound-kube/internal/utils"
 )
 
 // Config holds the configuration for report generation
@@ -19,7 +19,7 @@ type Config struct {
 // Generator handles report generation
 type Generator struct {
 	config Config
-	log    logrus.FieldLogger
+	log    utils.Logger
 	data   *CollectedData
 }
 

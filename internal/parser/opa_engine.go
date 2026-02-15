@@ -2,10 +2,11 @@ package parser
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"maps"
 	"sync"
 
+	"bloodhound-kube/internal/utils"
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/rego"
 )
@@ -29,6 +30,7 @@ type OPAEngine struct {
 
 // NewOPAEngine creates a new OPA-based relationship engine
 func NewOPAEngine(policyDir string) (*OPAEngine, error) {
+	log := utils.DefaultLogger().Component("parser")
 	engine := &OPAEngine{
 		policyDir:    policyDir,
 		chunkSize:    10000, // Process 10K nodes per chunk
@@ -37,7 +39,8 @@ func NewOPAEngine(policyDir string) (*OPAEngine, error) {
 	}
 
 	if err := engine.compilePolicies(); err != nil {
-		return nil, fmt.Errorf("failed to compile policies: %w", err)
+		log.Error("Compile policies failed", "error", err)
+		return nil, errors.New("create OPA engine failed")
 	}
 
 	return engine, nil
@@ -54,11 +57,13 @@ func NewOPAEngineForNodes() *OPAEngine {
 
 // compilePolicies loads and compiles all Rego policies from the policy directory
 func (e *OPAEngine) compilePolicies() error {
+	log := utils.DefaultLogger().Component("parser")
 	ctx := context.Background()
 
 	compiler, policyFiles, err := loadPolicyModules(e.policyDir, true)
 	if err != nil {
-		return err
+		log.Error("Load policy modules failed", "policy_dir", e.policyDir, "error", err)
+		return errors.New("compile policies failed")
 	}
 
 	var query *rego.Rego
@@ -77,7 +82,8 @@ func (e *OPAEngine) compilePolicies() error {
 	// Prepare query for efficient evaluation
 	prepared, err := query.PrepareForEval(ctx)
 	if err != nil {
-		return fmt.Errorf("failed to prepare query: %w", err)
+		log.Error("Prepare policy query failed", "error", err)
+		return errors.New("compile policies failed")
 	}
 
 	e.preparedQuery = &prepared
@@ -94,7 +100,7 @@ func (e *OPAEngine) ApplyRules(nodes []BloodHoundNode) ([]BloodHoundEdge, error)
 	// Evaluate policies
 	results, err := e.preparedQuery.Eval(ctx, rego.EvalInput(input))
 	if err != nil {
-		return nil, fmt.Errorf("policy evaluation failed: %w", err)
+		return nil, err
 	}
 
 	// Extract edges from results
@@ -275,15 +281,18 @@ func (e *OPAEngine) SetNodePolicyDir(dir string) error {
 
 // compileNodePolicies loads and compiles node creation policies
 func (e *OPAEngine) compileNodePolicies() error {
+	log := utils.DefaultLogger().Component("parser")
 	if e.nodePolicyDir == "" {
-		return fmt.Errorf("node policy directory not set")
+		log.Error("Node policy directory not set")
+		return errors.New("compile node policies failed")
 	}
 
 	ctx := context.Background()
 
 	compiler, policyFiles, err := loadPolicyModules(e.nodePolicyDir, true)
 	if err != nil {
-		return err
+		log.Error("Load node policy modules failed", "policy_dir", e.nodePolicyDir, "error", err)
+		return errors.New("compile node policies failed")
 	}
 
 	// Create query to get all nodes from all packages
@@ -304,7 +313,8 @@ func (e *OPAEngine) compileNodePolicies() error {
 	// Prepare query for efficient evaluation
 	prepared, err := query.PrepareForEval(ctx)
 	if err != nil {
-		return fmt.Errorf("failed to prepare node query: %w", err)
+		log.Error("Prepare node query failed", "error", err)
+		return errors.New("compile node policies failed")
 	}
 
 	e.nodeQuery = &prepared
@@ -315,7 +325,7 @@ func (e *OPAEngine) compileNodePolicies() error {
 // Returns a slice of BloodHoundNode objects created from the resources
 func (e *OPAEngine) QueryNodes(resources []map[string]any) ([]BloodHoundNode, error) {
 	if e.nodeQuery == nil {
-		return nil, fmt.Errorf("node policies not compiled - call SetNodePolicyDir first")
+		return nil, errors.New("node policies not compiled")
 	}
 
 	ctx := context.Background()
@@ -328,7 +338,7 @@ func (e *OPAEngine) QueryNodes(resources []map[string]any) ([]BloodHoundNode, er
 	// Evaluate node policies
 	results, err := e.nodeQuery.Eval(ctx, rego.EvalInput(input))
 	if err != nil {
-		return nil, fmt.Errorf("node policy evaluation failed: %w", err)
+		return nil, err
 	}
 
 	// Extract nodes from results

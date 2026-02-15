@@ -10,11 +10,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/sirupsen/logrus"
+	"bloodhound-kube/internal/utils"
 )
 
 // NewGenerator creates a new report generator
-func NewGenerator(config Config, log logrus.FieldLogger) (*Generator, error) {
+func NewGenerator(config Config, log utils.Logger) (*Generator, error) {
 	g := &Generator{
 		config: config,
 		log:    log,
@@ -104,7 +104,7 @@ func (g *Generator) loadData() error {
 
 		var rawItem map[string]any
 		if err := json.Unmarshal([]byte(line), &rawItem); err != nil {
-			g.log.WithError(err).WithField("line", lineNum).Debug("Failed to parse JSON line")
+			g.log.Debug("Failed to parse JSON line", "line", lineNum, "error", err)
 			if err == io.EOF {
 				break
 			}
@@ -113,7 +113,7 @@ func (g *Generator) loadData() error {
 
 		itemType, ok := rawItem["type"].(string)
 		if !ok {
-			g.log.WithField("line", lineNum).Debug("Missing or invalid type field")
+			g.log.Debug("Missing or invalid type field", "line", lineNum)
 			if err == io.EOF {
 				break
 			}
@@ -121,7 +121,7 @@ func (g *Generator) loadData() error {
 		}
 
 		if err := g.processItem(itemType, rawItem); err != nil {
-			g.log.WithError(err).WithFields(logrus.Fields{"type": itemType, "line": lineNum}).Debug("Failed to process item")
+			g.log.Debug("Failed to process item", "type", itemType, "line", lineNum, "error", err)
 		}
 
 		if err == io.EOF {
@@ -129,7 +129,7 @@ func (g *Generator) loadData() error {
 		}
 	}
 
-	g.log.WithField("namespaces", len(g.data.Namespaces)).Info("Loaded data")
+	g.log.Info("Loaded data", "namespaces", len(g.data.Namespaces))
 	return nil
 }
 
@@ -350,7 +350,7 @@ func (g *Generator) processSecret(resource map[string]any) error {
 				if str, ok := v.(string); ok {
 					decoded, err := base64.StdEncoding.DecodeString(str)
 					if err != nil {
-						g.log.WithError(err).WithFields(logrus.Fields{"secret": name, "namespace": namespace}).Debug("Failed to decode secret token")
+						g.log.Debug("Failed to decode secret token", "secret", name, "namespace", namespace, "error", err)
 						data[k] = str
 					} else {
 						data[k] = string(decoded)

@@ -59,6 +59,7 @@ Examples:
 			effectiveLogLevel = globalLogLevel
 		}
 		log := utils.New(effectiveLogLevel, globalNoColor)
+		utils.SetDefaultLogger(log)
 
 		jsonlPath, err := runCollect(cmd, args, log)
 		if err != nil {

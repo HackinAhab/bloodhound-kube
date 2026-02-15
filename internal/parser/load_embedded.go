@@ -8,10 +8,10 @@ import (
 	"path"
 	"strings"
 
+	"bloodhound-kube/internal/utils"
 	regopolicies "bloodhound-kube/rego"
 
 	"github.com/open-policy-agent/opa/v1/ast"
-	"github.com/sirupsen/logrus"
 )
 
 func loadPolicyModules(policyDir string, recursive bool) (*ast.Compiler, []string, error) {
@@ -54,12 +54,7 @@ func loadPolicyModules(policyDir string, recursive bool) (*ast.Compiler, []strin
 	if len(modules) == 0 {
 		return nil, nil, fmt.Errorf("no policy files found in %s", policyDir)
 	}
-	logrus.WithFields(logrus.Fields{
-		"count":     len(modules),
-		"directory": policyDir,
-		"recursive": recursive,
-		"embedded":  true,
-	}).Debug("Loaded policy modules")
+	utils.DefaultLogger().Debug("Loaded policy modules", "count", len(modules), "directory", policyDir, "recursive", recursive, "embedded", true)
 
 	compiler, err := ast.CompileModules(modules)
 	if err != nil {

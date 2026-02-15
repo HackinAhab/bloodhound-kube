@@ -4,8 +4,10 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"text/tabwriter"
@@ -14,7 +16,6 @@ import (
 	"bloodhound-kube/internal/collector"
 	"bloodhound-kube/internal/utils"
 
-	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
 
@@ -42,7 +43,7 @@ var (
 // allResourceTypes will be populated after cluster detection
 var allResourceTypes []string
 
-const defaultCRDPromptThreshold = 25
+const defaultCRDPromptThreshold = 50
 
 func generateDefaultOutput() string {
 	timestamp := time.Now().Format("2006-01-02-150405")
@@ -70,7 +71,7 @@ func parseOutputPath(output string) (dir, filename string) {
 	return dir, filename
 }
 
-func runCollect(cmd *cobra.Command, args []string, log logrus.FieldLogger) (string, error) {
+func runCollect(cmd *cobra.Command, _ []string, log utils.Logger) (string, error) {
 	log.Debug("Starting collection command")
 
 	if allNamespaces && cmd.Flags().Changed("namespace") {
@@ -143,7 +144,7 @@ func runCollect(cmd *cobra.Command, args []string, log logrus.FieldLogger) (stri
 		if err != nil {
 			return "", fmt.Errorf("failed to read allowlist file: %w", err)
 		}
-		log.WithFields(logrus.Fields{"path": discoveryAllowlist, "entries": len(allowlistEntries)}).Info("Using discovery allowlist file")
+		log.Info("Using discovery allowlist file", "path", discoveryAllowlist, "entries", len(allowlistEntries))
 	}
 
 	resources, err := collector.DiscoverResources(ctx, c.GetClients(), log)
@@ -160,7 +161,7 @@ func runCollect(cmd *cobra.Command, args []string, log logrus.FieldLogger) (stri
 		if err := collector.DefaultRegistry.InitializeFromConfig(c.GetClients(), log, collectionsCfg, dynamicClient); err != nil {
 			return "", fmt.Errorf("failed to initialize collection registry: %w", err)
 		}
-		log.WithFields(logrus.Fields{"handlers": len(collectionsCfg.Collections), "discovery": usingDiscovery}).Info("Successfully initialized collection registry")
+		log.Info("Successfully initialized collection registry", "handlers", len(collectionsCfg.Collections), "discovery", usingDiscovery)
 	} else {
 		filteredResources := resources
 		source := "all"
@@ -196,7 +197,7 @@ func runCollect(cmd *cobra.Command, args []string, log logrus.FieldLogger) (stri
 				includeCRDs = accepted
 			} else {
 				includeCRDs = false
-				log.WithField("crd_count", crdCount).Warn("Skipping CRDs in non-interactive mode")
+				log.Warn("Skipping CRDs in non-interactive mode", "crd_count", crdCount)
 			}
 		}
 		if !includeCRDs {
@@ -212,7 +213,7 @@ func runCollect(cmd *cobra.Command, args []string, log logrus.FieldLogger) (stri
 					source = "default-allowlist"
 				}
 				filteredResources = collector.FilterDiscoveredResources(resources, defaults)
-				log.WithField("source", source).Info("CRDs skipped, falling back to default collections")
+				log.Info("CRDs skipped, falling back to default collections", "source", source)
 			} else {
 				filteredResources = filterCRDResources(filteredResources, false)
 			}
@@ -225,17 +226,17 @@ func runCollect(cmd *cobra.Command, args []string, log logrus.FieldLogger) (stri
 		if err := collector.DefaultRegistry.InitializeFromConfig(c.GetClients(), log, collectionsCfg, dynamicClient); err != nil {
 			return "", fmt.Errorf("failed to initialize collection registry: %w", err)
 		}
-		log.WithFields(logrus.Fields{"handlers": len(collectionsCfg.Collections), "discovery": usingDiscovery, "source": source}).Info("Successfully initialized collection registry")
+		log.Info("Successfully initialized collection registry", "handlers", len(collectionsCfg.Collections), "discovery", usingDiscovery, "source", source)
 	}
 
 	allResourceTypes = collector.DefaultRegistry.GetAllNames()
 
-	log.WithFields(logrus.Fields{"inputResourceTypes": resourceTypes, "allResourceTypes": allResourceTypes}).Debug("Resource type selection")
+	log.Debug("Resource type selection", "inputResourceTypes", resourceTypes, "allResourceTypes", allResourceTypes)
 
 	typesToCollect = resourceTypes
 	if len(typesToCollect) == 0 {
 		typesToCollect = allResourceTypes
-		log.WithField("typesToCollect", typesToCollect).Debug("No specific types provided, using all available types")
+		log.Debug("No specific types provided, using all available types", "typesToCollect", typesToCollect)
 	} else {
 		var normalizedTypes []string
 		normalizedTypes, err = collector.DefaultRegistry.NormalizeTypes(typesToCollect)
@@ -243,7 +244,7 @@ func runCollect(cmd *cobra.Command, args []string, log logrus.FieldLogger) (stri
 			return "", err
 		}
 		typesToCollect = normalizedTypes
-		log.WithField("typesToCollect", typesToCollect).Debug("Using specific types provided")
+		log.Debug("Using specific types provided", "typesToCollect", typesToCollect)
 	}
 
 	if err := collector.DefaultRegistry.ValidateTypes(typesToCollect); err != nil {
@@ -274,9 +275,9 @@ func runCollect(cmd *cobra.Command, args []string, log logrus.FieldLogger) (stri
 		resumeFilename = existingCheckpoint.OutputFile
 		checkpointFile = defaultCheckpointPath
 
-		log.WithFields(logrus.Fields{"checkpoint": checkpointFile, "output": resumeFilename}).Info("Resuming collection")
+		log.Info("Resuming collection", "checkpoint", checkpointFile, "output", resumeFilename)
 		completed, total, pct := existingCheckpoint.GetProgress()
-		log.WithFields(logrus.Fields{"completed": completed, "total": total, "percentage": fmt.Sprintf("%.1f%%", pct)}).Info("Previous progress")
+		log.Info("Previous progress", "completed", completed, "total", total, "percentage", fmt.Sprintf("%.1f%%", pct))
 	}
 
 	var namespacesToCollect []string
@@ -311,7 +312,7 @@ func runCollect(cmd *cobra.Command, args []string, log logrus.FieldLogger) (stri
 		if err != nil {
 			return "", fmt.Errorf("failed to create async writer for append: %w", err)
 		}
-		log.WithField("file", filename).Info("Resuming collection, appending to existing file")
+		log.Info("Resuming collection, appending to existing file", "file", filename)
 	} else {
 		asyncWriter, err = utils.NewAsyncWriter(outputDir, filename, log)
 		if err != nil {
@@ -329,13 +330,15 @@ func runCollect(cmd *cobra.Command, args []string, log logrus.FieldLogger) (stri
 		scopeMsg = fmt.Sprintf("from namespace %s", namespacesToCollect[0])
 	}
 
-	fmt.Printf("Collected %d resources (%s) %s from %s cluster in %v and wrote to %s\n",
-		totalCollected, strings.Join(typesToCollect, ", "), scopeMsg, c.GetPlatform(), duration, filename)
+	fmt.Printf("Collected %d resources %s from %s cluster in %v and wrote to %s\n",
+		totalCollected, scopeMsg, c.GetPlatform(), duration, filename)
 
 	resourcesPerSecond := float64(totalCollected) / duration.Seconds()
 	fmt.Printf("Performance: %.1f resources/sec with %d workers\n", resourcesPerSecond, concurrency)
 
-	for resourceType, count := range counts {
+	sortedTypes := slices.Sorted(maps.Keys(counts))
+	for _, resourceType := range sortedTypes {
+		count := counts[resourceType]
 		fmt.Printf("  - %s: %d\n", resourceType, count)
 	}
 
@@ -397,6 +400,7 @@ Examples:
 			effectiveLogLevel = globalLogLevel
 		}
 		log := utils.New(effectiveLogLevel, globalNoColor)
+		utils.SetDefaultLogger(log)
 
 		_, err := runCollect(cmd, args, log)
 		return err

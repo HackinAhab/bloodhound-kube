@@ -7,7 +7,6 @@ import (
 	"bloodhound-kube/internal/parser"
 	"bloodhound-kube/internal/utils"
 
-	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
 
@@ -17,34 +16,32 @@ var (
 	parseLogLevel string
 )
 
-func runParseFromFile(inputPath, outputPath, clusterName string, log logrus.FieldLogger) error {
+func runParseFromFile(inputPath, outputPath, clusterName string, log utils.Logger) error {
 	if inputPath == "" {
 		log.Error("Input file is required")
 		return fmt.Errorf("input file is required")
 	}
 
-	log.WithField("file", inputPath).Info("Reading input file")
+	log.Info("Reading input file", "file", inputPath)
 	data, err := os.ReadFile(inputPath)
 	if err != nil {
-		log.WithError(err).WithField("file", inputPath).Error("Failed to read input file")
+		log.Error("Failed to read input file", "file", inputPath, "error", err)
 		return fmt.Errorf("failed to read input file: %w", err)
 	}
-	log.WithField("size", len(data)).Debug("Successfully read input file")
+	log.Debug("Successfully read input file", "size", len(data))
 
-	log.WithField("cluster", clusterName).Debug("Using cluster name")
+	log.Debug("Using cluster name", "cluster", clusterName)
 
 	log.Info("Parsing JSONL data")
 	resources, err := parser.ParseFromJSONL(data)
 	if err != nil {
-		log.WithError(err).Error("Failed to parse JSONL")
-		return fmt.Errorf("failed to parse JSONL: %w", err)
+		return err
 	}
-	log.WithField("resourceCount", len(resources)).Debug("Successfully parsed JSONL")
-	log.WithFields(logrus.Fields{"resourceCount": len(resources), "workers": 20}).Info("Begin processing resources")
+	log.Debug("Successfully parsed JSONL", "resourceCount", len(resources))
+	log.Info("Begin processing resources", "resourceCount", len(resources), "workers", 20)
 	graph, err := parser.ConvertToBloodHoundResult(data, clusterName)
 	if err != nil {
-		log.WithError(err).Error("Failed to process data concurrently")
-		return fmt.Errorf("failed to process data concurrently: %w", err)
+		return err
 	}
 	log.Debug("Processing completed successfully")
 
@@ -52,15 +49,15 @@ func runParseFromFile(inputPath, outputPath, clusterName string, log logrus.Fiel
 	log.Info("Marshaling result to JSON")
 	jsonData, err := graph.ExportJSON(true)
 	if err != nil {
-		log.WithError(err).Error("Failed to marshal JSON")
+		log.Error("Failed to marshal JSON", "error", err)
 		return fmt.Errorf("failed to marshal JSON: %w", err)
 	}
-	log.WithField("size", len(jsonData)).Debug("JSON marshaling completed")
+	log.Debug("JSON marshaling completed", "size", len(jsonData))
 
 	if outputPath != "" {
-		log.WithField("file", outputPath).Info("Writing output to file")
+		log.Info("Writing output to file", "file", outputPath)
 		if err := os.WriteFile(outputPath, []byte(jsonData), 0644); err != nil {
-			log.WithError(err).WithField("file", outputPath).Error("Failed to write output file")
+			log.Error("Failed to write output file", "file", outputPath, "error", err)
 			return fmt.Errorf("failed to write output file: %w", err)
 		}
 		fmt.Printf("BloodHound Kubernetes data written to: %s\n", outputPath)
@@ -99,8 +96,9 @@ Examples:
 			effectiveLogLevel = globalLogLevel
 		}
 		log := utils.New(effectiveLogLevel, globalNoColor)
+		utils.SetDefaultLogger(log)
 
-		log.WithField("logLevel", effectiveLogLevel).Debug("Starting parse command")
+		log.Debug("Starting parse command", "logLevel", effectiveLogLevel)
 
 		// Determine cluster name
 		clusterName := "unknown"

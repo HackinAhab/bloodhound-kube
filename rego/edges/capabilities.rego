@@ -4,6 +4,8 @@ import rego.v1
 import data.kubernetes.helpers
 
 # Pod with dangerous capabilities scheduled on Node
+# TBD if this in addition to the specific capability edges is still useful.
+# It might be useful to keeep the general "DangerousCaps" edge for quick identification of risky pods, while the specific capability edges provide more detailed information about which capabilities are involved.
 pod_dangerous_caps_on_node contains edge if {
     namespace := input.namespaces[ns]
     pod := namespace.pod[_]
@@ -13,6 +15,7 @@ pod_dangerous_caps_on_node contains edge if {
     cap_add := pod.properties.__private.capabilitiesAdd[_]
     norm := helpers.normalize_capability(cap_add)
     helpers.capability_descriptions[norm]
+    entry := helpers.capability_descriptions[norm]
 
     node := input.cluster_scoped.node[_]
     node.properties.name == pod.properties.nodeName
@@ -20,6 +23,7 @@ pod_dangerous_caps_on_node contains edge if {
     description := sprintf("Container in pod %s has dangerous capabilities that could allow for privilege escalation or container escape.", [pod.properties.name])
     edge := helpers.create_edge_with_properties(pod, node, "DangerousCaps", {
         "Description": description,
+        "Reference": entry.Reference,
     })
 }
 
@@ -32,13 +36,14 @@ pod_capability_on_node contains edge if {
 
     cap_add := pod.properties.__private.capabilitiesAdd[_]
     norm := helpers.normalize_capability(cap_add)
-    description := helpers.capability_descriptions[norm]
+    entry := helpers.capability_descriptions[norm]
 
     node := input.cluster_scoped.node[_]
     node.properties.name == pod.properties.nodeName
     node.id != ""
 
     edge := helpers.create_edge_with_properties(pod, node, norm, {
-        "Description": description,
+        "Description": entry.Description,
+        "Reference": entry.Reference,
     })
 }

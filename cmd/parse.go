@@ -63,7 +63,7 @@ func runParseFromFile(inputPath, outputPath, clusterName string, log logrus.Fiel
 			log.WithError(err).WithField("file", outputPath).Error("Failed to write output file")
 			return fmt.Errorf("failed to write output file: %w", err)
 		}
-		fmt.Printf("BloodHound-compliant data written to: %s\n", outputPath)
+		fmt.Printf("BloodHound Kubernetes data written to: %s\n", outputPath)
 
 		nodeCount := 0
 		edgeCount := 0

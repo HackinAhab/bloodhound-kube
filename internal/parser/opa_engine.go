@@ -304,7 +304,7 @@ func (e *OPAEngine) compileNodePolicies() error {
 
 // QueryNodes evaluates node creation policies against raw resources
 // Returns a slice of BloodHoundNode objects created from the resources
-func (e *OPAEngine) QueryNodes(resources []map[string]interface{}) ([]BloodHoundNode, error) {
+func (e *OPAEngine) QueryNodes(resources []map[string]any) ([]BloodHoundNode, error) {
 	if e.nodeQuery == nil {
 		return nil, fmt.Errorf("node policies not compiled - call SetNodePolicyDir first")
 	}
@@ -312,7 +312,7 @@ func (e *OPAEngine) QueryNodes(resources []map[string]interface{}) ([]BloodHound
 	ctx := context.Background()
 
 	// Prepare input for OPA
-	input := map[string]interface{}{
+	input := map[string]any{
 		"resources": resources,
 	}
 

@@ -40,7 +40,7 @@ func ConvertToBloodHoundResult(jsonlData []byte, clusterName string) (*gopengrap
 		edges[i].Properties = SanitizeProperties(edges[i].Properties)
 	}
 
-	graph := gopengraph.NewOpenGraph("kubernetes")
+	graph := gopengraph.NewOpenGraph("Kubernetes")
 
 	for _, n := range nodes {
 		props := properties.NewPropertiesFromMap(n.Properties)

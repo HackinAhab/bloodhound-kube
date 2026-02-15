@@ -322,7 +322,7 @@ func (e *OPAEngine) compileNodePolicies() error {
 
 // QueryNodes evaluates node creation policies against raw resources
 // Returns a slice of BloodHoundNode objects created from the resources
-func (e *OPAEngine) QueryNodes(resources []map[string]any) ([]BloodHoundNode, error) {
+func (e *OPAEngine) QueryNodes(resources []map[string]any, parseUndefinedNodes bool) ([]BloodHoundNode, error) {
 	if e.nodeQuery == nil {
 		return nil, errors.New("node policies not compiled")
 	}
@@ -331,7 +331,8 @@ func (e *OPAEngine) QueryNodes(resources []map[string]any) ([]BloodHoundNode, er
 
 	// Prepare input for OPA
 	input := map[string]any{
-		"resources": resources,
+		"resources":             resources,
+		"parse_undefined_nodes": parseUndefinedNodes,
 	}
 
 	// Evaluate node policies

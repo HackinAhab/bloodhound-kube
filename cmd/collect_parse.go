@@ -75,7 +75,7 @@ Examples:
 		}
 
 		outputPath := resolveParsedOutputPath(jsonlPath, parsedOutput)
-		return runParseFromFile(jsonlPath, outputPath, clusterName, log, parsePolicyDirs(policyDirs))
+		return runParseFromFile(jsonlPath, outputPath, clusterName, log, parsePolicyDirs(policyDirs), parseUndefinedNodes)
 	},
 }
 
@@ -84,6 +84,7 @@ func init() {
 	collectParseCmd.Flags().StringVar(&parsedOutput, "parsed-output", "", "Output JSON file for parsed data (defaults to JSONL filename with .json extension)")
 	collectParseCmd.Flags().String("cluster", "unknown", "Kubernetes cluster name for metadata")
 	collectParseCmd.Flags().StringVar(&policyDirs, "policy-dirs", "", "Additional policy directories (comma-separated)")
+	collectParseCmd.Flags().BoolVar(&parseUndefinedNodes, "parse-undefined-nodes", false, "Enable generic node creation policy")
 
 	rootCmd.AddCommand(collectParseCmd)
 }

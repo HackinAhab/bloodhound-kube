@@ -13,7 +13,7 @@ import (
 )
 
 // Main parsing function - OPA-based streaming approach
-func ConvertToBloodHoundResult(jsonlData []byte, clusterName string, policyDirs []string) (*gopengraph.OpenGraph, error) {
+func ConvertToBloodHoundResult(jsonlData []byte, clusterName string, policyDirs []string, parseUndefinedNodes bool) (*gopengraph.OpenGraph, error) {
 	_ = clusterName
 	log := utils.DefaultLogger().Component("parser")
 	// Parse raw JSONL into resources
@@ -23,7 +23,7 @@ func ConvertToBloodHoundResult(jsonlData []byte, clusterName string, policyDirs 
 	}
 
 	// Create nodes using OPA policies with streaming
-	nodes, err := createNodesWithOPA(resources, policyDirs)
+	nodes, err := createNodesWithOPA(resources, policyDirs, parseUndefinedNodes)
 	if err != nil {
 		return nil, err
 	}
@@ -95,7 +95,7 @@ func parseJSONLToResources(jsonlData []byte) ([]map[string]any, error) {
 
 // createNodesWithOPA uses OPA policies to create nodes from resources
 // Processes in chunks of 10K for memory efficiency
-func createNodesWithOPA(resources []map[string]any, policyDirs []string) ([]BloodHoundNode, error) {
+func createNodesWithOPA(resources []map[string]any, policyDirs []string, parseUndefinedNodes bool) ([]BloodHoundNode, error) {
 	log := utils.DefaultLogger().Component("parser")
 	// Create OPA engine and load node policies
 	engine := NewOPAEngineForNodes(policyDirs)
@@ -115,7 +115,7 @@ func createNodesWithOPA(resources []map[string]any, policyDirs []string) ([]Bloo
 		chunk := resources[i:end]
 
 		// Query OPA for nodes
-		nodes, err := engine.QueryNodes(chunk)
+		nodes, err := engine.QueryNodes(chunk, parseUndefinedNodes)
 		if err != nil {
 			log.Error("Query nodes failed", "chunk_start", i, "chunk_end", end, "error", err)
 			return nil, errors.New("create nodes failed")

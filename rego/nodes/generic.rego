@@ -10,6 +10,7 @@ import data.nodes.helpers
 import data.nodes.config
 
 nodes contains node if {
+    input.parse_undefined_nodes
     resource := input.resources[_]
     kind := object.get(resource, "kind", "")
     kind != ""

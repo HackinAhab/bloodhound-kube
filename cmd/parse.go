@@ -13,13 +13,14 @@ import (
 )
 
 var (
-	inputFile     string
-	outputFile    string
-	parseLogLevel string
-	policyDirs    string
+	inputFile           string
+	outputFile          string
+	parseLogLevel       string
+	policyDirs          string
+	parseUndefinedNodes bool
 )
 
-func runParseFromFile(inputPath, outputPath, clusterName string, log utils.Logger, policyDirs []string) error {
+func runParseFromFile(inputPath, outputPath, clusterName string, log utils.Logger, policyDirs []string, parseUndefinedNodes bool) error {
 	if inputPath == "" {
 		log.Error("Input file is required")
 		return fmt.Errorf("input file is required")
@@ -42,7 +43,7 @@ func runParseFromFile(inputPath, outputPath, clusterName string, log utils.Logge
 	}
 	log.Debug("Successfully parsed JSONL", "resourceCount", len(resources))
 	log.Info("Begin processing resources", "resourceCount", len(resources), "workers", 20)
-	graph, err := parser.ConvertToBloodHoundResult(data, clusterName, policyDirs)
+	graph, err := parser.ConvertToBloodHoundResult(data, clusterName, policyDirs, parseUndefinedNodes)
 	if err != nil {
 		return err
 	}
@@ -109,7 +110,7 @@ Examples:
 			clusterName = cluster
 		}
 
-		return runParseFromFile(inputFile, outputFile, clusterName, log, parsePolicyDirs(policyDirs))
+		return runParseFromFile(inputFile, outputFile, clusterName, log, parsePolicyDirs(policyDirs), parseUndefinedNodes)
 	},
 }
 
@@ -137,6 +138,7 @@ func init() {
 	parseCmd.Flags().StringP("cluster", "c", "unknown", "Kubernetes cluster name for metadata")
 	parseCmd.Flags().StringVarP(&parseLogLevel, "log", "l", "info", "Log level (debug, info, warn, error)")
 	parseCmd.Flags().StringVar(&policyDirs, "policy-dirs", "", "Additional policy directories (comma-separated)")
+	parseCmd.Flags().BoolVar(&parseUndefinedNodes, "parse-undefined-nodes", false, "Enable generic node creation policy")
 
 	rootCmd.AddCommand(parseCmd)
 }

@@ -18,7 +18,7 @@ nodes contains node if {
     
     node := {
         "id": helpers.generate_id("Node", "", resource.metadata.name),
-        "kinds": ["Node"],
+        "kinds": ["K8s_Node"],
         "properties": {
             "name": helpers.get_name(resource),
             "resource_type": "node",
@@ -54,7 +54,7 @@ nodes contains node if {
 
     node := {
         "id": helpers.generate_id("Node", "", item.metadata.name),
-        "kinds": ["Node"],
+        "kinds": ["K8s_Node"],
         "properties": {
             "name": helpers.get_name(item),
             "resource_type": "node",

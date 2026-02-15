@@ -16,23 +16,6 @@ pod_scheduled_on_node contains edge if {
 	edge := helpers.create_edge(pod, node, "ScheduledOn")
 }
 
-# Pod with dangerous capabilities scheduled on Node
-# pod_dangerous_caps_on_node contains edge if {
-# 	namespace := input.namespaces[ns]
-# 	pod := namespace.pod[_]
-# 	pod.properties.nodeName != ""
-
-# 	pod.properties.__private.hasDangerousCaps == true
-
-# 	# Find the node
-# 	node := input.cluster_scoped.node[_]
-# 	node.properties.name == pod.properties.nodeName
-#     description := sprintf("Container in pod %s has dangerous capabilities that could allow for privilege escalation or container escape.", [pod.properties.name])
-# 	edge := helpers.create_edge_with_properties(pod, node, "DangerousCaps", {
-# 		"Description": description,
-# 	})
-# }
-
 # Pod uses ServiceAccount
 pod_uses_serviceaccount contains edge if {
 	namespace := input.namespaces[ns]

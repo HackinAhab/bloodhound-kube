@@ -7,21 +7,21 @@ import (
 	"sync"
 
 	"bloodhound-kube/internal/utils"
+
 	"github.com/open-policy-agent/opa/v1/ast"
 	"github.com/open-policy-agent/opa/v1/rego"
 )
 
 // OPAEngine implements relationship detection using OPA/Rego policies
 type OPAEngine struct {
-	preparedQuery *rego.PreparedEvalQuery
-	nodeQuery     *rego.PreparedEvalQuery // For node creation queries
-	compiler      *ast.Compiler
-	policyDir     string
-	nodePolicyDir string // Directory for node creation policies
-
-	// Performance settings
-	chunkSize    int
-	parallelEval bool
+	preparedQuery   *rego.PreparedEvalQuery
+	nodeQuery       *rego.PreparedEvalQuery // For node creation queries
+	compiler        *ast.Compiler
+	policyDir       string
+	nodePolicyDir   string // Directory for node creation policies
+	extraPolicyDirs []string
+	chunkSize       int
+	parallelEval    bool
 
 	// Caching
 	cache   map[string][]BloodHoundEdge
@@ -29,13 +29,14 @@ type OPAEngine struct {
 }
 
 // NewOPAEngine creates a new OPA-based relationship engine
-func NewOPAEngine(policyDir string) (*OPAEngine, error) {
+func NewOPAEngine(policyDir string, extraPolicyDirs []string) (*OPAEngine, error) {
 	log := utils.DefaultLogger().Component("parser")
 	engine := &OPAEngine{
-		policyDir:    policyDir,
-		chunkSize:    10000, // Process 10K nodes per chunk
-		parallelEval: true,  // Enable parallel evaluation
-		cache:        make(map[string][]BloodHoundEdge),
+		policyDir:       policyDir,
+		extraPolicyDirs: extraPolicyDirs,
+		chunkSize:       10000, // Process 10K nodes per chunk
+		parallelEval:    true,  // Enable parallel evaluation
+		cache:           make(map[string][]BloodHoundEdge),
 	}
 
 	if err := engine.compilePolicies(); err != nil {
@@ -47,11 +48,12 @@ func NewOPAEngine(policyDir string) (*OPAEngine, error) {
 }
 
 // NewOPAEngineForNodes creates an engine for node policies only
-func NewOPAEngineForNodes() *OPAEngine {
+func NewOPAEngineForNodes(extraPolicyDirs []string) *OPAEngine {
 	return &OPAEngine{
-		chunkSize:    10000,
-		parallelEval: true,
-		cache:        make(map[string][]BloodHoundEdge),
+		extraPolicyDirs: extraPolicyDirs,
+		chunkSize:       10000,
+		parallelEval:    true,
+		cache:           make(map[string][]BloodHoundEdge),
 	}
 }
 
@@ -60,7 +62,7 @@ func (e *OPAEngine) compilePolicies() error {
 	log := utils.DefaultLogger().Component("parser")
 	ctx := context.Background()
 
-	compiler, policyFiles, err := loadPolicyModules(e.policyDir, true)
+	compiler, policyFiles, err := loadPolicyModules(e.policyDir, true, e.extraPolicyDirs)
 	if err != nil {
 		log.Error("Load policy modules failed", "policy_dir", e.policyDir, "error", err)
 		return errors.New("compile policies failed")
@@ -175,7 +177,6 @@ func (e *OPAEngine) extractEdges(results rego.ResultSet) []BloodHoundEdge {
 			continue
 		}
 
-		// Iterate through categories (rbac, storage, networking, etc.)
 		for _, categoryData := range relationships {
 			categoryMap, ok := categoryData.(map[string]any)
 			if !ok {
@@ -250,12 +251,10 @@ func (e *OPAEngine) convertToEdge(data any) *BloodHoundEdge {
 		}
 	}
 
-	// Extract kind
 	if kind, ok := edgeMap["kind"].(string); ok {
 		edge.Kind = kind
 	}
 
-	// Extract properties
 	if props, ok := edgeMap["properties"].(map[string]any); ok {
 		maps.Copy(edge.Properties, props)
 	}
@@ -289,7 +288,7 @@ func (e *OPAEngine) compileNodePolicies() error {
 
 	ctx := context.Background()
 
-	compiler, policyFiles, err := loadPolicyModules(e.nodePolicyDir, true)
+	compiler, policyFiles, err := loadPolicyModules(e.nodePolicyDir, true, e.extraPolicyDirs)
 	if err != nil {
 		log.Error("Load node policy modules failed", "policy_dir", e.nodePolicyDir, "error", err)
 		return errors.New("compile node policies failed")
@@ -341,7 +340,6 @@ func (e *OPAEngine) QueryNodes(resources []map[string]any) ([]BloodHoundNode, er
 		return nil, err
 	}
 
-	// Extract nodes from results
 	nodes := e.extractNodes(results)
 
 	return nodes, nil
@@ -375,8 +373,8 @@ func (e *OPAEngine) extractNodes(results rego.ResultSet) []BloodHoundNode {
 
 		// Iterate through packages (storage, rbac, workloads, networking, cluster)
 		for packageName, packageData := range nodePackages {
-			// Skip the helpers package (utility functions only)
-			if packageName == "helpers" {
+			// Skip the helpers and config packages if they exist, as they are not expected to contain nodes
+			if packageName == "helpers" || packageName == "config" {
 				continue
 			}
 
@@ -429,14 +427,12 @@ func (e *OPAEngine) convertToNode(data any) *BloodHoundNode {
 		Properties: make(map[string]any),
 	}
 
-	// Extract ID
 	if id, ok := nodeMap["id"].(string); ok {
 		node.ID = id
 	} else {
 		return nil // ID is required
 	}
 
-	// Extract kinds
 	if kinds, ok := nodeMap["kinds"].([]any); ok {
 		node.Kinds = make([]string, 0, len(kinds))
 		for _, k := range kinds {
@@ -446,7 +442,6 @@ func (e *OPAEngine) convertToNode(data any) *BloodHoundNode {
 		}
 	}
 
-	// Extract properties
 	if props, ok := nodeMap["properties"].(map[string]any); ok {
 		maps.Copy(node.Properties, props)
 	}

@@ -6,4 +6,6 @@ mcp-servers
 .clinerules/*
 bloodhound-kube
 .agents
+.opencode
 tmp/
+.env

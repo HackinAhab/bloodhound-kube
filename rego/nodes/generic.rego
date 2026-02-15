@@ -7,6 +7,7 @@ import rego.v1
 
 import data.nodes.base
 import data.nodes.helpers
+import data.nodes.config
 
 nodes contains node if {
     resource := input.resources[_]

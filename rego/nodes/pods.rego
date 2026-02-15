@@ -75,6 +75,7 @@ analyze_containers_detail(spec) := containers if {
 			"readOnlyRootFilesystem": object.get(sec, "readOnlyRootFilesystem", "NotSet"),
 			"envFrom": extract_env_from(c),
 			"hasSecrets": references_secrets(c),
+			"hostPorts": extract_host_ports(c),
 		}
 	]
 }
@@ -154,6 +155,26 @@ extract_env_from(container) := env_sources if {
 
 extract_env_from(container) := [] if {
 	not container.envFrom
+}
+
+# Extract host ports
+extract_host_ports(container) := ports if {
+	container.ports
+	ports := [port |
+		some i
+		p := container.ports[i]
+		port := {
+			"containerPort": object.get(p, "containerPort", 0),
+			"hostPort": object.get(p, "hostPort", 0),
+			"hostIP": object.get(p, "hostIP", ""),
+			"protocol": object.get(p, "protocol", "TCP"),
+		}
+		port.hostPort != 0
+	]
+}
+
+extract_host_ports(container) := [] if {
+	not container.ports
 }
 
 # Check if container references secrets

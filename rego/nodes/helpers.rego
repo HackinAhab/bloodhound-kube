@@ -3,6 +3,7 @@ package nodes.helpers
 import rego.v1
 
 import future.keywords.in
+import data.nodes.config
 
 # Generate node ID (matches existing format)
 # For namespaced resources: Kind:namespace:name
@@ -25,7 +26,7 @@ generate_id(kind, namespace, name) := id if {
 
 # Detect sensitive keys in data
 has_sensitive_keys(keys) if {
-    sensitive := ["password", "token", "key", "secret", "cert", "credential", "api_key", "apikey", "private"]
+    sensitive := config.sensitive_keys
     some pattern in sensitive
     some key in keys
     contains(lower(key), pattern)
@@ -100,35 +101,35 @@ get_name(resource) := name if {
     name := object.get(resource, ["metadata", "name"], "")
 }
 
-# Known resource kinds with node policies
-known_kinds := {
-    "clusterrole",
-    "clusterrolebinding",
-    "clustersecretstore",
-    "configmap",
-    "daemonset",
-    "deployment",
-    "externalsecret",
-    "httproute",
-    "ingress",
-    "namespace",
-    "networkpolicy",
-    "node",
-    "nodelist",
-    "persistentvolume",
-    "persistentvolumeclaim",
-    "pod",
-    "role",
-    "rolebinding",
-    "secret",
-    "secretstore",
-    "securitycontextconstraints",
-    "service",
-    "serviceaccount",
-    "statefulset",
-}
+# # Known resource kinds with node policies
+# known_kinds := {
+#     "clusterrole",
+#     "clusterrolebinding",
+#     "clustersecretstore",
+#     "configmap",
+#     "daemonset",
+#     "deployment",
+#     "externalsecret",
+#     "httproute",
+#     "ingress",
+#     "namespace",
+#     "networkpolicy",
+#     "node",
+#     "nodelist",
+#     "persistentvolume",
+#     "persistentvolumeclaim",
+#     "pod",
+#     "role",
+#     "rolebinding",
+#     "secret",
+#     "secretstore",
+#     "securitycontextconstraints",
+#     "service",
+#     "serviceaccount",
+#     "statefulset",
+# }
 
 is_known_kind(kind) if {
     kind != null
-    lower(kind) in known_kinds
+    lower(kind) in { lower(k) | k := config.known_kinds[_] }
 }

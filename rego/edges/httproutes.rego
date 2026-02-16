@@ -22,6 +22,7 @@ httproute_routes_to_service contains edge if {
 	edge := helpers.create_edge(route, service, "RoutesTo")
 }
 
+
 httproute_routes_to_service contains edge if {
 	route_ns := input.namespaces[ns]
 	route := route_ns.httproute[_]
@@ -37,4 +38,12 @@ httproute_routes_to_service contains edge if {
 	service.properties.name == backend_name
 
 	edge := helpers.create_edge(route, service, "RoutesTo")
+}
+
+external_routes_to_httproute contains edge if {
+	external := input.cluster_scoped.external[_]
+	route_ns := input.namespaces[ns]
+	route := route_ns.httproute[_]
+
+	edge := helpers.create_edge(external, route, "ExternalRoutesTo")
 }

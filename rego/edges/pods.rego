@@ -9,7 +9,6 @@ pod_scheduled_on_node contains edge if {
 	pod := namespace.pod[_]
 	pod.properties.nodeName != ""
 	
-	# Find the node
 	node := input.cluster_scoped.node[_]
 	node.properties.name == pod.properties.nodeName
 	
@@ -23,6 +22,10 @@ pod_uses_serviceaccount contains edge if {
 	sa := namespace.serviceaccount[_]
 	
 	sa_name := object.get(pod.properties, "serviceAccount", "default")
+	# Filter out nil or empty service account names, and the default service account
+	# This is to reduce noise, as many pods use the default service account which has no permissions by default
+	sa_name != ""
+	sa_name != "default"
 	sa.properties.name == sa_name
 	
 	edge := helpers.create_edge(pod, sa, "Uses")
@@ -38,7 +41,7 @@ pod_mounts_secret contains edge if {
 	volume.type == "secret"
 	volume.secretName == secret.properties.name
 
-	edge := helpers.create_edge(pod, secret, "ReferencesSecret")
+	edge := helpers.create_edge(secret, pod, "MountedBy")
 }
 
 # Secret referenced by Pod environment variables
@@ -54,5 +57,5 @@ pod_references_secret_env contains edge if {
 	env_source.secretRef
 	env_source.secretRef.name == secret.properties.name
 
-	edge := helpers.create_edge(pod, secret, "ReferencesSecret")
+	edge := helpers.create_edge(secret, pod, "EnvVars")
 }

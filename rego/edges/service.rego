@@ -11,5 +11,5 @@ service_exposes_pods contains edge if {
 
 	helpers.is_subset(service.properties.__private.selector_map, pod.properties.__private.labels_map)
 
-	edge := helpers.create_edge(service, pod, "Exposes")
+	edge := helpers.create_edge(service, pod, "RoutesTo")
 }

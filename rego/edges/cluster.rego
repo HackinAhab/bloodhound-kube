@@ -13,7 +13,7 @@ persistent_volume_claim_used_by_pod contains edge if {
 	volume := pod.properties.__private.volumes[_]
 	volume.pvcName == pvc.properties.name
 
-	edge := helpers.create_edge(pvc, pod, "UsedBy")
+	edge := helpers.create_edge(pvc, pod, "MountedBy")
 }
 
 # PersistentVolume bound to PersistentVolumeClaim

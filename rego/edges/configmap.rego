@@ -28,5 +28,5 @@ configmap_env_referenced_by_pod contains edge if {
 	env_source.configMapRef
 	env_source.configMapRef.name == cm.properties.name
 
-	edge := helpers.create_edge(cm, pod, "ReferencedBy")
+	edge := helpers.create_edge(cm, pod, "EnvVars")
 }

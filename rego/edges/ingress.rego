@@ -17,3 +17,13 @@ ingress_routes_to_service contains edge if {
 	
 	edge := helpers.create_edge(ingress, service, "RoutesTo")
 }
+
+# Assumes all routes to an Ingress are externally accessible.  
+# External routes to Ingress
+external_routes_to_ingress contains edge if {
+	external := input.cluster_scoped.external[_]
+	ingress_ns := input.namespaces[ns]
+	ingress := ingress_ns.ingress[_]
+
+	edge := helpers.create_edge(external, ingress, "ExternalRoutesTo")
+}

@@ -1,0 +1,24 @@
+# Attribution: https://grahamhelton.com/blog/nodes-proxy-rce
+package kubernetes.relationships.node_proxy
+
+import rego.v1
+
+import data.kubernetes.helpers
+
+sa_node_proxy_get contains edge if {
+    namespace := input.namespaces[ns]
+    sa := namespace.serviceaccount[_]
+    sa.properties.name != ""
+
+    rules := namespace.rbac[_]
+    pod.properties.serviceAccount == sa.properties.name
+    pod.properties.nodeName != ""
+
+    node := input.cluster_scoped.node[_]
+    node.properties.name == pod.properties.nodeName
+
+    edge := helpers.create_edge_with_properties(sa, node, "NodeProxyGet", {
+        "Description": sprintf("ServiceAccount '%s' has the get verb for the nodes/proxy resource. This can allow an attacker to execute arbitrary commands on any Pod in the cluster", [sa.properties.name]),
+        "Reference:": "https://grahamhelton.com/blog/nodes-proxy-rce",
+    })
+}

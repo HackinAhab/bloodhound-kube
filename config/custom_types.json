@@ -1,5 +1,12 @@
 {
   "custom_types": {
+    "External": {
+      "icon": {
+        "type": "font-awesome",
+        "name": "globe",
+        "color": "#4CAF50"
+      }
+    },
     "K8s_Node": {
       "icon": {
         "type": "font-awesome",

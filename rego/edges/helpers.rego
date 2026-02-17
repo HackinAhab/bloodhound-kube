@@ -48,15 +48,15 @@ capability_descriptions := {
 		"Reference": "https://book.hacktricks.wiki/en/linux-hardening/privilege-escalation/linux-capabilities.html#cap_sys_admin",
 	},
 	"CAP_NET_ADMIN": {
-		"Description": "Container in pod has CAP_NET_ADMIN capability which allows for network administration tasks and can be used for malicious purposes such as intercepting network traffic or modifying network configurations.",
+		"Description": "Container in pod has CAP_NET_ADMIN capability which allows for network administration tasks and can be used for intercepting network traffic or modifying network configurations.",
 		"Reference": "",
 	},
 	"CAP_SYS_MODULE": {
-		"Description": "Container in pod has CAP_SYS_MODULE capability which allows for loading and unloading kernel modules, and can be used for malicious purposes such as installing rootkits or other kernel-level malware.",
+		"Description": "Container in pod has CAP_SYS_MODULE capability which allows for loading and unloading kernel modules, and can be used for installing custom kernel modules.",
 		"Reference": "https://book.hacktricks.wiki/en/linux-hardening/privilege-escalation/linux-capabilities.html#cap_sys_module",
 	},
 	"CAP_SYS_PTRACE": {
-		"Description": "Container in pod has CAP_SYS_PTRACE capability which allows for tracing and debugging of processes, and can be used for malicious purposes such as stealing sensitive information from other processes or performing code injection attacks.",
+		"Description": "Container in pod has CAP_SYS_PTRACE capability which allows for tracing and debugging of processes, and can be used for stealing sensitive information from other processes or performing code injection attacks.",
 		"Reference": "https://book.hacktricks.wiki/en/linux-hardening/privilege-escalation/linux-capabilities.html#cap_sys_ptrace",
 	},
 	"CAP_SYS_RAWIO": {
@@ -94,6 +94,12 @@ create_edge_via(source, target, via, edge_type) := edge if {
 			"via_name": via.properties.name,
 		},
 	}
+}
+
+# Check if pod has a capability
+has_capability(pod, capability) if {
+	cap := pod.properties.__private.capabilitiesAdd[_]
+	normalize_capability(cap) == capability
 }
 
 # Check if labels match selector (subset matching)

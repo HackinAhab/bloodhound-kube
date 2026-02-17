@@ -6,6 +6,9 @@ package nodes.pods
 import rego.v1
 import data.nodes.base
 
+# TODO: Remove all the excessive helper functions and just extract the relevant properties directly in the main node creation, as they are not reused anywhere else and are making the code more complex than it needs to be.
+# Properties under __private are not included in the main node properties, so they can be any structure supported by rego, and are not limited to opengraph constraints.
+
 # Main pod node creation
 nodes contains node if {
 	some i
@@ -26,21 +29,22 @@ nodes contains node if {
 
 	properties := object.union(metadata, {
 		"__private": private,
-		"securityContextConstraint": object.get(object.get(resource.metadata, "annotations", {}), "openshift.io/scc", ""),
+		"securityContextConstraint": object.get(object.get(resource.metadata, "annotations", {}), "openshift.io/scc", "NotDefined"),
 		"nodeName": object.get(resource.spec, "nodeName", ""),
 		"containers": analyze_containers_summary(resource.spec),
 		"containerImages": extract_container_images(resource.spec),
 		"capabilitiesAdd": cap_add,
 		"capabilitiesDrop": cap_drop,
-		"hostNetwork": object.get(resource.spec, "hostNetwork", "NotSet"),
-		"hostPid": object.get(resource.spec, "hostPID", "NotSet"),
-		"hostIpc": object.get(resource.spec, "hostIPC", "NotSet"),
-		"runAsUser": object.get(sec, "runAsUser", "NotSet"),
-		"runAsGroup": object.get(sec, "runAsGroup", "NotSet"),
-		"runAsNonRoot": object.get(sec, "runAsNonRoot", "NotSet"),
-		"fsGroup": object.get(sec, "fsGroup", "NotSet"),
+		"hostNetwork": object.get(resource.spec, "hostNetwork", "NotDefined"),
+		"hostPid": object.get(resource.spec, "hostPID", "NotDefined"),
+		"hostIpc": object.get(resource.spec, "hostIPC", "NotDefined"),
+		"runAsUser": object.get(sec, "runAsUser", "NotDefined"),
+		"runAsGroup": object.get(sec, "runAsGroup", "NotDefined"),
+		"runAsNonRoot": object.get(sec, "runAsNonRoot", "NotDefined"),
+		"fsGroup": object.get(sec, "fsGroup", "NotDefined"),
 		"supplementalGroups": object.get(sec, "supplementalGroups", []),
-		"seccompProfile": object.get(seccomp, "type", ""),
+		"seccompProfile": object.get(seccomp, "type", "NotDefined"),
+		"appArmorProfile": object.get(sec, "appArmorProfile", "NotDefined"),
 		"seLinuxOptions": selinux_summary(sec),
 		"volumes": analyze_volumes_summary(resource.spec),
 		"serviceAccount": object.get(resource.spec, "serviceAccountName", "default"),
@@ -69,13 +73,14 @@ analyze_containers_detail(spec) := containers if {
 		container := {
 			"name": c.name,
 			"image": c.image,
-			"privileged": object.get(sec, "privileged", "NotSet"),
-			"runAsUser": object.get(sec, "runAsUser", "NotSet"),
-			"runAsNonRoot": object.get(sec, "runAsNonRoot", "NotSet"),
-			"readOnlyRootFilesystem": object.get(sec, "readOnlyRootFilesystem", "NotSet"),
+			"privileged": object.get(sec, "privileged", "NotDefined"),
+			"runAsUser": object.get(sec, "runAsUser", "NotDefined"),
+			"runAsNonRoot": object.get(sec, "runAsNonRoot", "NotDefined"),
+			"readOnlyRootFilesystem": object.get(sec, "readOnlyRootFilesystem", "NotDefined"),
 			"envFrom": extract_env_from(c),
 			"hasSecrets": references_secrets(c),
 			"hostPorts": extract_host_ports(c),
+			"volumeMounts": [m | m := c.volumeMounts[_]],
 		}
 	]
 }
@@ -94,7 +99,7 @@ analyze_init_containers_detail(spec) := containers if {
 		container := {
 			"name": c.name,
 			"image": c.image,
-			"privileged": object.get(sec, "privileged", "NotSet"),
+			"privileged": object.get(sec, "privileged", "NotDefined"),
 		}
 	]
 }
@@ -205,7 +210,6 @@ analyze_volumes_detail(spec) := volumes if {
 			"configMapName": object.get(object.get(v, "configMap", {}), "name", ""),
 			"pvcName": object.get(object.get(v, "persistentVolumeClaim", {}), "claimName", ""),
 			"hostPath": object.get(object.get(v, "hostPath", {}), "path", ""),
-			"isSensitive": is_sensitive_volume(v),
 		}
 	]
 }
@@ -250,32 +254,20 @@ volume_type(volume) := "secret" if {
 	volume.projected
 } else := "downwardAPI" if {
 	volume.downwardAPI
-} else := "other"
-
-# Check if volume is sensitive
-is_sensitive_volume(volume) if {
-	volume.secret
-}
-
-is_sensitive_volume(volume) if {
-	volume.hostPath
-
-	sensitive_paths := ["/etc", "/var/run", "/proc", "/sys", "/dev"]
-	path := sensitive_paths[_]
-	startswith(volume.hostPath.path, path)
-}
+} else := "other" 
 
 # Analyze pod security context
 analyze_pod_security(spec) := security if {
 	spec.securityContext
 	security := {
-		"runAsUser": object.get(spec.securityContext, "runAsUser", "NotSet"),
-		"runAsGroup": object.get(spec.securityContext, "runAsGroup", "NotSet"),
-		"runAsNonRoot": object.get(spec.securityContext, "runAsNonRoot", "NotSet"),
-		"fsGroup": object.get(spec.securityContext, "fsGroup", "NotSet"),
+		"runAsUser": object.get(spec.securityContext, "runAsUser", "NotDefined"),
+		"runAsGroup": object.get(spec.securityContext, "runAsGroup", "NotDefined"),
+		"runAsNonRoot": object.get(spec.securityContext, "runAsNonRoot", "NotDefined"),
+		"fsGroup": object.get(spec.securityContext, "fsGroup", "NotDefined"),
 		"supplementalGroups": object.get(spec.securityContext, "supplementalGroups", []),
-		"seccompProfile": object.get(spec.securityContext, "seccompProfile", "NotSet"),
-		"seLinuxOptions": object.get(spec.securityContext, "seLinuxOptions", "NotSet"),
+		"seccompProfile": object.get(spec.securityContext, "seccompProfile", "NotDefined"),
+		"seLinuxOptions": object.get(spec.securityContext, "seLinuxOptions", "NotDefined"),
+		"appArmorProfile": object.get(spec.securityContext, "appArmorProfile", "NotDefined"),
 	}
 }
 
@@ -287,14 +279,14 @@ selinux_summary(sec) := summary if {
 	options := object.get(sec, "seLinuxOptions", {})
 	count(object.keys(options)) > 0
 	summary := sprintf("user=%v, role=%v, type=%v, level=%v", [
-		object.get(options, "user", "NotSet"),
-		object.get(options, "role", "NotSet"),
-		object.get(options, "type", "NotSet"),
-		object.get(options, "level", "NotSet"),
+		object.get(options, "user", "NotDefined"),
+		object.get(options, "role", "NotDefined"),
+		object.get(options, "type", "NotDefined"),
+		object.get(options, "level", "NotDefined"),
 	])
 }
 
-selinux_summary(sec) := "" if {
+selinux_summary(sec) := "NotDefined" if {
 	options := object.get(sec, "seLinuxOptions", {})
 	count(object.keys(options)) == 0
 }

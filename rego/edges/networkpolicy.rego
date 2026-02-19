@@ -7,11 +7,11 @@ import data.kubernetes.helpers
 
 # NetworkPolicy applies to Pods
 network_policy_applies_to_pods contains edge if {
-	namespace := input.namespaces[ns]
-	netpol := namespace.networkpolicy[_]
-	pod := namespace.pod[_]
+	namespace := input.core.namespaces[ns]
+	netpol := namespace.networkpolicies[_]
+	pod := namespace.pods[_]
 
-	helpers.is_subset(netpol.properties.podSelector, pod.properties.__private.labels_map)
+	helpers.is_subset(netpol.podSelector, pod.labels_map)
 
 	edge := helpers.create_edge(netpol, pod, "AppliesTo")
 }

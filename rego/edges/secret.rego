@@ -6,15 +6,13 @@ import data.kubernetes.helpers
 
 # ServiceAccount token Secret belongs to ServiceAccount
 service_account_token_belongs_to_account contains edge if {
-	namespace := input.namespaces[ns]
-	secret := namespace.secret[_]
-	sa := namespace.serviceaccount[_]
+	secret := input.core.namespaces[ns].secrets[_]
+	sa := input.core.namespaces[ns].serviceaccounts[_]
 
-	secret.properties.isServiceAccountToken == true
+	secret.type == "kubernetes.io/service-account-token"
 
-	sa_secret := sa.properties.secrets[_]
-	sa_secret == secret.properties.name
+	sa_secret := sa.secrets[_]
+	sa_secret == secret.name
 
 	edge := helpers.create_edge(secret, sa, "LongLivedToken")
 }
-

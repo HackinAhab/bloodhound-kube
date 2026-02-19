@@ -3,6 +3,7 @@ package parser
 import (
 	"context"
 	"errors"
+	"fmt"
 	"maps"
 	"sync"
 
@@ -115,6 +116,22 @@ func (e *OPAEngine) ApplyRules(nodes []BloodHoundNode) ([]BloodHoundEdge, error)
 	return edges, nil
 }
 
+// ApplyRulesWithCore evaluates Rego policies with core facts
+func (e *OPAEngine) ApplyRulesWithCore(nodes []BloodHoundNode, coreFacts *CoreFacts) ([]BloodHoundEdge, error) {
+	ctx := context.Background()
+	input := e.prepareEdgeInput(nodes, coreFacts)
+
+	results, err := e.preparedQuery.Eval(ctx, rego.EvalInput(input))
+	if err != nil {
+		return nil, fmt.Errorf("policy evaluation failed: %w", err)
+	}
+
+	edges := e.extractEdges(results)
+	edges = DeduplicateEdges(edges)
+	SortEdgesByKind(edges)
+	return edges, nil
+}
+
 // prepareHierarchicalInput organizes nodes by namespace and type for efficient querying
 func (e *OPAEngine) prepareHierarchicalInput(nodes []BloodHoundNode) map[string]any {
 	input := map[string]any{
@@ -148,6 +165,20 @@ func (e *OPAEngine) prepareHierarchicalInput(nodes []BloodHoundNode) map[string]
 		}
 	}
 
+	return input
+}
+
+func (e *OPAEngine) prepareEdgeInput(nodes []BloodHoundNode, coreFacts *CoreFacts) map[string]any {
+	input := e.prepareHierarchicalInput(nodes)
+	core := map[string]any{
+		"namespaces": map[string]map[string][]any{},
+		"cluster":    map[string][]any{},
+	}
+	if coreFacts != nil {
+		core["namespaces"] = coreFacts.Namespaces
+		core["cluster"] = coreFacts.Cluster
+	}
+	input["core"] = core
 	return input
 }
 

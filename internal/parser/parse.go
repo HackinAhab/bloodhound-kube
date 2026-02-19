@@ -5,7 +5,9 @@ import (
 	"errors"
 	"strings"
 
+	"bloodhound-kube/internal/parser/nodes"
 	"bloodhound-kube/internal/utils"
+
 	"github.com/TheManticoreProject/gopengraph"
 	"github.com/TheManticoreProject/gopengraph/edge"
 	"github.com/TheManticoreProject/gopengraph/node"
@@ -22,14 +24,11 @@ func ConvertToBloodHoundResult(jsonlData []byte, clusterName string, policyDirs 
 		return nil, err
 	}
 
-	// Create nodes using OPA policies with streaming
-	nodes, err := createNodesWithOPA(resources, policyDirs, parseUndefinedNodes)
-	if err != nil {
-		return nil, err
-	}
+	// Create nodes in Go and build core facts
+	nodes, coreFacts := createNodes(resources, parseUndefinedNodes)
 
 	// Create relationships using OPA policies
-	edges, err := createRelationshipsWithOPA(nodes, policyDirs)
+	edges, err := createRelationships(nodes, coreFacts, policyDirs)
 	if err != nil {
 		return nil, err
 	}
@@ -93,44 +92,6 @@ func parseJSONLToResources(jsonlData []byte) ([]map[string]any, error) {
 	return extracted, nil
 }
 
-// createNodesWithOPA uses OPA policies to create nodes from resources
-// Processes in chunks of 10K for memory efficiency
-func createNodesWithOPA(resources []map[string]any, policyDirs []string, parseUndefinedNodes bool) ([]BloodHoundNode, error) {
-	log := utils.DefaultLogger().Component("parser")
-	// Create OPA engine and load node policies
-	engine := NewOPAEngineForNodes(policyDirs)
-
-	// Load node creation policies
-	if err := engine.SetNodePolicyDir("rego/nodes"); err != nil {
-		return nil, err
-	}
-
-	// Process in chunks for memory efficiency
-	const chunkSize = 10000
-	var allNodes []BloodHoundNode
-
-	for i := 0; i < len(resources); i += chunkSize {
-		end := min(i+chunkSize, len(resources))
-
-		chunk := resources[i:end]
-
-		// Query OPA for nodes
-		nodes, err := engine.QueryNodes(chunk, parseUndefinedNodes)
-		if err != nil {
-			log.Error("Query nodes failed", "chunk_start", i, "chunk_end", end, "error", err)
-			return nil, errors.New("create nodes failed")
-		}
-		allNodes = append(allNodes, nodes...)
-	}
-
-	return allNodes, nil
-}
-
-// createRelationshipsWithOPA uses OPA policies to create edges from nodes
-func createRelationshipsWithOPA(nodes []BloodHoundNode, policyDirs []string) ([]BloodHoundEdge, error) {
-	return createRelationships(nodes, policyDirs)
-}
-
 // JSONL parsing utility
 func ParseFromJSONL(jsonlData []byte) ([]ResourceData, error) {
 	log := utils.DefaultLogger().Component("parser")
@@ -156,7 +117,7 @@ func ParseFromJSONL(jsonlData []byte) ([]ResourceData, error) {
 }
 
 // createRelationships applies OPA/Rego policies to create edges between nodes
-func createRelationships(nodes []BloodHoundNode, policyDirs []string) ([]BloodHoundEdge, error) {
+func createRelationships(nodes []BloodHoundNode, coreFacts *CoreFacts, policyDirs []string) ([]BloodHoundEdge, error) {
 	log := utils.DefaultLogger().Component("parser")
 	// Create OPA engine with policy directory
 	engine, err := NewOPAEngine("rego/edges", policyDirs)
@@ -165,11 +126,45 @@ func createRelationships(nodes []BloodHoundNode, policyDirs []string) ([]BloodHo
 	}
 
 	// Apply Rego policies to create relationships
-	edges, err := engine.ApplyRules(nodes)
+	edges, err := engine.ApplyRulesWithCore(nodes, coreFacts)
 	if err != nil {
 		log.Error("Apply OPA policies failed", "error", err)
 		return nil, errors.New("create relationships failed")
 	}
 
 	return edges, nil
+}
+
+func createNodes(resources []map[string]any, parseUndefinedNodes bool) ([]BloodHoundNode, *CoreFacts) {
+	nodeList := []BloodHoundNode{}
+	coreFacts := NewCoreFacts()
+
+	for _, resource := range resources {
+		result, ok := nodes.Build(resource)
+		if !ok && parseUndefinedNodes {
+			result, ok = nodes.BuildGenericNode(resource)
+		}
+		if !ok {
+			continue
+		}
+
+		nodeList = append(nodeList, BloodHoundNode{
+			ID:         result.Node.ID,
+			Kinds:      result.Node.Kinds,
+			Properties: result.Node.Properties,
+		})
+
+		for _, entry := range result.Core {
+			coreFacts.Add(entry)
+		}
+	}
+
+	external := nodes.ExternalNode()
+	nodeList = append(nodeList, BloodHoundNode{
+		ID:         external.ID,
+		Kinds:      external.Kinds,
+		Properties: external.Properties,
+	})
+
+	return nodeList, coreFacts
 }

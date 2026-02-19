@@ -4,20 +4,20 @@ package kubernetes.relationships.ce_sys_ptrace
 import data.kubernetes.helpers
 
 ce_sys_ptrace contains edge if {
-    namespace := input.namespaces[ns]
-    pod := namespace.pod[_]
-    pod.properties.nodeName != ""
+    namespace := input.core.namespaces[ns]
+    pod := namespace.pods[_]
+    pod.nodeName != ""
     pod.id != ""
 
-    host_pid := pod.properties.hostPid == true
+    host_pid := pod.hostPID == true
     has_caps := helpers.has_capability(pod, "CAP_SYS_PTRACE")
     has_admin := helpers.has_capability(pod, "CAP_SYS_ADMIN")
-    privileged := pod.properties.__private.containers[_].privileged == true
+    privileged := pod.containers[_].privileged == true
 
     is_vulnerable(host_pid, has_caps, has_admin, privileged)
 
-    node := input.cluster_scoped.node[_]
-    node.properties.name == pod.properties.nodeName
+    node := input.core.cluster.nodes[_]
+    node.name == pod.nodeName
     node.id != ""
 
     edge := helpers.create_edge_with_properties(pod, node, "CE_SYS_PTRACE", {

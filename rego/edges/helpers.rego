@@ -91,14 +91,15 @@ create_edge_via(source, target, via, edge_type) := edge if {
 		"properties": {
 			"via_id": via.id,
 			"via_kind": via.kinds[0],
-			"via_name": via.properties.name,
+			"via_name": object.get(via, "name", object.get(object.get(via, "properties", {}), "name", "")),
 		},
 	}
 }
 
 # Check if pod has a capability
 has_capability(pod, capability) if {
-	cap := pod.properties.__private.capabilitiesAdd[_]
+	caps := object.get(pod, "capabilitiesAdd", object.get(object.get(pod, "properties", {}), "capabilitiesAdd", []))
+	cap := caps[_]
 	normalize_capability(cap) == capability
 }
 

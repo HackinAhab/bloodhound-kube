@@ -6,14 +6,14 @@ import data.kubernetes.helpers
 
 # Pod attached to SecurityContextConstraints via annotation
 pod_attached_to_scc contains edge if {
-	namespace := input.namespaces[ns]
-	pod := namespace.pod[_]
+	namespace := input.core.namespaces[ns]
+	pod := namespace.pods[_]
 
-	scc := input.cluster_scoped.securitycontextconstraints[_]
+	scc := input.core.cluster.securitycontextconstraints[_]
 
-	scc_name := pod.properties.__private.annotations_map["openshift.io/scc"]
+	scc_name := pod.annotations_map["openshift.io/scc"]
 	scc_name != ""
-	scc.properties.name == scc_name
+	scc.name == scc_name
 
-	edge := helpers.create_edge(pod, scc, "AttachedTo")
+	edge := helpers.create_edge(scc, pod, "EnforcedSCC")
 }

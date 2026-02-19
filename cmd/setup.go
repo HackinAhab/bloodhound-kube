@@ -14,6 +14,7 @@ import (
 var (
 	setupModelFile   string
 	setupQueriesFile string
+	setupUploadFile  string
 	setupBaseURL     string
 	setupTokenID     string
 	setupTokenKey    string
@@ -26,8 +27,8 @@ var (
 
 var setupCmd = &cobra.Command{
 	Use:   "setup",
-	Short: "Upload custom BloodHound types and queries",
-	Long: `Upload custom node models and saved queries to a BloodHound server.
+	Short: "Upload Kubernetes OpenGraph data, node models, and saved queries to a BloodHound server",
+	Long: `Upload Kubernetes OpenGraph data,node models, and saved queries to a BloodHound server using the API. This command can be used to set up a BloodHound instance with Kubernetes-specific data models and queries.
 
 This command can reset existing custom data before uploading new models or
 queries, depending on the flags provided.
@@ -36,8 +37,8 @@ Examples:
   # Upload custom types using a local BloodHound server
   bloodhound-kube setup --model-file bh-setup/custom_types.json --token-id $BLOODHOUND_TOKEN_ID --token-key $BLOODHOUND_TOKEN_KEY
 
-  # Use a remote BloodHound server with TLS verification disabled
-  bloodhound-kube setup --model-file bh-setup/custom_types.json --url https://bh.example.com:8080 --token-id $BLOODHOUND_TOKEN_ID --token-key $BLOODHOUND_TOKEN_KEY --insecure`,
+  # Specify a custom BloodHound server URL
+  bloodhound-kube setup --model-file bh-setup/custom_types.json --url https://bh.example.com:8080 --token-id $BLOODHOUND_TOKEN_ID --token-key $BLOODHOUND_TOKEN_KEY`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		effectiveLogLevel := setupLogLevel
 		if !cmd.Flags().Changed("log") && globalLogLevel != "" {
@@ -54,8 +55,9 @@ Examples:
 
 		hasModel := cmd.Flags().Changed("model-file")
 		hasQueries := cmd.Flags().Changed("queries-file")
-		if !hasModel && !hasQueries && !setupReset {
-			return fmt.Errorf("provide --model-file, --queries-file, or --reset")
+		hasUpload := cmd.Flags().Changed("upload-file")
+		if !hasModel && !hasQueries && !setupReset && !hasUpload {
+			return fmt.Errorf("provide --model-file, --queries-file, --upload-file, or --reset")
 		}
 
 		client, err := setup.NewClient(setup.Config{
@@ -85,7 +87,7 @@ Examples:
 			fmt.Println("Database reset successfully.")
 		}
 
-		if setupReset && !hasModel && !hasQueries && !setupResetDB {
+		if setupReset && !hasModel && !hasQueries && !setupResetDB && !hasUpload {
 			log.Info("Resetting custom nodes")
 			if err := client.ResetCustomNodes(ctx); err != nil {
 				return fmt.Errorf("failed to reset custom nodes: %w", err)
@@ -133,6 +135,17 @@ Examples:
 			}
 			fmt.Printf("Imported %d saved queries.\n", queryCount)
 		}
+
+		if hasUpload {
+			if setupUploadFile == "" {
+				return fmt.Errorf("upload file is required when --upload-file is set")
+			}
+			log.Info("Uploading collections from file", "file", setupUploadFile)
+			if err := client.UploadOutput(ctx, setupUploadFile); err != nil {
+				return fmt.Errorf("failed to upload collections: %w", err)
+			}
+			log.Info("Collections uploaded successfully.")
+		}
 		return nil
 	},
 }
@@ -140,6 +153,7 @@ Examples:
 func init() {
 	setupCmd.Flags().StringVar(&setupModelFile, "model-file", "", "Path to the model JSON file")
 	setupCmd.Flags().StringVar(&setupQueriesFile, "queries-file", "config/custom_queries.json", "Path to the saved queries JSON file")
+	setupCmd.Flags().StringVar(&setupUploadFile, "upload-file", "", "Path to the parsed collections JSON file for upload")
 	setupCmd.Flags().StringVar(&setupBaseURL, "url", setup.DefaultBaseURL, "Base URL of the BloodHound instance")
 	setupCmd.Flags().StringVar(&setupTokenID, "token-id", "", "API token ID for authentication")
 	setupCmd.Flags().StringVar(&setupTokenKey, "token-key", "", "API token key for authentication")

@@ -34,7 +34,7 @@ func BuildNodeNode(resource map[string]any) (BuildResult, bool) {
 	return BuildResult{
 		Node: NodeResult{
 			ID:         BuildID("Node", "", name),
-			Kinds:      []string{"Node"},
+			Kinds:      []string{"K8s_Node"},
 			Properties: properties,
 		},
 		Core: []CoreEntry{core},

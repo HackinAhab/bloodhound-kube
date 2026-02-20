@@ -1,4 +1,4 @@
-package setup
+package upload
 
 import (
 	"context"
@@ -58,13 +58,13 @@ func NewClient(cfg Config) (*Client, error) {
 
 	if cfg.TokenID == "" || cfg.TokenKey == "" {
 		logger.Error("Token ID and token key are required")
-		return nil, errors.New("setup client initialization failed")
+		return nil, errors.New("upload client initialization failed")
 	}
 
 	auth, err := sdk.NewSecurityProviderHMACCredentials(cfg.TokenKey, cfg.TokenID)
 	if err != nil {
 		logger.Error("Failed to initialize HMAC credentials", "error", err)
-		return nil, errors.New("setup client initialization failed")
+		return nil, errors.New("upload client initialization failed")
 	}
 
 	timeout := cfg.Timeout
@@ -75,7 +75,7 @@ func NewClient(cfg Config) (*Client, error) {
 	transport, ok := http.DefaultTransport.(*http.Transport)
 	if !ok {
 		logger.Error("Unexpected default transport type")
-		return nil, errors.New("setup client initialization failed")
+		return nil, errors.New("upload client initialization failed")
 	}
 
 	cloned := transport.Clone()
@@ -96,15 +96,15 @@ func (c *Client) newRequest(ctx context.Context, method, url string, body io.Rea
 	req, err := http.NewRequestWithContext(ctx, method, url, body)
 	if err != nil {
 		c.log.Error("Create request failed", "method", method, "url", url, "error", err)
-		return nil, errors.New("setup request failed")
+		return nil, errors.New("upload request failed")
 	}
 	if c.auth == nil {
 		c.log.Error("HMAC credentials not configured")
-		return nil, errors.New("setup request failed")
+		return nil, errors.New("upload request failed")
 	}
 	if err := c.auth.Intercept(ctx, req); err != nil {
 		c.log.Error("Authenticate request failed", "method", method, "url", url, "error", err)
-		return nil, errors.New("setup request failed")
+		return nil, errors.New("upload request failed")
 	}
 	return req, nil
 }

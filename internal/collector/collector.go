@@ -10,9 +10,10 @@ import (
 )
 
 type Collector struct {
-	clients  *utils.Clients
-	logger   utils.Logger
-	redacted bool
+	clients       *utils.Clients
+	logger        utils.Logger
+	redacted      bool
+	paginateLimit int
 }
 
 func New(cfg utils.ClientConfig, log utils.Logger) (*Collector, error) {
@@ -66,8 +67,19 @@ func (c *Collector) SetRedacted(redacted bool) {
 	c.redacted = redacted
 }
 
+func (c *Collector) SetPaginateLimit(limit int) {
+	c.paginateLimit = limit
+}
+
 func (c *Collector) IsRedacted() bool {
 	return c.redacted
+}
+
+func (c *Collector) GetPaginateLimit(defaultLimit int) int {
+	if c.paginateLimit > 0 {
+		return c.paginateLimit
+	}
+	return defaultLimit
 }
 
 // GetClients returns the Kubernetes clients

@@ -54,50 +54,8 @@ func (nf *NamespaceFilter) ShouldCollectNamespace(namespace string) bool {
 	}
 }
 
-// PerformanceSettings defines performance-related configuration
-type PerformanceSettings struct {
-	ParallelCollectors int
-	BatchSize          int
-	TimeoutSeconds     int
-	RateLimitPerSecond int
-}
-
-// Validate checks if performance settings are valid
-func (ps *PerformanceSettings) Validate() error {
-	if ps.ParallelCollectors < 0 {
-		return fmt.Errorf("parallel_collectors must be >= 0")
-	}
-	if ps.BatchSize < 0 {
-		return fmt.Errorf("batch_size must be >= 0")
-	}
-	if ps.TimeoutSeconds < 0 {
-		return fmt.Errorf("timeout_seconds must be >= 0")
-	}
-	if ps.RateLimitPerSecond < 0 {
-		return fmt.Errorf("rate_limit_per_second must be >= 0")
-	}
-	return nil
-}
-
-// SetDefaults sets default values for performance settings
-func (ps *PerformanceSettings) SetDefaults() {
-	if ps.ParallelCollectors == 0 {
-		ps.ParallelCollectors = 5
-	}
-	if ps.BatchSize == 0 {
-		ps.BatchSize = 100
-	}
-	if ps.TimeoutSeconds == 0 {
-		ps.TimeoutSeconds = 300
-	}
-	if ps.RateLimitPerSecond == 0 {
-		ps.RateLimitPerSecond = 10
-	}
-}
-
 // CollectionsConfig represents the root configuration for resource collection
 type CollectionsConfig struct {
-	Settings    PerformanceSettings
 	Namespaces  NamespaceFilter
 	Collections []ResourceCollection
 }
@@ -124,11 +82,6 @@ type ResourceCollection struct {
 
 // Validate checks if the collections configuration is valid
 func (c *CollectionsConfig) Validate() error {
-	// Validate settings
-	if err := c.Settings.Validate(); err != nil {
-		return fmt.Errorf("settings validation failed: %w", err)
-	}
-
 	// Validate namespace filter
 	if err := c.Namespaces.Validate(); err != nil {
 		return fmt.Errorf("namespace filter validation failed: %w", err)
@@ -174,9 +127,6 @@ func (c *CollectionsConfig) Validate() error {
 
 // SetDefaults sets default values for the configuration
 func (c *CollectionsConfig) SetDefaults() {
-	// Set default settings
-	c.Settings.SetDefaults()
-
 	// Set default namespace mode if not specified
 	if c.Namespaces.Mode == "" {
 		c.Namespaces.Mode = NamespaceModeAll

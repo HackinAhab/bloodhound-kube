@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/pem"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 )
@@ -13,6 +14,21 @@ import (
 // These functions provide value-added analysis beyond simple Kubernetes API collection.
 
 // CertificateInfo represents parsed certificate metadata
+
+const stripManagedFieldsEnabled = true
+const omitHelmReleaseSecrets = true
+
+var commonSensitiveKeys = []string{
+	"tls.key", "ca.key", "key.pem", "private.key", "server.key", "client.key",
+	"tls-key", "ca-key", "private-key", "server-key", "client-key",
+	"password", "token", "secret", "api-key", "apikey", "auth",
+}
+
+var commonCertificateKeys = []string{
+	"tls.crt", "ca.crt", "cert.pem", "certificate.pem", "client.crt", "server.crt",
+	"tls-cert", "ca-cert", "certificate", "cert", "ca", "client-cert", "server-cert",
+}
+
 type CertificateInfo struct {
 	Subject        string    `json:"subject,omitempty"`
 	Issuer         string    `json:"issuer,omitempty"`
@@ -115,13 +131,7 @@ func parseCertificate(certPEM string) (*CertificateInfo, error) {
 func extractCertificatesFromSecret(data map[string][]byte) map[string]CertificateInfo {
 	certificates := make(map[string]CertificateInfo)
 
-	// Common certificate keys to check
-	certKeys := []string{
-		"tls.crt", "ca.crt", "cert.pem", "certificate.pem", "client.crt", "server.crt",
-		"tls-cert", "ca-cert", "certificate", "cert", "ca", "client-cert", "server-cert",
-	}
-
-	for _, key := range certKeys {
+	for _, key := range commonCertificateKeys {
 		if certData, exists := data[key]; exists {
 			if certInfo, err := parseCertificate(string(certData)); err == nil {
 				certificates[key] = *certInfo
@@ -145,14 +155,9 @@ func extractCertificatesFromSecret(data map[string][]byte) map[string]Certificat
 
 // isSensitiveKey returns true if the key often contains sensitive data that should be redacted
 func isSensitiveKey(key string) bool {
-	sensitiveKeys := []string{
-		"tls.key", "ca.key", "key.pem", "private.key", "server.key", "client.key",
-		"tls-key", "ca-key", "private-key", "server-key", "client-key",
-		"password", "token", "secret", "api-key", "apikey", "auth",
-	}
 
 	keyLower := strings.ToLower(key)
-	for _, sensitive := range sensitiveKeys {
+	for _, sensitive := range commonSensitiveKeys {
 		if strings.Contains(keyLower, sensitive) {
 			return true
 		}
@@ -160,7 +165,7 @@ func isSensitiveKey(key string) bool {
 	return false
 }
 
-func AnnotationsCleaner(annotations map[string]string) map[string]string {
+func annotationsCleaner(annotations map[string]string) map[string]string {
 	if annotations == nil {
 		return nil
 	}
@@ -179,8 +184,8 @@ func AnnotationsCleaner(annotations map[string]string) map[string]string {
 	return cleaned
 }
 
-// CleanAnnotationsInObject applies annotation cleaning on a Kubernetes object map
-func CleanAnnotationsInObject(obj map[string]any) {
+// cleanAnnotationsInObject applies annotation cleaning on a Kubernetes object map
+func cleanAnnotationsInObject(obj map[string]any) {
 	metadata, ok := obj["metadata"].(map[string]any)
 	if !ok || metadata == nil {
 		return
@@ -198,7 +203,7 @@ func CleanAnnotationsInObject(obj map[string]any) {
 		}
 	}
 
-	cleaned := AnnotationsCleaner(annotations)
+	cleaned := annotationsCleaner(annotations)
 	if cleaned == nil {
 		delete(metadata, "annotations")
 		return
@@ -236,8 +241,8 @@ func getSecretDataBytes(obj map[string]any) map[string][]byte {
 	return dataBytes
 }
 
-// EnrichSecretObject adds certificate metadata and optional redaction to a Secret object map
-func EnrichSecretObject(obj map[string]any, redacted bool) {
+// enrichSecretObject adds certificate metadata and optional redaction to a Secret object map
+func enrichSecretObject(obj map[string]any, redacted bool) {
 	dataBytes := getSecretDataBytes(obj)
 	if dataBytes != nil {
 		certs := extractCertificatesFromSecret(dataBytes)
@@ -271,17 +276,56 @@ func EnrichSecretObject(obj map[string]any, redacted bool) {
 	}
 }
 
-// ApplyCollectionHelpers applies common cleaning/enrichment to a collected object
-func ApplyCollectionHelpers(obj map[string]any, resourcePlural string, redacted bool) map[string]any {
+// applyCollectionHelpers applies common cleaning/enrichment to a collected object
+func applyCollectionHelpers(obj map[string]any, resourcePlural string, redacted bool) map[string]any {
 	if obj == nil {
 		return obj
 	}
+	if resourcePlural == "secrets" && omitHelmReleaseSecrets && isHelmReleaseSecret(obj) {
+		return nil
+	}
 
-	CleanAnnotationsInObject(obj)
+	stripManagedFields(obj)
+
+	cleanAnnotationsInObject(obj)
 
 	if resourcePlural == "secrets" {
-		EnrichSecretObject(obj, redacted)
+		enrichSecretObject(obj, redacted)
 	}
 
 	return obj
+}
+
+func stripManagedFields(obj map[string]any) {
+	if !stripManagedFieldsEnabled {
+		return
+	}
+	metadata, ok := obj["metadata"].(map[string]any)
+	if !ok || metadata == nil {
+		return
+	}
+	delete(metadata, "managedFields")
+}
+
+func isHelmReleaseSecret(obj map[string]any) bool {
+	secretType, ok := obj["type"].(string)
+	if !ok {
+		return false
+	}
+	return secretType == "helm.sh/release.v1"
+}
+
+func normalizeResourceType(name string) string {
+	return strings.ReplaceAll(name, "-", "_")
+}
+
+func buildAPIPath(groupVersion, resource string) string {
+	if groupVersion == "" {
+		return resource
+	}
+	return groupVersion + "/" + resource
+}
+
+func hasVerb(verbs []string, verb string) bool {
+	return slices.Contains(verbs, verb)
 }

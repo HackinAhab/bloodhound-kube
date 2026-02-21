@@ -4,11 +4,15 @@ import (
 	"bloodhound-kube/internal/utils"
 	"context"
 	"fmt"
+	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
 )
+
+const defaultListPageSize = 500
 
 // CollectorFactory creates collectors from configuration
 type CollectorFactory struct {
@@ -106,11 +110,6 @@ func (f *CollectorFactory) ShouldCollectNamespace(namespace string) bool {
 	return f.config.Namespaces.ShouldCollectNamespace(namespace)
 }
 
-// GetPerformanceSettings returns the performance settings from config
-func (f *CollectorFactory) GetPerformanceSettings() PerformanceSettings {
-	return f.config.Settings
-}
-
 // extractVersion extracts the version part from an API version string
 // Examples:
 //   - "v1" -> "v1"
@@ -179,52 +178,76 @@ func (g *GenericCollector) Collect(ctx context.Context, c *Collector, namespace 
 		Resource: g.plural,
 	}
 
-	// List options
-	listOpts := metav1.ListOptions{}
+	var resources []Resource
+	continueToken := ""
+	page := 0
+
+	for {
+		paginateLimit := defaultListPageSize
+		if c != nil {
+			paginateLimit = c.GetPaginateLimit(defaultListPageSize)
+		}
+		listOpts := metav1.ListOptions{
+			Limit:    int64(paginateLimit),
+			Continue: continueToken,
+		}
+
+		listStart := time.Now()
+		list, listErr := g.listDynamic(ctx, gvr, namespace, listOpts)
+		if listErr != nil {
+			if g.clusterScoped {
+				return nil, fmt.Errorf("failed to list %s: %w", g.plural, listErr)
+			}
+			return nil, fmt.Errorf("failed to list %s in namespace %s: %w", g.plural, namespace, listErr)
+		}
+		listDuration := time.Since(listStart)
+		page++
+		hasContinue := list.GetContinue() != ""
+		g.logger.Trace("Listed resources page", "type", g.resourceType, "namespace", namespace, "page", page, "count", len(list.Items), "duration", listDuration, "has_continue", hasContinue)
+
+		processStart := time.Now()
+		if resources == nil {
+			resources = make([]Resource, 0, len(list.Items))
+		}
+		resources = append(resources, g.buildDynamicResources(list, namespace, c.IsRedacted())...)
+		g.logger.Trace("Processed resources page", "type", g.resourceType, "namespace", namespace, "page", page, "count", len(list.Items), "duration", time.Since(processStart))
+
+		continueToken = list.GetContinue()
+		if continueToken == "" {
+			break
+		}
+	}
 
 	if g.clusterScoped {
-		// Cluster-scoped resource
-		unstructuredList, err := g.dynamicClient.Resource(gvr).List(ctx, listOpts)
-		if err != nil {
-			return nil, fmt.Errorf("failed to list %s: %w", g.plural, err)
-		}
-
-		// Convert to resources
-		resources := make([]Resource, len(unstructuredList.Items))
-		for i, item := range unstructuredList.Items {
-			processed := ApplyCollectionHelpers(item.Object, g.plural, c.IsRedacted())
-			resources[i] = Resource{
-				Type:      g.resourceType,
-				Namespace: namespace,
-				Resource:  processed,
-				Timestamp: metav1.Now().Format("2006-01-02T15:04:05Z07:00"),
-			}
-		}
-
 		g.logger.Debug("Collected cluster-scoped resources", "type", g.resourceType, "count", len(resources))
-
-		return resources, nil
-	} else {
-		// Namespaced resource
-		unstructuredList, err := g.dynamicClient.Resource(gvr).Namespace(namespace).List(ctx, listOpts)
-		if err != nil {
-			return nil, fmt.Errorf("failed to list %s in namespace %s: %w", g.plural, namespace, err)
-		}
-
-		// Convert to resources
-		resources := make([]Resource, len(unstructuredList.Items))
-		for i, item := range unstructuredList.Items {
-			processed := ApplyCollectionHelpers(item.Object, g.plural, c.IsRedacted())
-			resources[i] = Resource{
-				Type:      g.resourceType,
-				Namespace: namespace,
-				Resource:  processed,
-				Timestamp: metav1.Now().Format("2006-01-02T15:04:05Z07:00"),
-			}
-		}
-
-		g.logger.Debug("Collected namespaced resources", "type", g.resourceType, "namespace", namespace, "count", len(resources))
-
 		return resources, nil
 	}
+
+	g.logger.Debug("Collected namespaced resources", "type", g.resourceType, "namespace", namespace, "count", len(resources))
+	return resources, nil
+}
+
+func (g *GenericCollector) listDynamic(ctx context.Context, gvr schema.GroupVersionResource, namespace string, listOpts metav1.ListOptions) (*unstructured.UnstructuredList, error) {
+	if g.clusterScoped {
+		return g.dynamicClient.Resource(gvr).List(ctx, listOpts)
+	}
+	return g.dynamicClient.Resource(gvr).Namespace(namespace).List(ctx, listOpts)
+}
+
+func (g *GenericCollector) buildDynamicResources(list *unstructured.UnstructuredList, namespace string, redacted bool) []Resource {
+	resources := make([]Resource, 0, len(list.Items))
+	timestamp := metav1.Now().Format("2006-01-02T15:04:05Z07:00")
+	for _, item := range list.Items {
+		processed := applyCollectionHelpers(item.Object, g.plural, redacted)
+		if processed == nil {
+			continue
+		}
+		resources = append(resources, Resource{
+			Type:      g.resourceType,
+			Namespace: namespace,
+			Resource:  processed,
+			Timestamp: timestamp,
+		})
+	}
+	return resources
 }

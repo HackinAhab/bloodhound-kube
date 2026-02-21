@@ -48,13 +48,13 @@ func BuildPodNode(resource map[string]any) (BuildResult, bool) {
 		"initContainerImages":       initContainerImages,
 		"capabilitiesAdd":           capAdd,
 		"capabilitiesDrop":          capDrop,
-		"hostNetwork":               GetValue(spec, "hostNetwork"),
-		"hostPid":                   GetValue(spec, "hostPID"),
-		"hostIpc":                   GetValue(spec, "hostIPC"),
-		"runAsUser":                 GetValue(securityContext, "runAsUser"),
-		"runAsGroup":                GetValue(securityContext, "runAsGroup"),
-		"runAsNonRoot":              GetValue(securityContext, "runAsNonRoot"),
-		"fsGroup":                   GetValue(securityContext, "fsGroup"),
+		"hostNetwork":               GetBool(spec, "hostNetwork"),
+		"hostPid":                   GetBool(spec, "hostPID"),
+		"hostIpc":                   GetBool(spec, "hostIPC"),
+		"runAsUser":                 GetNumber(securityContext, "runAsUser"),
+		"runAsGroup":                GetNumber(securityContext, "runAsGroup"),
+		"runAsNonRoot":              GetBool(securityContext, "runAsNonRoot"),
+		"fsGroup":                   GetNumber(securityContext, "fsGroup"),
 		"supplementalGroups":        GetSlice(securityContext, "supplementalGroups"),
 		"seccompProfile":            GetString(seccompProfile, "type"),
 		"appArmorProfile":           AppArmorProfileValue(securityContext),
@@ -72,7 +72,7 @@ func BuildPodNode(resource map[string]any) (BuildResult, bool) {
 			"name":             name,
 			"namespace":        namespace,
 			"nodeName":         GetString(spec, "nodeName"),
-			"hostPID":          GetValue(spec, "hostPID"),
+			"hostPID":          GetBool(spec, "hostPID"),
 			"serviceAccount":   GetString(spec, "serviceAccountName"),
 			"labels_map":       labelsMap,
 			"annotations_map":  annotationsMap,
@@ -160,19 +160,19 @@ func extractContainersDetail(containers []any, podSec map[string]any, podSeccomp
 		seccomp := GetMap(sec, "seccompProfile")
 		seLinux := GetMap(sec, "seLinuxOptions")
 
-		privileged := GetValue(sec, "privileged")
-		readOnly := GetValue(sec, "readOnlyRootFilesystem")
-		runAsUser := GetValue(sec, "runAsUser")
+		privileged := GetBool(sec, "privileged")
+		readOnly := GetBool(sec, "readOnlyRootFilesystem")
+		runAsUser := GetString(sec, "runAsUser")
 		if runAsUser == "" {
-			runAsUser = GetValue(podSec, "runAsUser")
+			runAsUser = GetString(podSec, "runAsUser")
 		}
-		runAsGroup := GetValue(sec, "runAsGroup")
+		runAsGroup := GetString(sec, "runAsGroup")
 		if runAsGroup == "" {
-			runAsGroup = GetValue(podSec, "runAsGroup")
+			runAsGroup = GetString(podSec, "runAsGroup")
 		}
-		runAsNonRoot := GetValue(sec, "runAsNonRoot")
+		runAsNonRoot := GetBool(sec, "runAsNonRoot")
 		if runAsNonRoot == "" {
-			runAsNonRoot = GetValue(podSec, "runAsNonRoot")
+			runAsNonRoot = GetBool(podSec, "runAsNonRoot")
 		}
 
 		seccompType := GetString(seccomp, "type")
@@ -229,7 +229,7 @@ func extractInitContainersDetail(containers []any) []map[string]any {
 		result := map[string]any{
 			"name":       GetString(container, "name"),
 			"image":      GetString(container, "image"),
-			"privileged": GetValue(sec, "privileged"),
+			"privileged": GetBool(sec, "privileged"),
 		}
 		results = append(results, result)
 	}

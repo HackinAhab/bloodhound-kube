@@ -24,7 +24,7 @@ func BuildDeploymentNode(resource map[string]any) (BuildResult, bool) {
 		"namespace":   namespace,
 		"labels":      MapToSortedList(labelsMap),
 		"annotations": MapToSortedList(annotationsMap),
-		"replicas":    GetValue(spec, "replicas"),
+		"replicas":    GetNumber(spec, "replicas"),
 		"selector":    MapToSortedList(selectorMap),
 	}
 

@@ -4,7 +4,6 @@ import (
 	"bloodhound-kube/internal/utils"
 	"context"
 	"errors"
-	"slices"
 	"sort"
 	"strings"
 
@@ -102,14 +101,26 @@ func DiscoverResources(ctx context.Context, clients *utils.Clients, log utils.Lo
 }
 
 func BuildCollectionsConfigFromDiscovery(resources []DiscoveryResource) (*CollectionsConfig, error) {
+	// CRD resources themselves are skipped because they are not useful for our purpose, and including them would add a lot of noise.
+	// The CRD list is still used to discover resources from CRDs to then collect.
+	const includeCRDDefinitions = false
+	const crdDefinitionGroup = "apiextensions.k8s.io"
+	const crdDefinitionResource = "customresourcedefinitions"
+
 	collections := make([]ResourceCollection, 0, len(resources))
 	resourceCounts := make(map[string]int)
 	for _, res := range resources {
+		if !includeCRDDefinitions && res.Group == crdDefinitionGroup && res.Resource == crdDefinitionResource {
+			continue
+		}
 		resourceCounts[res.Resource]++
 	}
 
 	seen := make(map[string]struct{})
 	for _, res := range resources {
+		if !includeCRDDefinitions && res.Group == crdDefinitionGroup && res.Resource == crdDefinitionResource {
+			continue
+		}
 		name := res.Resource
 		if resourceCounts[res.Resource] > 1 {
 			group := res.Group
@@ -151,19 +162,4 @@ func BuildCollectionsConfigFromDiscovery(resources []DiscoveryResource) (*Collec
 	}
 
 	return cfg, nil
-}
-
-func normalizeResourceType(name string) string {
-	return strings.ReplaceAll(name, "-", "_")
-}
-
-func buildAPIPath(groupVersion, resource string) string {
-	if groupVersion == "" {
-		return resource
-	}
-	return groupVersion + "/" + resource
-}
-
-func hasVerb(verbs []string, verb string) bool {
-	return slices.Contains(verbs, verb)
 }

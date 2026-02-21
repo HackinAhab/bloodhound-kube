@@ -1,9 +1,11 @@
 package parser
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
-	"strings"
+	"io"
+	"time"
 
 	"bloodhound-kube/internal/parser/nodes"
 	"bloodhound-kube/internal/utils"
@@ -16,22 +18,31 @@ import (
 
 // Main parsing function - OPA-based streaming approach
 func ConvertToBloodHoundResult(jsonlData []byte, clusterName string, policyDirs []string, parseUndefinedNodes bool) (*gopengraph.OpenGraph, error) {
+	return ConvertToBloodHoundResultFromReader(bytes.NewReader(jsonlData), clusterName, policyDirs, parseUndefinedNodes)
+}
+
+// ConvertToBloodHoundResultFromReader parses JSONL data from a reader.
+func ConvertToBloodHoundResultFromReader(reader io.Reader, clusterName string, policyDirs []string, parseUndefinedNodes bool) (*gopengraph.OpenGraph, error) {
 	_ = clusterName
 	log := utils.DefaultLogger().Component("parser")
-	// Parse raw JSONL into resources
-	resources, err := parseJSONLToResources(jsonlData)
+
+	parseStart := time.Now()
+	resources, err := parseJSONLToResourcesReader(reader)
 	if err != nil {
 		return nil, err
 	}
+	log.Debug("Parsed JSONL resources", "count", len(resources), "duration", time.Since(parseStart))
 
-	// Create nodes in Go and build core facts
+	buildStart := time.Now()
 	nodes, coreFacts := createNodes(resources, parseUndefinedNodes)
+	log.Debug("Built nodes and core facts", "nodes", len(nodes), "duration", time.Since(buildStart))
 
-	// Create relationships using OPA policies
+	edgeStart := time.Now()
 	edges, err := createRelationships(nodes, coreFacts, policyDirs)
 	if err != nil {
 		return nil, err
 	}
+	log.Debug("Created edges", "edges", len(edges), "duration", time.Since(edgeStart))
 
 	for i := range nodes {
 		nodes[i].Properties = SanitizeProperties(nodes[i].Properties)
@@ -71,22 +82,32 @@ func ConvertToBloodHoundResult(jsonlData []byte, clusterName string, policyDirs 
 // parseJSONLToResources converts JSONL bytes to raw resource maps
 // Extracts the .resource field from the JSONL wrapper structure
 func parseJSONLToResources(jsonlData []byte) ([]map[string]any, error) {
+	return parseJSONLToResourcesReader(bytes.NewReader(jsonlData))
+}
+
+func parseJSONLToResourcesReader(reader io.Reader) ([]map[string]any, error) {
 	log := utils.DefaultLogger().Component("parser")
-	resources, err := ParseFromJSONL(jsonlData)
-	if err != nil {
-		return nil, err
-	}
 
 	var extracted []map[string]any
-	for i, resource := range resources {
+	err := utils.ReadJSONL(reader, func(line int, raw []byte) error {
+		var resource ResourceData
+		if err := json.Unmarshal(raw, &resource); err != nil {
+			log.Error("Parse JSONL line failed", "line", line, "error", err)
+			return errors.New("parse JSONL failed")
+		}
+
 		// Extract the actual K8s resource from the wrapper
 		// JSONL format: {"type": "secret", "timestamp": "...", "resource": {...}}
 		// OPA policies expect: {"kind": "Secret", "metadata": {...}, ...}
 		if payload, ok := resource.Resource.(map[string]any); ok {
 			extracted = append(extracted, payload)
-			continue
+			return nil
 		}
-		log.Warn("Missing resource field; skipping line", "line", i+1)
+		log.Warn("Missing resource field; skipping line", "line", line)
+		return nil
+	})
+	if err != nil {
+		return nil, err
 	}
 
 	return extracted, nil
@@ -94,23 +115,25 @@ func parseJSONLToResources(jsonlData []byte) ([]map[string]any, error) {
 
 // JSONL parsing utility
 func ParseFromJSONL(jsonlData []byte) ([]ResourceData, error) {
+	return ParseFromJSONLReader(bytes.NewReader(jsonlData))
+}
+
+// ParseFromJSONLReader parses JSONL data from a reader.
+func ParseFromJSONLReader(reader io.Reader) ([]ResourceData, error) {
 	log := utils.DefaultLogger().Component("parser")
-	lines := strings.Split(string(jsonlData), "\n")
 	var resources []ResourceData
 
-	for i, line := range lines {
-		line = strings.TrimSpace(line)
-		if line == "" {
-			continue
-		}
-
+	err := utils.ReadJSONL(reader, func(line int, raw []byte) error {
 		var resource ResourceData
-		if err := json.Unmarshal([]byte(line), &resource); err != nil {
-			log.Error("Parse JSONL line failed", "line", i+1, "error", err)
-			return nil, errors.New("parse JSONL failed")
+		if err := json.Unmarshal(raw, &resource); err != nil {
+			log.Error("Parse JSONL line failed", "line", line, "error", err)
+			return errors.New("parse JSONL failed")
 		}
-
 		resources = append(resources, resource)
+		return nil
+	})
+	if err != nil {
+		return nil, err
 	}
 
 	return resources, nil

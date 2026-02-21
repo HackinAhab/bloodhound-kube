@@ -26,7 +26,7 @@ var (
 	output             string
 	resourceTypes      []string
 	concurrency        int
-	timeout            int
+	paginateLimit      int
 	kubeconfig         string
 	server             string
 	token              string
@@ -108,9 +108,9 @@ func runCollect(cmd *cobra.Command, _ []string, log utils.Logger) (string, error
 
 	// Set redacted flag on collector
 	c.SetRedacted(redacted)
+	c.SetPaginateLimit(paginateLimit)
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(timeout)*time.Second)
-	defer cancel()
+	ctx := context.Background()
 
 	// Get dynamic client for CRD support
 	dynamicClient, err := c.GetDynamicClient()
@@ -399,10 +399,14 @@ Examples:
 		if !cmd.Flags().Changed("log") && globalLogLevel != "" {
 			effectiveLogLevel = globalLogLevel
 		}
-		log := utils.New(effectiveLogLevel, globalNoColor)
+		log, closeFn, err := buildLogger(effectiveLogLevel, true)
+		if err != nil {
+			return err
+		}
+		defer closeFn()
 		utils.SetDefaultLogger(log)
 
-		_, err := runCollect(cmd, args, log)
+		_, err = runCollect(cmd, args, log)
 		return err
 	},
 }
@@ -423,8 +427,8 @@ func addCollectFlags(cmd *cobra.Command) {
 	cmd.Flags().StringVarP(&namespaces, "namespace", "n", "", "Kubernetes namespace(s) - comma-delimited for multiple (defaults to current context namespace)")
 	cmd.Flags().BoolVarP(&allNamespaces, "all-namespaces", "A", false, "Collect from all namespaces (cannot be used with -n)")
 	cmd.Flags().IntVarP(&concurrency, "concurrency", "c", 10, "Number of concurrent workers for streaming collection")
-	cmd.Flags().IntVarP(&timeout, "timeout", "", 300, "Timeout in seconds for the entire collection")
-	cmd.Flags().StringVarP(&logLevel, "log", "l", "info", "Log level (debug, info, warn, error)")
+	cmd.Flags().IntVar(&paginateLimit, "paginate-limit", 100, "List pagination limit per API call")
+	cmd.Flags().StringVarP(&logLevel, "log", "l", "info", "Log level (trace, debug, info, warn, error)")
 	cmd.Flags().StringVarP(&output, "output", "o", "", "Output file path (can be directory, filename, or full path). Defaults to bloodhound-kube-YYYY-MM-DD-HHMMSS.jsonl in current directory")
 	cmd.Flags().StringSliceVarP(&resourceTypes, "type", "t", []string{}, resourceTypeHelp)
 	cmd.Flags().StringVar(&kubeconfig, "kubeconfig", "", "Path to kubeconfig file (overrides KUBECONFIG and ~/.kube/config)")
@@ -537,7 +541,7 @@ func promptForCRDs(resources []collector.DiscoveryResource) (bool, error) {
 	maxGroups := min(len(groups), 5)
 
 	var groupSummary []string
-	for i := 0; i < maxGroups; i++ {
+	for i := range maxGroups {
 		groupSummary = append(groupSummary, fmt.Sprintf("%s (%d)", groups[i].group, groups[i].count))
 	}
 

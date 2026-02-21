@@ -44,7 +44,11 @@ Examples:
 		if !cmd.Flags().Changed("log") && globalLogLevel != "" {
 			effectiveLogLevel = globalLogLevel
 		}
-		log := utils.New(effectiveLogLevel, globalNoColor)
+		log, closeFn, err := buildLogger(effectiveLogLevel, true)
+		if err != nil {
+			return err
+		}
+		defer closeFn()
 		utils.SetDefaultLogger(log)
 
 		log.Debug("Starting upload command", "logLevel", effectiveLogLevel)
@@ -159,7 +163,7 @@ func init() {
 	uploadCmd.Flags().StringVar(&uploadTokenKey, "token-key", "", "API token key for authentication")
 	uploadCmd.Flags().BoolVar(&uploadInsecure, "insecure", true, "Skip TLS certificate verification")
 	uploadCmd.Flags().IntVar(&uploadTimeout, "timeout", 30, "Timeout in seconds for upload operations")
-	uploadCmd.Flags().StringVarP(&uploadLogLevel, "log", "l", "info", "Log level (debug, info, warn, error)")
+	uploadCmd.Flags().StringVarP(&uploadLogLevel, "log", "l", "info", "Log level (trace, debug, info, warn, error)")
 	uploadCmd.Flags().BoolVar(&uploadReset, "reset", false, "Reset existing custom data before uploading")
 	uploadCmd.Flags().BoolVar(&uploadResetDB, "reset-db", false, "Reset the entire database before uploading")
 

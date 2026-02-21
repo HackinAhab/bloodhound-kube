@@ -6,6 +6,8 @@ import (
 	"sort"
 )
 
+// BuildID creates a stable identifier from kind, namespace, and name.
+// Example: BuildID("Pod", "default", "nginx") -> "Pod:default:nginx".
 func BuildID(kind, namespace, name string) string {
 	if namespace == "" {
 		return fmt.Sprintf("%s:%s", kind, name)
@@ -13,6 +15,8 @@ func BuildID(kind, namespace, name string) string {
 	return fmt.Sprintf("%s:%s:%s", kind, namespace, name)
 }
 
+// GetMap returns a map value for key or an empty map.
+// Example: GetMap(map[string]any{"meta": map[string]any{"a": 1}}, "meta") -> map[a:1].
 func GetMap(parent map[string]any, key string) map[string]any {
 	if parent == nil {
 		return map[string]any{}
@@ -27,6 +31,8 @@ func GetMap(parent map[string]any, key string) map[string]any {
 	return map[string]any{}
 }
 
+// GetSlice returns a slice value for key or an empty slice.
+// Example: GetSlice(map[string]any{"items": []any{"a", "b"}}, "items") -> []any{"a", "b"}.
 func GetSlice(parent map[string]any, key string) []any {
 	if parent == nil {
 		return []any{}
@@ -41,6 +47,8 @@ func GetSlice(parent map[string]any, key string) []any {
 	return []any{}
 }
 
+// GetString returns a string value for key or empty string.
+// Example: GetString(map[string]any{"name": "kube"}, "name") -> "kube".
 func GetString(parent map[string]any, key string) string {
 	if parent == nil {
 		return ""
@@ -55,6 +63,8 @@ func GetString(parent map[string]any, key string) string {
 	return ""
 }
 
+// GetStringDefault returns a string value or a fallback.
+// Example: GetStringDefault(map[string]any{}, "name", "unknown") -> "unknown".
 func GetStringDefault(parent map[string]any, key, fallback string) string {
 	value := GetString(parent, key)
 	if value == "" {
@@ -63,17 +73,21 @@ func GetStringDefault(parent map[string]any, key, fallback string) string {
 	return value
 }
 
-func GetValue(parent map[string]any, key string) any {
+// GetBool returns a boolean-ish value for key or false.
+// Example: GetBool(map[string]any{"ready": true}, "ready") -> true.
+func GetBool(parent map[string]any, key string) any {
 	if parent == nil {
-		return ""
+		return false
 	}
 	value, ok := parent[key]
 	if !ok || value == nil {
-		return ""
+		return false
 	}
 	return value
 }
 
+// GetNumber returns an int value for key or 0.
+// Example: GetNumber(map[string]any{"replicas": float64(3)}, "replicas") -> 3.
 func GetNumber(parent map[string]any, key string) int {
 	if parent == nil {
 		return 0
@@ -94,6 +108,8 @@ func GetNumber(parent map[string]any, key string) int {
 	}
 }
 
+// MapToSortedList formats a map into sorted "key=value" entries.
+// Example: MapToSortedList(map[string]any{"b": 2, "a": 1}) -> []string{"a=1", "b=2"}.
 func MapToSortedList(m map[string]any) []string {
 	if len(m) == 0 {
 		return []string{}
@@ -110,6 +126,8 @@ func MapToSortedList(m map[string]any) []string {
 	return items
 }
 
+// MapKeysSorted returns sorted keys for a map.
+// Example: MapKeysSorted(map[string]any{"b": 2, "a": 1}) -> []string{"a", "b"}.
 func MapKeysSorted(m map[string]any) []string {
 	keys := make([]string, 0, len(m))
 	for k := range m {
@@ -119,6 +137,8 @@ func MapKeysSorted(m map[string]any) []string {
 	return keys
 }
 
+// MapEntriesSorted formats a map into sorted "key=value" entries.
+// Example: MapEntriesSorted(map[string]any{"b": 2, "a": 1}) -> []string{"a=1", "b=2"}.
 func MapEntriesSorted(m map[string]any) []string {
 	keys := MapKeysSorted(m)
 	entries := make([]string, 0, len(keys))
@@ -128,6 +148,8 @@ func MapEntriesSorted(m map[string]any) []string {
 	return entries
 }
 
+// SortedSetKeys returns sorted keys from a set.
+// Example: SortedSetKeys(map[string]struct{}{"b": {}, "a": {}}) -> []string{"a", "b"}.
 func SortedSetKeys(set map[string]struct{}) []string {
 	if len(set) == 0 {
 		return []string{}
@@ -140,6 +162,8 @@ func SortedSetKeys(set map[string]struct{}) []string {
 	return items
 }
 
+// StringSlice extracts string values from a mixed slice.
+// Example: StringSlice([]any{"a", 1, "b"}) -> []string{"a", "b"}.
 func StringSlice(values []any) []string {
 	if len(values) == 0 {
 		return []string{}
@@ -153,6 +177,8 @@ func StringSlice(values []any) []string {
 	return items
 }
 
+// SeLinuxSummary formats an SELinux options map into a summary string.
+// Example: SeLinuxSummary(map[string]any{"user": "u", "role": "r", "type": "t", "level": "l"}) -> "user=u, role=r, type=t, level=l".
 func SeLinuxSummary(options map[string]any) string {
 	if len(options) == 0 {
 		return ""
@@ -164,6 +190,8 @@ func SeLinuxSummary(options map[string]any) string {
 	return fmt.Sprintf("user=%v, role=%v, type=%v, level=%v", user, role, typ, level)
 }
 
+// AppArmorProfileValue extracts the profile value from security context.
+// Example: AppArmorProfileValue(map[string]any{"appArmorProfile": map[string]any{"type": "RuntimeDefault"}}) -> "RuntimeDefault".
 func AppArmorProfileValue(sec map[string]any) string {
 	value, ok := sec["appArmorProfile"]
 	if !ok || value == nil {
@@ -186,6 +214,8 @@ func AppArmorProfileValue(sec map[string]any) string {
 	return ""
 }
 
+// RemoveKeyFromSlice removes a string from a slice.
+// Example: RemoveKeyFromSlice([]string{"a", "b"}, "a") -> []string{"b"}.
 func RemoveKeyFromSlice(slice []string, key string) []string {
 	result := make([]string, 0, len(slice))
 	for _, item := range slice {

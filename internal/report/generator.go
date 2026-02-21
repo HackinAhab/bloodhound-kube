@@ -1,12 +1,9 @@
 package report
 
 import (
-	"bufio"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"io"
-	"os"
 	"strings"
 	"time"
 
@@ -75,61 +72,47 @@ func (g *Generator) Generate() ([]*Report, error) {
 
 // loadData reads the JSONL file and populates the data structures
 func (g *Generator) loadData() error {
-	file, err := os.Open(g.config.InputFile)
-	if err != nil {
-		return fmt.Errorf("failed to open input file: %w", err)
-	}
-	defer file.Close()
-
-	reader := bufio.NewReader(file)
+	start := time.Now()
 	lineNum := 0
+	processed := 0
+	skipped := 0
 
-	for {
-		lineBytes, err := reader.ReadBytes('\n')
-		if err != nil && len(lineBytes) == 0 {
-			if err == io.EOF {
-				break
-			}
-			return fmt.Errorf("error reading file: %w", err)
-		}
-
-		lineNum++
-		line := strings.TrimSpace(string(lineBytes))
-		if line == "" {
-			if err == io.EOF {
-				break
-			}
-			continue
-		}
-
+	err := utils.ReadJSONLFile(g.config.InputFile, func(line int, raw []byte) error {
+		lineNum = line
 		var rawItem map[string]any
-		if err := json.Unmarshal([]byte(line), &rawItem); err != nil {
-			g.log.Debug("Failed to parse JSON line", "line", lineNum, "error", err)
-			if err == io.EOF {
-				break
-			}
-			continue
+		if err := json.Unmarshal(raw, &rawItem); err != nil {
+			g.log.Debug("Failed to parse JSON line", "line", line, "error", err)
+			skipped++
+			return nil
 		}
 
 		itemType, ok := rawItem["type"].(string)
 		if !ok {
-			g.log.Debug("Missing or invalid type field", "line", lineNum)
-			if err == io.EOF {
-				break
-			}
-			continue
+			g.log.Debug("Missing or invalid type field", "line", line)
+			skipped++
+			return nil
 		}
 
 		if err := g.processItem(itemType, rawItem); err != nil {
-			g.log.Debug("Failed to process item", "type", itemType, "line", lineNum, "error", err)
+			g.log.Debug("Failed to process item", "type", itemType, "line", line, "error", err)
+			skipped++
+			return nil
 		}
-
-		if err == io.EOF {
-			break
-		}
+		processed++
+		return nil
+	})
+	if err != nil {
+		return fmt.Errorf("failed to read JSONL file: %w", err)
 	}
 
-	g.log.Info("Loaded data", "namespaces", len(g.data.Namespaces))
+	g.log.Info(
+		"Loaded data",
+		"namespaces", len(g.data.Namespaces),
+		"lines", lineNum,
+		"processed", processed,
+		"skipped", skipped,
+		"duration", time.Since(start),
+	)
 	return nil
 }
 

@@ -52,9 +52,12 @@ func RunCollection(ctx context.Context, c *Collector, w *utils.AsyncWriter, type
 
 		flushBatch := func() {
 			if len(batchBuffer) > 0 {
+				flushStart := time.Now()
 				if err := w.WriteJSONLBatch(batchBuffer); err != nil {
 					log.Error("Failed to write batch", "size", len(batchBuffer), "error", err)
 					stats.AddError(err)
+				} else {
+					log.Trace("Flushed batch", "size", len(batchBuffer), "duration", time.Since(flushStart))
 				}
 				for _, item := range batchBuffer {
 					if res, ok := item.(Resource); ok {
@@ -240,9 +243,12 @@ func RunCollectionWithCheckpoint(ctx context.Context, c *Collector, w *utils.Asy
 
 		flushBatch := func() {
 			if len(batchBuffer) > 0 {
+				flushStart := time.Now()
 				if err := w.WriteJSONLBatch(batchBuffer); err != nil {
 					log.Error("Failed to write batch", "size", len(batchBuffer), "error", err)
 					stats.AddError(err)
+				} else {
+					log.Trace("Flushed batch", "size", len(batchBuffer), "duration", time.Since(flushStart))
 				}
 				for _, item := range batchBuffer {
 					if res, ok := item.(Resource); ok {
@@ -354,6 +360,11 @@ func checkpointWorker(ctx context.Context, c *Collector, jobs <-chan CollectionJ
 		}
 
 		startTime := time.Now()
+		if job.Namespace != "" {
+			log.Trace("Starting collection job", "type", job.Handler.GetName(), "namespace", job.Namespace)
+		} else {
+			log.Trace("Starting collection job", "type", job.Handler.GetName())
+		}
 		batch, err := job.Handler.Collect(ctx, c, job.Namespace)
 		duration := time.Since(startTime)
 
@@ -370,6 +381,11 @@ func checkpointWorker(ctx context.Context, c *Collector, jobs <-chan CollectionJ
 				log.Error("Failed to collect resources", "type", job.Handler.GetName(), "duration", duration, "error", err)
 			}
 			result.Error = err
+			if job.Namespace != "" {
+				log.Trace("Finished collection job", "type", job.Handler.GetName(), "namespace", job.Namespace, "duration", duration, "error", err)
+			} else {
+				log.Trace("Finished collection job", "type", job.Handler.GetName(), "duration", duration, "error", err)
+			}
 		} else {
 			result.Resources = batch
 			if len(batch) > 0 {
@@ -378,6 +394,11 @@ func checkpointWorker(ctx context.Context, c *Collector, jobs <-chan CollectionJ
 				} else {
 					log.Debug("Collected resources", "type", job.Handler.GetName(), "count", len(batch), "duration", duration)
 				}
+			}
+			if job.Namespace != "" {
+				log.Trace("Finished collection job", "type", job.Handler.GetName(), "namespace", job.Namespace, "duration", duration, "count", len(batch))
+			} else {
+				log.Trace("Finished collection job", "type", job.Handler.GetName(), "duration", duration, "count", len(batch))
 			}
 		}
 
@@ -406,21 +427,32 @@ func collectWorker(ctx context.Context, c *Collector, jobs <-chan CollectionJob,
 		}
 
 		startTime := time.Now()
+		if job.Namespace != "" {
+			log.Trace("Starting collection job", "type", job.Handler.GetName(), "namespace", job.Namespace)
+		} else {
+			log.Trace("Starting collection job", "type", job.Handler.GetName())
+		}
 		batch, err := job.Handler.Collect(ctx, c, job.Namespace)
+		duration := time.Since(startTime)
 		if err != nil {
 			if job.Namespace != "" {
-				log.Error("Failed to collect resources", "type", job.Handler.GetName(), "namespace", job.Namespace, "duration", time.Since(startTime), "error", err)
+				log.Error("Failed to collect resources", "type", job.Handler.GetName(), "namespace", job.Namespace, "duration", duration, "error", err)
 			} else {
-				log.Error("Failed to collect resources", "type", job.Handler.GetName(), "duration", time.Since(startTime), "error", err)
+				log.Error("Failed to collect resources", "type", job.Handler.GetName(), "duration", duration, "error", err)
+			}
+			if job.Namespace != "" {
+				log.Trace("Finished collection job", "type", job.Handler.GetName(), "namespace", job.Namespace, "duration", duration, "error", err)
+			} else {
+				log.Trace("Finished collection job", "type", job.Handler.GetName(), "duration", duration, "error", err)
 			}
 			continue
 		}
 
 		if len(batch) > 0 {
 			if job.Namespace != "" {
-				log.Debug("Collected resources", "type", job.Handler.GetName(), "namespace", job.Namespace, "count", len(batch), "duration", time.Since(startTime))
+				log.Debug("Collected resources", "type", job.Handler.GetName(), "namespace", job.Namespace, "count", len(batch), "duration", duration)
 			} else {
-				log.Debug("Collected resources", "type", job.Handler.GetName(), "count", len(batch), "duration", time.Since(startTime))
+				log.Debug("Collected resources", "type", job.Handler.GetName(), "count", len(batch), "duration", duration)
 			}
 
 			select {
@@ -430,6 +462,12 @@ func collectWorker(ctx context.Context, c *Collector, jobs <-chan CollectionJob,
 			case <-time.After(1 * time.Second):
 				log.Error("Timeout sending results batch", "size", len(batch))
 			}
+		}
+
+		if job.Namespace != "" {
+			log.Trace("Finished collection job", "type", job.Handler.GetName(), "namespace", job.Namespace, "duration", duration, "count", len(batch))
+		} else {
+			log.Trace("Finished collection job", "type", job.Handler.GetName(), "duration", duration, "count", len(batch))
 		}
 	}
 }

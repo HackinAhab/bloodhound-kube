@@ -2,6 +2,7 @@ package utils
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"strings"
 
@@ -9,6 +10,7 @@ import (
 )
 
 type Logger interface {
+	Trace(msg string, kv ...any)
 	Debug(msg string, kv ...any)
 	Info(msg string, kv ...any)
 	Warn(msg string, kv ...any)
@@ -24,6 +26,10 @@ type logWrapper struct {
 var defaultLogger Logger = New("info", false)
 
 func New(level string, noColor bool) Logger {
+	return NewWithOutput(level, noColor, os.Stderr)
+}
+
+func NewWithOutput(level string, noColor bool, output io.Writer) Logger {
 	logger := logrus.New()
 
 	parsedLevel, err := logrus.ParseLevel(strings.ToLower(level))
@@ -31,7 +37,10 @@ func New(level string, noColor bool) Logger {
 		parsedLevel = logrus.InfoLevel
 	}
 	logger.SetLevel(parsedLevel)
-	logger.SetOutput(os.Stderr)
+	if output == nil {
+		output = os.Stderr
+	}
+	logger.SetOutput(output)
 	logger.SetFormatter(&logrus.TextFormatter{
 		ForceColors:     true,
 		DisableColors:   noColor,
@@ -54,6 +63,10 @@ func SetDefaultLogger(logger Logger) {
 
 func (l *logWrapper) Debug(msg string, kv ...any) {
 	l.logWith(logrus.DebugLevel, msg, kv...)
+}
+
+func (l *logWrapper) Trace(msg string, kv ...any) {
+	l.logWith(logrus.TraceLevel, msg, kv...)
 }
 
 func (l *logWrapper) Info(msg string, kv ...any) {

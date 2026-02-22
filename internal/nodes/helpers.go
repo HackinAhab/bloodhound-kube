@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
+	"strings"
 )
 
 // BuildID creates a stable identifier from kind, namespace, and name.
@@ -250,4 +251,158 @@ func RemoveKeyFromSlice(slice []string, key string) []string {
 		}
 	}
 	return result
+}
+
+func summarizeRbacSubjects(subjects []any, defaultNamespace string) []string {
+	if len(subjects) == 0 {
+		return []string{}
+	}
+	entries := make([]string, 0, len(subjects))
+	for _, item := range subjects {
+		subject, ok := item.(map[string]any)
+		if !ok {
+			continue
+		}
+		kind := GetString(subject, "kind")
+		name := GetString(subject, "name")
+		namespace := GetString(subject, "namespace")
+		if namespace == "" {
+			namespace = defaultNamespace
+		}
+		if kind == "" || name == "" {
+			continue
+		}
+		if namespace != "" {
+			entries = append(entries, kind+":"+namespace+"/"+name)
+			continue
+		}
+		entries = append(entries, kind+":"+name)
+	}
+	sort.Strings(entries)
+	return entries
+}
+
+func extractRbacSubjectCores(subjects []any) []SubjectCore {
+	if len(subjects) == 0 {
+		return []SubjectCore{}
+	}
+	entries := make([]SubjectCore, 0, len(subjects))
+	for _, item := range subjects {
+		subject, ok := item.(map[string]any)
+		if !ok {
+			continue
+		}
+		kind := GetString(subject, "kind")
+		name := GetString(subject, "name")
+		if kind == "" || name == "" {
+			continue
+		}
+		entries = append(entries, SubjectCore{
+			Kind:      kind,
+			Name:      name,
+			Namespace: GetString(subject, "namespace"),
+		})
+	}
+	return entries
+}
+
+func buildRBACPerms(rules []any) []string {
+	resourceMap := map[string]map[string]struct{}{}
+	nonResourceMap := map[string]map[string]struct{}{}
+
+	for _, item := range rules {
+		rule, ok := item.(map[string]any)
+		if !ok {
+			continue
+		}
+		verbs := StringSlice(GetSlice(rule, "verbs"))
+		if len(verbs) == 0 {
+			continue
+		}
+		addVerbs := func(target map[string]map[string]struct{}, key string) {
+			if key == "" {
+				return
+			}
+			if target[key] == nil {
+				target[key] = map[string]struct{}{}
+			}
+			for _, verb := range verbs {
+				target[key][verb] = struct{}{}
+			}
+		}
+
+		for _, url := range StringSlice(GetSlice(rule, "nonResourceURLs")) {
+			addVerbs(nonResourceMap, url)
+		}
+
+		resources := StringSlice(GetSlice(rule, "resources"))
+		if len(resources) == 0 {
+			continue
+		}
+		apiGroups := StringSlice(GetSlice(rule, "apiGroups"))
+		if len(apiGroups) == 0 {
+			apiGroups = []string{""}
+		}
+		resourceNames := StringSlice(GetSlice(rule, "resourceNames"))
+		if len(resourceNames) == 0 {
+			resourceNames = []string{""}
+		}
+
+		for _, resource := range resources {
+			for _, group := range apiGroups {
+				for _, name := range resourceNames {
+					key := buildResourceKey(group, resource, name)
+					addVerbs(resourceMap, key)
+				}
+			}
+		}
+	}
+
+	keys := make([]string, 0, len(resourceMap)+len(nonResourceMap))
+	for key := range resourceMap {
+		keys = append(keys, key)
+	}
+	for key := range nonResourceMap {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+
+	perms := make([]string, 0, len(keys))
+	for _, key := range keys {
+		verbs := make([]string, 0)
+		if set, ok := resourceMap[key]; ok {
+			verbs = append(verbs, SortedSetKeys(set)...)
+		}
+		if set, ok := nonResourceMap[key]; ok {
+			verbs = append(verbs, SortedSetKeys(set)...)
+		}
+		sort.Strings(verbs)
+		if len(verbs) == 0 {
+			continue
+		}
+		perms = append(perms, key+": "+joinWithComma(verbs))
+	}
+
+	return perms
+}
+
+func buildResourceKey(group, resource, name string) string {
+	if name != "" {
+		base := resource
+		if group != "" {
+			base = group + "/" + resource
+		}
+		return base + "/" + name
+	}
+	if group != "" {
+		return group + "/" + resource
+	}
+	return resource
+}
+
+func joinWithComma(items []string) string {
+	if len(items) == 0 {
+		return ""
+	}
+	return strings.Join(items, ", ")
 }

@@ -1,0 +1,3 @@
+package edges
+
+// TODO: Port LM_NODE_PROXY edge rule from rego.

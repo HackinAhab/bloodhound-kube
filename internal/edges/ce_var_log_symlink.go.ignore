@@ -1,0 +1,3 @@
+package edges
+
+// TODO: Port CE_VAR_LOG_SYMLINK edge rule from rego.

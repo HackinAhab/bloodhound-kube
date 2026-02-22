@@ -1,0 +1,3 @@
+package edges
+
+// TODO: Port WORKLOAD_PATCH edge rule from rego.

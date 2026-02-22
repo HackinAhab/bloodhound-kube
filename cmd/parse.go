@@ -3,8 +3,6 @@ package cmd
 import (
 	"fmt"
 	"os"
-	"path/filepath"
-	"strings"
 
 	"bloodhound-kube/internal/parser"
 	"bloodhound-kube/internal/utils"
@@ -16,11 +14,10 @@ var (
 	inputFile           string
 	outputFile          string
 	parseLogLevel       string
-	policyDirs          string
 	parseUndefinedNodes bool
 )
 
-func runParseFromFile(inputPath, outputPath, clusterName string, log utils.Logger, policyDirs []string, parseUndefinedNodes bool) error {
+func runParseFromFile(inputPath, outputPath, clusterName string, log utils.Logger, parseUndefinedNodes bool) error {
 	if inputPath == "" {
 		log.Error("Input file is required")
 		return fmt.Errorf("input file is required")
@@ -41,7 +38,7 @@ func runParseFromFile(inputPath, outputPath, clusterName string, log utils.Logge
 	log.Debug("Using cluster name", "cluster", clusterName)
 
 	log.Info("Parsing JSONL data")
-	graph, err := parser.ConvertToBloodHoundResultFromReader(file, clusterName, policyDirs, parseUndefinedNodes)
+	graph, err := parser.ConvertToBloodHoundResultFromReader(file, clusterName, parseUndefinedNodes)
 	if err != nil {
 		return err
 	}
@@ -112,26 +109,8 @@ Examples:
 			clusterName = cluster
 		}
 
-		return runParseFromFile(inputFile, outputFile, clusterName, log, parsePolicyDirs(policyDirs), parseUndefinedNodes)
+		return runParseFromFile(inputFile, outputFile, clusterName, log, parseUndefinedNodes)
 	},
-}
-
-func parsePolicyDirs(input string) []string {
-	if strings.TrimSpace(input) == "" {
-		return nil
-	}
-
-	parts := strings.Split(input, ",")
-	paths := make([]string, 0, len(parts))
-	for _, part := range parts {
-		trimmed := strings.TrimSpace(part)
-		if trimmed == "" {
-			continue
-		}
-		paths = append(paths, filepath.Clean(trimmed))
-	}
-
-	return paths
 }
 
 func init() {
@@ -139,7 +118,6 @@ func init() {
 	parseCmd.Flags().StringVarP(&outputFile, "output", "o", "", "Output JSON file (prints to stdout if not specified)")
 	parseCmd.Flags().StringP("cluster", "c", "unknown", "Kubernetes cluster name for metadata")
 	parseCmd.Flags().StringVarP(&parseLogLevel, "log", "l", "info", "Log level (trace, debug, info, warn, error)")
-	parseCmd.Flags().StringVar(&policyDirs, "policy-dirs", "", "Additional policy directories (comma-separated)")
 	parseCmd.Flags().BoolVar(&parseUndefinedNodes, "parse-undefined-nodes", false, "Enable generic node creation policy")
 
 	rootCmd.AddCommand(parseCmd)

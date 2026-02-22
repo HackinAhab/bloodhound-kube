@@ -7,7 +7,9 @@ import (
 	"io"
 	"time"
 
-	"bloodhound-kube/internal/parser/nodes"
+	"bloodhound-kube/internal/edges"
+	"bloodhound-kube/internal/model"
+	"bloodhound-kube/internal/nodes"
 	"bloodhound-kube/internal/utils"
 
 	"github.com/TheManticoreProject/gopengraph"
@@ -16,13 +18,13 @@ import (
 	"github.com/TheManticoreProject/gopengraph/properties"
 )
 
-// Main parsing function - OPA-based streaming approach
-func ConvertToBloodHoundResult(jsonlData []byte, clusterName string, policyDirs []string, parseUndefinedNodes bool) (*gopengraph.OpenGraph, error) {
-	return ConvertToBloodHoundResultFromReader(bytes.NewReader(jsonlData), clusterName, policyDirs, parseUndefinedNodes)
+// Main parsing function - Go-based edge rules
+func ConvertToBloodHoundResult(jsonlData []byte, clusterName string, parseUndefinedNodes bool) (*gopengraph.OpenGraph, error) {
+	return ConvertToBloodHoundResultFromReader(bytes.NewReader(jsonlData), clusterName, parseUndefinedNodes)
 }
 
 // ConvertToBloodHoundResultFromReader parses JSONL data from a reader.
-func ConvertToBloodHoundResultFromReader(reader io.Reader, clusterName string, policyDirs []string, parseUndefinedNodes bool) (*gopengraph.OpenGraph, error) {
+func ConvertToBloodHoundResultFromReader(reader io.Reader, clusterName string, parseUndefinedNodes bool) (*gopengraph.OpenGraph, error) {
 	_ = clusterName
 	log := utils.DefaultLogger().Component("parser")
 
@@ -38,7 +40,7 @@ func ConvertToBloodHoundResultFromReader(reader io.Reader, clusterName string, p
 	log.Debug("Built nodes and core facts", "nodes", len(nodes), "duration", time.Since(buildStart))
 
 	edgeStart := time.Now()
-	edges, err := createRelationships(nodes, coreFacts, policyDirs)
+	edges, err := createRelationships(coreFacts)
 	if err != nil {
 		return nil, err
 	}
@@ -90,7 +92,7 @@ func parseJSONLToResourcesReader(reader io.Reader) ([]map[string]any, error) {
 
 	var extracted []map[string]any
 	err := utils.ReadJSONL(reader, func(line int, raw []byte) error {
-		var resource ResourceData
+		var resource model.ResourceData
 		if err := json.Unmarshal(raw, &resource); err != nil {
 			log.Error("Parse JSONL line failed", "line", line, "error", err)
 			return errors.New("parse JSONL failed")
@@ -98,7 +100,7 @@ func parseJSONLToResourcesReader(reader io.Reader) ([]map[string]any, error) {
 
 		// Extract the actual K8s resource from the wrapper
 		// JSONL format: {"type": "secret", "timestamp": "...", "resource": {...}}
-		// OPA policies expect: {"kind": "Secret", "metadata": {...}, ...}
+		// Edge rules expect: {"kind": "Secret", "metadata": {...}, ...}
 		if payload, ok := resource.Resource.(map[string]any); ok {
 			extracted = append(extracted, payload)
 			return nil
@@ -114,17 +116,17 @@ func parseJSONLToResourcesReader(reader io.Reader) ([]map[string]any, error) {
 }
 
 // JSONL parsing utility
-func ParseFromJSONL(jsonlData []byte) ([]ResourceData, error) {
+func ParseFromJSONL(jsonlData []byte) ([]model.ResourceData, error) {
 	return ParseFromJSONLReader(bytes.NewReader(jsonlData))
 }
 
 // ParseFromJSONLReader parses JSONL data from a reader.
-func ParseFromJSONLReader(reader io.Reader) ([]ResourceData, error) {
+func ParseFromJSONLReader(reader io.Reader) ([]model.ResourceData, error) {
 	log := utils.DefaultLogger().Component("parser")
-	var resources []ResourceData
+	var resources []model.ResourceData
 
 	err := utils.ReadJSONL(reader, func(line int, raw []byte) error {
-		var resource ResourceData
+		var resource model.ResourceData
 		if err := json.Unmarshal(raw, &resource); err != nil {
 			log.Error("Parse JSONL line failed", "line", line, "error", err)
 			return errors.New("parse JSONL failed")
@@ -139,28 +141,18 @@ func ParseFromJSONLReader(reader io.Reader) ([]ResourceData, error) {
 	return resources, nil
 }
 
-// createRelationships applies OPA/Rego policies to create edges between nodes
-func createRelationships(nodes []BloodHoundNode, coreFacts *CoreFacts, policyDirs []string) ([]BloodHoundEdge, error) {
-	log := utils.DefaultLogger().Component("parser")
-	// Create OPA engine with policy directory
-	engine, err := NewOPAEngine("rego/edges", policyDirs)
-	if err != nil {
-		return nil, err
-	}
-
-	// Apply Rego policies to create relationships
-	edges, err := engine.ApplyRulesWithCore(nodes, coreFacts)
-	if err != nil {
-		log.Error("Apply OPA policies failed", "error", err)
+// createRelationships builds edges from typed core facts
+func createRelationships(coreFacts *model.CoreFacts) ([]model.BloodHoundEdge, error) {
+	if coreFacts == nil {
 		return nil, errors.New("create relationships failed")
 	}
-
+	edges := edges.BuildEdges(coreFacts)
 	return edges, nil
 }
 
-func createNodes(resources []map[string]any, parseUndefinedNodes bool) ([]BloodHoundNode, *CoreFacts) {
-	nodeList := []BloodHoundNode{}
-	coreFacts := NewCoreFacts()
+func createNodes(resources []map[string]any, parseUndefinedNodes bool) ([]model.BloodHoundNode, *model.CoreFacts) {
+	nodeList := []model.BloodHoundNode{}
+	coreFacts := model.NewCoreFacts()
 
 	for _, resource := range resources {
 		result, ok := nodes.Build(resource)
@@ -171,7 +163,7 @@ func createNodes(resources []map[string]any, parseUndefinedNodes bool) ([]BloodH
 			continue
 		}
 
-		nodeList = append(nodeList, BloodHoundNode{
+		nodeList = append(nodeList, model.BloodHoundNode{
 			ID:         result.Node.ID,
 			Kinds:      result.Node.Kinds,
 			Properties: result.Node.Properties,
@@ -183,11 +175,12 @@ func createNodes(resources []map[string]any, parseUndefinedNodes bool) ([]BloodH
 	}
 
 	external := nodes.ExternalNode()
-	nodeList = append(nodeList, BloodHoundNode{
+	nodeList = append(nodeList, model.BloodHoundNode{
 		ID:         external.ID,
 		Kinds:      external.Kinds,
 		Properties: external.Properties,
 	})
+	coreFacts.Add(nodes.CoreEntry{Cluster: true, Data: nodes.ExternalCoreEntry()})
 
 	return nodeList, coreFacts
 }

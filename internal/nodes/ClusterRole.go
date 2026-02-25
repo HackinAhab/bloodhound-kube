@@ -4,6 +4,12 @@ func init() {
 	Register("ClusterRole", BuildClusterRoleNode)
 }
 
+type ClusterRole struct {
+	GraphNodeBase
+	PermsDisplay []string
+	RbacRules    []RbacRule
+}
+
 func BuildClusterRoleNode(resource map[string]any) (BuildResult, bool) {
 	metadata := GetMap(resource, "metadata")
 	name := GetString(metadata, "name")
@@ -13,7 +19,9 @@ func BuildClusterRoleNode(resource map[string]any) (BuildResult, bool) {
 	labelsMap := GetMap(metadata, "labels")
 	annotationsMap := GetMap(metadata, "annotations")
 
-	perms := buildRBACPerms(GetSlice(resource, "rules"))
+	parsedRBACRules := buildRbacRules(GetSlice(resource, "rules"))
+
+	perms := buildRbacRulesDisplay(parsedRBACRules)
 
 	properties := map[string]any{
 		"name":        name,
@@ -25,8 +33,8 @@ func BuildClusterRoleNode(resource map[string]any) (BuildResult, bool) {
 
 	core := CoreEntry{
 		Cluster: true,
-		Data: ClusterRoleCore{
-			CoreNode: CoreNode{
+		Data: ClusterRole{
+			GraphNodeBase: GraphNodeBase{
 				ID:             BuildID("ClusterRole", "", name),
 				Kinds:          []string{"ClusterRole"},
 				Name:           name,
@@ -34,7 +42,7 @@ func BuildClusterRoleNode(resource map[string]any) (BuildResult, bool) {
 				LabelsMap:      labelsMap,
 				AnnotationsMap: annotationsMap,
 			},
-			Perms: perms,
+			PermsDisplay: perms,
 		},
 	}
 

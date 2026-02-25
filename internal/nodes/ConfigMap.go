@@ -1,5 +1,10 @@
 package nodes
 
+type ConfigMap struct {
+	GraphNodeBase
+	Data map[string]any
+}
+
 func init() {
 	Register("ConfigMap", BuildConfigMapNode)
 }
@@ -31,8 +36,8 @@ func BuildConfigMapNode(resource map[string]any) (BuildResult, bool) {
 	core := CoreEntry{
 		Namespace: namespace,
 		Cluster:   false,
-		Data: ConfigMapCore{
-			CoreNode: CoreNode{
+		Data: ConfigMap{
+			GraphNodeBase: GraphNodeBase{
 				ID:             BuildID("ConfigMap", namespace, name),
 				Kinds:          []string{"ConfigMap"},
 				Name:           name,

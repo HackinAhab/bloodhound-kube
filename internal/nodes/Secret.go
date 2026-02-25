@@ -7,6 +7,12 @@ import (
 	"time"
 )
 
+type Secret struct {
+	GraphNodeBase
+	SecretType string
+	Data       map[string]any
+}
+
 func init() {
 	Register("Secret", BuildSecretNode)
 }
@@ -64,8 +70,8 @@ func BuildSecretNode(resource map[string]any) (BuildResult, bool) {
 	core := CoreEntry{
 		Namespace: namespace,
 		Cluster:   false,
-		Data: SecretCore{
-			CoreNode: CoreNode{
+		Data: Secret{
+			GraphNodeBase: GraphNodeBase{
 				ID:             BuildID("Secret", namespace, name),
 				Kinds:          []string{"Secret"},
 				Name:           name,

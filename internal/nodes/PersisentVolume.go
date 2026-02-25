@@ -1,5 +1,10 @@
 package nodes
 
+type PersistentVolume struct {
+	GraphNodeBase
+	ClaimRef map[string]any
+}
+
 func init() {
 	Register("PersistentVolume", BuildPVNode)
 }
@@ -25,8 +30,8 @@ func BuildPVNode(resource map[string]any) (BuildResult, bool) {
 
 	core := CoreEntry{
 		Cluster: true,
-		Data: PersistentVolumeCore{
-			CoreNode: CoreNode{
+		Data: PersistentVolume{
+			GraphNodeBase: GraphNodeBase{
 				ID:             BuildID("PersistentVolume", "", name),
 				Kinds:          []string{"PersistentVolume"},
 				Name:           name,

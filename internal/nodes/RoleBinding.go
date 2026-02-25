@@ -1,5 +1,12 @@
 package nodes
 
+type RoleBinding struct {
+	GraphNodeBase
+	RoleName string
+	RoleKind string
+	Subjects []Subject
+}
+
 func init() {
 	Register("RoleBinding", BuildRoleBindingNode)
 }
@@ -33,8 +40,8 @@ func BuildRoleBindingNode(resource map[string]any) (BuildResult, bool) {
 	core := CoreEntry{
 		Namespace: namespace,
 		Cluster:   false,
-		Data: RoleBindingCore{
-			CoreNode: CoreNode{
+		Data: RoleBinding{
+			GraphNodeBase: GraphNodeBase{
 				ID:             BuildID("RoleBinding", namespace, name),
 				Kinds:          []string{"RoleBinding"},
 				Name:           name,

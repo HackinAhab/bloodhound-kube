@@ -3,14 +3,14 @@ package model
 import "bloodhound-kube/internal/nodes"
 
 type CoreFacts struct {
-	Namespaces map[string]*NamespaceCore
-	Cluster    *ClusterCore
+	Namespaces map[string]*Namespace
+	Cluster    *Cluster
 }
 
 func NewCoreFacts() *CoreFacts {
 	return &CoreFacts{
-		Namespaces: map[string]*NamespaceCore{},
-		Cluster:    &ClusterCore{},
+		Namespaces: map[string]*Namespace{},
+		Cluster:    &Cluster{},
 	}
 }
 
@@ -20,19 +20,19 @@ func (c *CoreFacts) Add(entry nodes.CoreEntry) {
 	}
 	if entry.Cluster {
 		switch v := entry.Data.(type) {
-		case nodes.NodeCore:
+		case nodes.Node:
 			c.Cluster.Nodes = append(c.Cluster.Nodes, v)
-		case nodes.ClusterRoleCore:
+		case nodes.ClusterRole:
 			c.Cluster.ClusterRoles = append(c.Cluster.ClusterRoles, v)
-		case nodes.ClusterRoleBindingCore:
+		case nodes.ClusterRoleBinding:
 			c.Cluster.ClusterRoleBindings = append(c.Cluster.ClusterRoleBindings, v)
-		case nodes.PersistentVolumeCore:
+		case nodes.PersistentVolume:
 			c.Cluster.PersistentVolumes = append(c.Cluster.PersistentVolumes, v)
-		case nodes.ClusterSecretStoreCore:
+		case nodes.ClusterSecretStore:
 			c.Cluster.ClusterSecretStores = append(c.Cluster.ClusterSecretStores, v)
-		case nodes.SecurityContextConstraintsCore:
+		case nodes.SecurityContextConstraints:
 			c.Cluster.SecurityContextConstraints = append(c.Cluster.SecurityContextConstraints, v)
-		case nodes.ExternalCore:
+		case nodes.External:
 			c.Cluster.External = append(c.Cluster.External, v)
 		}
 		return
@@ -40,41 +40,41 @@ func (c *CoreFacts) Add(entry nodes.CoreEntry) {
 
 	ns := entry.Namespace
 	if c.Namespaces[ns] == nil {
-		c.Namespaces[ns] = &NamespaceCore{}
+		c.Namespaces[ns] = &Namespace{}
 	}
 	space := c.Namespaces[ns]
 	switch v := entry.Data.(type) {
-	case nodes.PodCore:
+	case nodes.Pod:
 		space.Pods = append(space.Pods, v)
-	case nodes.ServiceAccountCore:
+	case nodes.ServiceAccount:
 		space.ServiceAccounts = append(space.ServiceAccounts, v)
-	case nodes.SecretCore:
+	case nodes.Secret:
 		space.Secrets = append(space.Secrets, v)
-	case nodes.ConfigMapCore:
+	case nodes.ConfigMap:
 		space.ConfigMaps = append(space.ConfigMaps, v)
-	case nodes.ServiceCore:
+	case nodes.Service:
 		space.Services = append(space.Services, v)
-	case nodes.DeploymentCore:
+	case nodes.Deployment:
 		space.Deployments = append(space.Deployments, v)
 	case nodes.DaemonSetCore:
 		space.DaemonSets = append(space.DaemonSets, v)
 	case nodes.StatefulSetCore:
 		space.StatefulSets = append(space.StatefulSets, v)
-	case nodes.NetworkPolicyCore:
+	case nodes.NetworkPolicy:
 		space.NetworkPolicies = append(space.NetworkPolicies, v)
-	case nodes.IngressCore:
+	case nodes.Ingress:
 		space.Ingresses = append(space.Ingresses, v)
-	case nodes.HTTPRouteCore:
+	case nodes.HTTPRoute:
 		space.HTTPRoutes = append(space.HTTPRoutes, v)
-	case nodes.PersistentVolumeClaimCore:
+	case nodes.PersistentVolumeClaim:
 		space.PersistentVolumeClaims = append(space.PersistentVolumeClaims, v)
-	case nodes.RoleCore:
+	case nodes.Role:
 		space.Roles = append(space.Roles, v)
-	case nodes.RoleBindingCore:
+	case nodes.RoleBinding:
 		space.RoleBindings = append(space.RoleBindings, v)
-	case nodes.ExternalSecretCore:
+	case nodes.ExternalSecret:
 		space.ExternalSecrets = append(space.ExternalSecrets, v)
-	case nodes.SecretStoreCore:
+	case nodes.SecretStore:
 		space.SecretStores = append(space.SecretStores, v)
 	}
 }

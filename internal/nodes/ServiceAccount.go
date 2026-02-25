@@ -1,5 +1,10 @@
 package nodes
 
+type ServiceAccount struct {
+	GraphNodeBase
+	Secrets []string
+}
+
 func init() {
 	Register("ServiceAccount", BuildServiceAccountNode)
 }
@@ -34,8 +39,8 @@ func BuildServiceAccountNode(resource map[string]any) (BuildResult, bool) {
 	core := CoreEntry{
 		Namespace: namespace,
 		Cluster:   false,
-		Data: ServiceAccountCore{
-			CoreNode: CoreNode{
+		Data: ServiceAccount{
+			GraphNodeBase: GraphNodeBase{
 				ID:             BuildID("ServiceAccount", namespace, name),
 				Kinds:          []string{"ServiceAccount"},
 				Name:           name,

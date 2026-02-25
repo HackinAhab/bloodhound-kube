@@ -63,13 +63,8 @@ func (r podEdgesRule) Apply(ctx *EdgeContext) []model.BloodHoundEdge {
 			if len(containers) > 0 {
 				for _, secret := range secrets {
 					for _, container := range containers {
-						for _, envSource := range MapSlice(container, "envFrom") {
-							entry, ok := envSource.(map[string]any)
-							if !ok {
-								continue
-							}
-							secretRef := MapMap(entry, "secretRef")
-							if MapString(secretRef, "name") == secret.Name {
+						for _, envSource := range container.EnvFrom {
+							if envSource.SecretRef != nil && envSource.SecretRef.Name == secret.Name {
 								edges = append(edges, CreateEdge(&secret, pod, "EnvVars"))
 							}
 						}
@@ -85,4 +80,4 @@ func init() {
 	RegisterEdgeRule(podEdgesRule{})
 }
 
-var _ nodes.EdgeNode = nodes.PodCore{}
+var _ nodes.EdgeNode = nodes.Pod{}

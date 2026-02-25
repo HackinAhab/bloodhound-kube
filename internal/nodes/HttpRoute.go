@@ -1,5 +1,10 @@
 package nodes
 
+type HTTPRoute struct {
+	GraphNodeBase
+	BackendRefKeys []string
+}
+
 func init() {
 	Register("HTTPRoute", BuildHTTPRouteNode)
 }
@@ -30,8 +35,8 @@ func BuildHTTPRouteNode(resource map[string]any) (BuildResult, bool) {
 	core := CoreEntry{
 		Namespace: namespace,
 		Cluster:   false,
-		Data: HTTPRouteCore{
-			CoreNode: CoreNode{
+		Data: HTTPRoute{
+			GraphNodeBase: GraphNodeBase{
 				ID:             BuildID("HTTPRoute", namespace, name),
 				Kinds:          []string{"HTTPRoute"},
 				Name:           name,

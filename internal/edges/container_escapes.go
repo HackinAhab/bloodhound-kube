@@ -7,13 +7,13 @@ import (
 	"bloodhound-kube/internal/nodes"
 )
 
-type attackEdgesRule struct{}
+type containerEscapeRule struct{}
 
-func (r attackEdgesRule) Name() string {
-	return "attacks"
+func (r containerEscapeRule) Name() string {
+	return "container_escapes"
 }
 
-func (r attackEdgesRule) Apply(ctx *EdgeContext) []model.BloodHoundEdge {
+func (r containerEscapeRule) Apply(ctx *EdgeContext) []model.BloodHoundEdge {
 	if ctx == nil || ctx.Core == nil {
 		return nil
 	}
@@ -39,21 +39,21 @@ func (r attackEdgesRule) Apply(ctx *EdgeContext) []model.BloodHoundEdge {
 				}))
 			}
 
-			if pod.HostPID && podHasPrivilegedContainer(pod) {
+			if ceNsEnterCheck(pod) {
 				edges = append(edges, CreateEdgeWithProperties(pod, node, "CE_NSENTER", map[string]any{
 					"Description": "Container in pod is privileged and has hostPID enabled which may allow for escaping the container and executing commands on the host using nsenter.",
 					"Reference":   "https://kubehound.io/reference/attacks/CE_NSENTER/",
 				}))
 			}
 
-			if isSysPtraceVulnerable(pod) {
+			if ceSysPtraceCheck(pod) {
 				edges = append(edges, CreateEdgeWithProperties(pod, node, "CE_SYS_PTRACE", map[string]any{
 					"Description": "Container in pod has CAP_SYS_PTRACE, and CAP_SYS_ADMIN capabilities, and has hostPID: True, or is privileged which allows for tracing and debugging of processes, and can be used to escape the container by attaching to processes running on the host.",
 					"Reference":   "https://kubehound.io/reference/attacks/CE_SYS_PTRACE/",
 				}))
 			}
 
-			if mountPath, ok := podHasCriticalProcfsMount(pod); ok {
+			if mountPath, ok := ceUmhCorePatternCheck(pod); ok {
 				edges = append(edges, CreateEdgeWithProperties(pod, node, "CE_UMH_CORE_PATTERN", map[string]any{
 					"Description": "Container in pod has a hostPath volume mount to a critical procfs path which may allow for container escape via usermode helper pattern. Note: this check does not verify if the container is running as the root user, which will likely be required to write to the /proc/sys/kernel/core_pattern file. Mount path: " + mountPath,
 					"Reference":   "https://kubehound.io/reference/attacks/CE_UMH_CORE_PATTERN/",
@@ -61,9 +61,16 @@ func (r attackEdgesRule) Apply(ctx *EdgeContext) []model.BloodHoundEdge {
 			}
 
 			if hostPath := podHasSocketHostPath(pod); hostPath != "" {
-				edges = append(edges, CreateEdgeWithProperties(pod, node, "MOUNTED_CONTAINER_SOCKET", map[string]any{
+				edges = append(edges, CreateEdgeWithProperties(pod, node, "MOUNT_CONTAINER_SOCKET", map[string]any{
 					"Description": "Container in pod has a hostPath volume mount to a path that potentially contains a container socket: " + hostPath + ". ",
 					"Reference":   "https://kubehound.io/reference/attacks/EXPLOIT_CONTAINERD_SOCK/",
+				}))
+			}
+
+			if hostPath, ok := ceVarLogSymlinkCheck(pod); ok {
+				edges = append(edges, CreateEdgeWithProperties(pod, node, "CE_VAR_LOG_SYMLINK", map[string]any{
+					"Description": "Container in pod has a hostPath volume mount to /var/log or /var which may allow for container escape via log file symlink attack. Note: this check does not verify if the container is running as the root user, which will likely be required to create symlinks to sensitive host files. Host path: " + hostPath,
+					"Reference":   "https://kubehound.io/reference/attacks/CE_VAR_LOG_SYMLINK/",
 				}))
 			}
 		}
@@ -71,19 +78,19 @@ func (r attackEdgesRule) Apply(ctx *EdgeContext) []model.BloodHoundEdge {
 	return edges
 }
 
-func podHasPrivilegedContainer(pod *nodes.PodCore) bool {
+func podHasPrivilegedContainer(pod *nodes.Pod) bool {
 	if pod == nil {
 		return false
 	}
 	for _, container := range pod.Containers {
-		if MapBool(container, "privileged") {
+		if container.Privileged {
 			return true
 		}
 	}
 	return false
 }
 
-func isSysPtraceVulnerable(pod *nodes.PodCore) bool {
+func ceSysPtraceCheck(pod *nodes.Pod) bool {
 	if pod == nil {
 		return false
 	}
@@ -96,7 +103,7 @@ func isSysPtraceVulnerable(pod *nodes.PodCore) bool {
 	return false
 }
 
-func podHasSocketHostPath(pod *nodes.PodCore) string {
+func podHasSocketHostPath(pod *nodes.Pod) string {
 	if pod == nil {
 		return ""
 	}
@@ -112,7 +119,7 @@ func podHasSocketHostPath(pod *nodes.PodCore) string {
 	return ""
 }
 
-func podHasCriticalProcfsMount(pod *nodes.PodCore) (string, bool) {
+func ceUmhCorePatternCheck(pod *nodes.Pod) (string, bool) {
 	if pod == nil {
 		return "", false
 	}
@@ -130,15 +137,11 @@ func podHasCriticalProcfsMount(pod *nodes.PodCore) (string, bool) {
 			continue
 		}
 		for _, container := range pod.Containers {
-			for _, mountEntry := range MapSlice(container, "volumeMounts") {
-				mountMap, ok := mountEntry.(map[string]any)
-				if !ok {
+			for _, mount := range container.VolumeMounts {
+				if mount.ReadOnly {
 					continue
 				}
-				if MapBool(mountMap, "readOnly") {
-					continue
-				}
-				mountPath := MapString(mountMap, "mountPath")
+				mountPath := mount.MountPath
 				if mountPath != "" {
 					return mountPath, true
 				}
@@ -148,6 +151,32 @@ func podHasCriticalProcfsMount(pod *nodes.PodCore) (string, bool) {
 	return "", false
 }
 
+func ceNsEnterCheck(pod *nodes.Pod) bool {
+	if pod == nil {
+		return false
+	}
+	return pod.HostPID && podHasPrivilegedContainer(pod)
+}
+
+func ceVarLogSymlinkCheck(pod *nodes.Pod) (string, bool) {
+	if pod == nil {
+		return "", false
+	}
+	for _, container := range pod.Containers {
+		// This check is not perfect, it doesn't verify if the container is actually running as root.
+		if container.RunAsNonRoot || !container.Privileged {
+			return "", false
+		}
+	}
+	for _, volume := range pod.Volumes {
+		hostPath := MapString(volume, "hostPath")
+		if hostPath == "/var/log" || hostPath == "/var" {
+			return hostPath, true
+		}
+	}
+	return "", false
+}
+
 func init() {
-	RegisterEdgeRule(attackEdgesRule{})
+	RegisterEdgeRule(containerEscapeRule{})
 }

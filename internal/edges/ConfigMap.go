@@ -27,13 +27,8 @@ func (r configMapEdgesRule) Apply(ctx *EdgeContext) []model.BloodHoundEdge {
 					}
 				}
 				for _, container := range pod.Containers {
-					for _, envSource := range MapSlice(container, "envFrom") {
-						entry, ok := envSource.(map[string]any)
-						if !ok {
-							continue
-						}
-						configMapRef := MapMap(entry, "configMapRef")
-						if MapString(configMapRef, "name") == cm.Name {
+					for _, envSource := range container.EnvFrom {
+						if envSource.ConfigMapRef != nil && envSource.ConfigMapRef.Name == cm.Name {
 							edges = append(edges, CreateEdge(cm, pod, "EnvVars"))
 						}
 					}

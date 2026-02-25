@@ -4,8 +4,22 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 )
+
+type RbacRule struct {
+	APIGroup      string
+	Resource      string
+	Verbs         []string
+	ResourceNames []string
+}
+
+type Subject struct {
+	Kind      string
+	Name      string
+	Namespace string
+}
 
 // BuildID creates a stable identifier from kind, namespace, and name.
 // Example: BuildID("Pod", "default", "nginx") -> "Pod:default:nginx".
@@ -133,6 +147,40 @@ func GetNumber(parent map[string]any, key string) int {
 	default:
 		return 0
 	}
+}
+
+// GetInt64Pointer returns an *int64 value for key or nil.
+// Example: GetInt64Pointer(map[string]any{"uid": float64(1000)}, "uid") -> *int64(1000).
+func GetInt64Pointer(parent map[string]any, key string) *int64 {
+	if parent == nil {
+		return nil
+	}
+	value, ok := parent[key]
+	if !ok || value == nil {
+		return nil
+	}
+	switch v := value.(type) {
+	case int:
+		out := int64(v)
+		return &out
+	case int64:
+		out := v
+		return &out
+	case float64:
+		out := int64(v)
+		return &out
+	case json.Number:
+		if parsed, err := v.Int64(); err == nil {
+			out := parsed
+			return &out
+		}
+	case string:
+		if parsed, err := strconv.ParseInt(v, 10, 64); err == nil {
+			out := parsed
+			return &out
+		}
+	}
+	return nil
 }
 
 // MapToSortedList formats a map into sorted "key=value" entries.
@@ -282,11 +330,11 @@ func summarizeRbacSubjects(subjects []any, defaultNamespace string) []string {
 	return entries
 }
 
-func extractRbacSubjectCores(subjects []any) []SubjectCore {
+func extractRbacSubjectCores(subjects []any) []Subject {
 	if len(subjects) == 0 {
-		return []SubjectCore{}
+		return []Subject{}
 	}
-	entries := make([]SubjectCore, 0, len(subjects))
+	entries := make([]Subject, 0, len(subjects))
 	for _, item := range subjects {
 		subject, ok := item.(map[string]any)
 		if !ok {
@@ -297,7 +345,7 @@ func extractRbacSubjectCores(subjects []any) []SubjectCore {
 		if kind == "" || name == "" {
 			continue
 		}
-		entries = append(entries, SubjectCore{
+		entries = append(entries, Subject{
 			Kind:      kind,
 			Name:      name,
 			Namespace: GetString(subject, "namespace"),
@@ -306,84 +354,43 @@ func extractRbacSubjectCores(subjects []any) []SubjectCore {
 	return entries
 }
 
-func buildRBACPerms(rules []any) []string {
-	resourceMap := map[string]map[string]struct{}{}
-	nonResourceMap := map[string]map[string]struct{}{}
+func buildRbacRulesDisplay(rules []RbacRule) []string {
+	entries := make([]string, 0, len(rules))
+	for _, rule := range rules {
+		if rule.APIGroup == "" {
+			entries = append(entries, rule.Resource+": "+joinWithComma(rule.Verbs))
+		} else if rule.Resource == "" {
+			entries = append(entries, rule.APIGroup+": "+joinWithComma(rule.Verbs))
+		} else {
+			entries = append(entries, rule.APIGroup+"/"+rule.Resource+": "+joinWithComma(rule.Verbs))
+		}
+	}
+	return entries
+}
 
+func buildRbacRules(rules []any) []RbacRule {
+	parsedRules := make([]RbacRule, 0, len(rules))
 	for _, item := range rules {
 		rule, ok := item.(map[string]any)
 		if !ok {
 			continue
 		}
-		verbs := StringSlice(GetSlice(rule, "verbs"))
-		if len(verbs) == 0 {
-			continue
-		}
-		addVerbs := func(target map[string]map[string]struct{}, key string) {
-			if key == "" {
-				return
-			}
-			if target[key] == nil {
-				target[key] = map[string]struct{}{}
-			}
-			for _, verb := range verbs {
-				target[key][verb] = struct{}{}
-			}
-		}
+		apiGroup := GetSlice(rule, "apiGroups")
 
-		for _, url := range StringSlice(GetSlice(rule, "nonResourceURLs")) {
-			addVerbs(nonResourceMap, url)
-		}
-
-		resources := StringSlice(GetSlice(rule, "resources"))
-		if len(resources) == 0 {
-			continue
-		}
-		apiGroups := StringSlice(GetSlice(rule, "apiGroups"))
-		if len(apiGroups) == 0 {
-			apiGroups = []string{""}
-		}
+		resources := GetSlice(rule, "resources")
 		resourceNames := StringSlice(GetSlice(rule, "resourceNames"))
-		if len(resourceNames) == 0 {
-			resourceNames = []string{""}
-		}
-
+		verbs := StringSlice(GetSlice(rule, "verbs"))
 		for _, resource := range resources {
-			for _, group := range apiGroups {
-				for _, name := range resourceNames {
-					key := buildResourceKey(group, resource, name)
-					addVerbs(resourceMap, key)
-				}
+			parsedRule := RbacRule{
+				APIGroup:      extractFirstFromSliceOrDefault(apiGroup, ""),
+				Resource:      resource.(string),
+				ResourceNames: resourceNames,
+				Verbs:         verbs,
 			}
+			parsedRules = append(parsedRules, parsedRule)
 		}
 	}
-
-	keys := make([]string, 0, len(resourceMap)+len(nonResourceMap))
-	for key := range resourceMap {
-		keys = append(keys, key)
-	}
-	for key := range nonResourceMap {
-		keys = append(keys, key)
-	}
-	sort.Strings(keys)
-
-	perms := make([]string, 0, len(keys))
-	for _, key := range keys {
-		verbs := make([]string, 0)
-		if set, ok := resourceMap[key]; ok {
-			verbs = append(verbs, SortedSetKeys(set)...)
-		}
-		if set, ok := nonResourceMap[key]; ok {
-			verbs = append(verbs, SortedSetKeys(set)...)
-		}
-		sort.Strings(verbs)
-		if len(verbs) == 0 {
-			continue
-		}
-		perms = append(perms, key+": "+joinWithComma(verbs))
-	}
-
-	return perms
+	return parsedRules
 }
 
 func buildResourceKey(group, resource, name string) string {
@@ -398,6 +405,23 @@ func buildResourceKey(group, resource, name string) string {
 		return group + "/" + resource
 	}
 	return resource
+}
+
+// For Slices where only 1 entry is expected, extract that entry or return a default if none are present.
+// Example: extractFirstFromSliceOrDefault([]any{"v1"}, "default") -> "v1".
+// Example: extractFirstFromSliceOrDefault([]any{}, "default") -> "default".
+func extractFirstFromSliceOrDefault(m []any, defaultString string) string {
+	if len(m) == 0 {
+		return defaultString
+	}
+	if len(m) == 1 {
+		for _, value := range m {
+			if s, ok := value.(string); ok {
+				return s
+			}
+		}
+	}
+	return defaultString
 }
 
 func joinWithComma(items []string) string {

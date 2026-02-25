@@ -2,31 +2,31 @@ package model
 
 import "bloodhound-kube/internal/nodes"
 
-type NamespaceCore struct {
-	Pods                   []nodes.PodCore
-	ServiceAccounts        []nodes.ServiceAccountCore
-	Secrets                []nodes.SecretCore
-	ConfigMaps             []nodes.ConfigMapCore
-	Services               []nodes.ServiceCore
-	Deployments            []nodes.DeploymentCore
+type Namespace struct {
+	Pods                   []nodes.Pod
+	ServiceAccounts        []nodes.ServiceAccount
+	Secrets                []nodes.Secret
+	ConfigMaps             []nodes.ConfigMap
+	Services               []nodes.Service
+	Deployments            []nodes.Deployment
 	DaemonSets             []nodes.DaemonSetCore
 	StatefulSets           []nodes.StatefulSetCore
-	NetworkPolicies        []nodes.NetworkPolicyCore
-	Ingresses              []nodes.IngressCore
-	HTTPRoutes             []nodes.HTTPRouteCore
-	PersistentVolumeClaims []nodes.PersistentVolumeClaimCore
-	Roles                  []nodes.RoleCore
-	RoleBindings           []nodes.RoleBindingCore
-	ExternalSecrets        []nodes.ExternalSecretCore
-	SecretStores           []nodes.SecretStoreCore
+	NetworkPolicies        []nodes.NetworkPolicy
+	Ingresses              []nodes.Ingress
+	HTTPRoutes             []nodes.HTTPRoute
+	PersistentVolumeClaims []nodes.PersistentVolumeClaim
+	Roles                  []nodes.Role
+	RoleBindings           []nodes.RoleBinding
+	ExternalSecrets        []nodes.ExternalSecret
+	SecretStores           []nodes.SecretStore
 }
 
-type ClusterCore struct {
-	Nodes                      []nodes.NodeCore
-	ClusterRoles               []nodes.ClusterRoleCore
-	ClusterRoleBindings        []nodes.ClusterRoleBindingCore
-	PersistentVolumes          []nodes.PersistentVolumeCore
-	ClusterSecretStores        []nodes.ClusterSecretStoreCore
-	SecurityContextConstraints []nodes.SecurityContextConstraintsCore
-	External                   []nodes.ExternalCore
+type Cluster struct {
+	Nodes                      []nodes.Node
+	ClusterRoles               []nodes.ClusterRole
+	ClusterRoleBindings        []nodes.ClusterRoleBinding
+	PersistentVolumes          []nodes.PersistentVolume
+	ClusterSecretStores        []nodes.ClusterSecretStore
+	SecurityContextConstraints []nodes.SecurityContextConstraints
+	External                   []nodes.External
 }

@@ -1,5 +1,12 @@
 package nodes
 
+type Service struct {
+	GraphNodeBase
+	SelectorMap map[string]any
+	Ports       []any
+	ServiceType string
+}
+
 func init() {
 	Register("Service", BuildServiceNode)
 }
@@ -30,8 +37,8 @@ func BuildServiceNode(resource map[string]any) (BuildResult, bool) {
 	core := CoreEntry{
 		Namespace: namespace,
 		Cluster:   false,
-		Data: ServiceCore{
-			CoreNode: CoreNode{
+		Data: Service{
+			GraphNodeBase: GraphNodeBase{
 				ID:             BuildID("Service", namespace, name),
 				Kinds:          []string{"Service"},
 				Name:           name,

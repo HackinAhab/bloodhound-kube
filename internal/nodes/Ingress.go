@@ -1,5 +1,11 @@
 package nodes
 
+type Ingress struct {
+	GraphNodeBase
+	BackendServices []string
+	TLS             []any
+}
+
 func init() {
 	Register("Ingress", BuildIngressNode)
 }
@@ -27,8 +33,8 @@ func BuildIngressNode(resource map[string]any) (BuildResult, bool) {
 	core := CoreEntry{
 		Namespace: namespace,
 		Cluster:   false,
-		Data: IngressCore{
-			CoreNode: CoreNode{
+		Data: Ingress{
+			GraphNodeBase: GraphNodeBase{
 				ID:             BuildID("Ingress", namespace, name),
 				Kinds:          []string{"Ingress"},
 				Name:           name,

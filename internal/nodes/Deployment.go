@@ -1,5 +1,12 @@
 package nodes
 
+type Deployment struct {
+	GraphNodeBase
+	SelectorMap       map[string]any
+	PodTemplateLabels map[string]any
+	ServiceAccount    string
+}
+
 func init() {
 	Register("Deployment", BuildDeploymentNode)
 }
@@ -31,8 +38,8 @@ func BuildDeploymentNode(resource map[string]any) (BuildResult, bool) {
 	core := CoreEntry{
 		Namespace: namespace,
 		Cluster:   false,
-		Data: DeploymentCore{
-			CoreNode: CoreNode{
+		Data: Deployment{
+			GraphNodeBase: GraphNodeBase{
 				ID:             BuildID("Deployment", namespace, name),
 				Kinds:          []string{"Deployment"},
 				Name:           name,

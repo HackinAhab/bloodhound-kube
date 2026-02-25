@@ -31,12 +31,8 @@ func (r hostPortsEdgesRule) Apply(ctx *EdgeContext) []model.BloodHoundEdge {
 				continue
 			}
 			for _, container := range pod.Containers {
-				for _, hostPortEntry := range MapSlice(container, "hostPorts") {
-					portMap, ok := hostPortEntry.(map[string]any)
-					if !ok {
-						continue
-					}
-					hostPort := MapNumber(portMap, "hostPort")
+				for _, hostPortEntry := range container.HostPorts {
+					hostPort := hostPortEntry.HostPort
 					if hostPort == 0 {
 						continue
 					}

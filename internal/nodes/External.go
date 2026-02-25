@@ -12,9 +12,9 @@ func ExternalNode() NodeResult {
 	}
 }
 
-func ExternalCoreEntry() ExternalCore {
-	return ExternalCore{
-		CoreNode: CoreNode{
+func ExternalCoreEntry() External {
+	return External{
+		GraphNodeBase: GraphNodeBase{
 			ID:             BuildID("External", "", "external"),
 			Kinds:          []string{"External"},
 			Name:           "external",

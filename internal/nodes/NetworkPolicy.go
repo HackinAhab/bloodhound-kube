@@ -1,5 +1,10 @@
 package nodes
 
+type NetworkPolicy struct {
+	GraphNodeBase
+	PodSelector map[string]any
+}
+
 func init() {
 	Register("NetworkPolicy", BuildNetworkPolicyNode)
 }
@@ -27,8 +32,8 @@ func BuildNetworkPolicyNode(resource map[string]any) (BuildResult, bool) {
 	core := CoreEntry{
 		Namespace: namespace,
 		Cluster:   false,
-		Data: NetworkPolicyCore{
-			CoreNode: CoreNode{
+		Data: NetworkPolicy{
+			GraphNodeBase: GraphNodeBase{
 				ID:             BuildID("NetworkPolicy", namespace, name),
 				Kinds:          []string{"NetworkPolicy"},
 				Name:           name,

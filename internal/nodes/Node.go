@@ -1,5 +1,9 @@
 package nodes
 
+type Node struct {
+	GraphNodeBase
+}
+
 func init() {
 	Register("Node", BuildNodeNode)
 }
@@ -21,8 +25,8 @@ func BuildNodeNode(resource map[string]any) (BuildResult, bool) {
 
 	core := CoreEntry{
 		Cluster: true,
-		Data: NodeCore{
-			CoreNode: CoreNode{
+		Data: Node{
+			GraphNodeBase: GraphNodeBase{
 				ID:             BuildID("Node", "", name),
 				Kinds:          []string{"Node"},
 				Name:           name,

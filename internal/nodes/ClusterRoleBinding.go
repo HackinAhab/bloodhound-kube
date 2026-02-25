@@ -4,6 +4,13 @@ func init() {
 	Register("ClusterRoleBinding", BuildClusterRoleBindingNode)
 }
 
+type ClusterRoleBinding struct {
+	GraphNodeBase
+	RoleName string
+	RoleKind string
+	Subjects []Subject
+}
+
 func BuildClusterRoleBindingNode(resource map[string]any) (BuildResult, bool) {
 	metadata := GetMap(resource, "metadata")
 	name := GetString(metadata, "name")
@@ -31,8 +38,8 @@ func BuildClusterRoleBindingNode(resource map[string]any) (BuildResult, bool) {
 
 	core := CoreEntry{
 		Cluster: true,
-		Data: ClusterRoleBindingCore{
-			CoreNode: CoreNode{
+		Data: ClusterRoleBinding{
+			GraphNodeBase: GraphNodeBase{
 				ID:             BuildID("ClusterRoleBinding", "", name),
 				Kinds:          []string{"ClusterRoleBinding"},
 				Name:           name,

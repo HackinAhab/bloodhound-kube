@@ -1,5 +1,24 @@
 package nodes
 
+type SecretStore struct {
+	GraphNodeBase
+	ProviderType string
+}
+
+type ClusterSecretStore struct {
+	GraphNodeBase
+	ProviderType string
+}
+
+type ExternalSecret struct {
+	GraphNodeBase
+	StoreName     string
+	StoreKind     string
+	TargetName    string
+	DataKeys      []string
+	DataFromTypes []string
+}
+
 func init() {
 	Register("SecretStore", BuildSecretStoreNode)
 	Register("ClusterSecretStore", BuildClusterSecretStoreNode)
@@ -30,8 +49,8 @@ func BuildSecretStoreNode(resource map[string]any) (BuildResult, bool) {
 	core := CoreEntry{
 		Namespace: namespace,
 		Cluster:   false,
-		Data: SecretStoreCore{
-			CoreNode: CoreNode{
+		Data: SecretStore{
+			GraphNodeBase: GraphNodeBase{
 				ID:             BuildID("SecretStore", namespace, name),
 				Kinds:          []string{"SecretStore"},
 				Name:           name,
@@ -75,8 +94,8 @@ func BuildClusterSecretStoreNode(resource map[string]any) (BuildResult, bool) {
 
 	core := CoreEntry{
 		Cluster: true,
-		Data: ClusterSecretStoreCore{
-			CoreNode: CoreNode{
+		Data: ClusterSecretStore{
+			GraphNodeBase: GraphNodeBase{
 				ID:             BuildID("ClusterSecretStore", "", name),
 				Kinds:          []string{"ClusterSecretStore"},
 				Name:           name,
@@ -134,8 +153,8 @@ func BuildExternalSecretNode(resource map[string]any) (BuildResult, bool) {
 	core := CoreEntry{
 		Namespace: namespace,
 		Cluster:   false,
-		Data: ExternalSecretCore{
-			CoreNode: CoreNode{
+		Data: ExternalSecret{
+			GraphNodeBase: GraphNodeBase{
 				ID:             BuildID("ExternalSecret", namespace, name),
 				Kinds:          []string{"ExternalSecret"},
 				Name:           name,

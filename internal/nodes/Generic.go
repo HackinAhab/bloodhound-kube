@@ -6,6 +6,10 @@ func init() {
 	Register("", BuildGenericNode)
 }
 
+type GenericNode struct {
+	GraphNodeBase
+}
+
 func BuildGenericNode(resource map[string]any) (BuildResult, bool) {
 	metadata := GetMap(resource, "metadata")
 	name := GetString(metadata, "name")
@@ -51,11 +55,27 @@ func BuildGenericNode(resource map[string]any) (BuildResult, bool) {
 
 	id := BuildID(kindKey, namespace, name)
 
+	core := CoreEntry{
+		Namespace: namespace,
+		Cluster:   false,
+		Data: GenericNode{
+			GraphNodeBase: GraphNodeBase{
+				ID:             id,
+				Kinds:          []string{kindKey},
+				Name:           name,
+				Namespace:      namespace,
+				LabelsMap:      labelsMap,
+				AnnotationsMap: annotationsMap,
+			},
+		},
+	}
+
 	return BuildResult{
 		Node: NodeResult{
 			ID:         id,
 			Kinds:      []string{kindKey},
 			Properties: properties,
 		},
+		Core: []CoreEntry{core},
 	}, true
 }

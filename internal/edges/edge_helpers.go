@@ -2,6 +2,7 @@ package edges
 
 import (
 	"fmt"
+	"maps"
 	"strings"
 
 	"bloodhound-kube/internal/model"
@@ -42,9 +43,7 @@ func CreateEdge(start, end nodes.EdgeNode, kind string) model.BloodHoundEdge {
 
 func CreateEdgeWithProperties(start, end nodes.EdgeNode, kind string, props map[string]any) model.BloodHoundEdge {
 	properties := map[string]any{}
-	for key, value := range props {
-		properties[key] = value
-	}
+	maps.Copy(properties, props)
 	if len(properties) == 0 {
 		properties = nil
 	}
@@ -64,15 +63,6 @@ func CreateEdgeWithProperties(start, end nodes.EdgeNode, kind string, props map[
 	}
 }
 
-func CreateEdgeVia(start, end, via nodes.EdgeNode, kind string) model.BloodHoundEdge {
-	props := map[string]any{
-		"via_id":   via.EdgeID(),
-		"via_kind": via.EdgeKind(),
-		"via_name": via.EdgeName(),
-	}
-	return CreateEdgeWithProperties(start, end, kind, props)
-}
-
 func NormalizeCapability(capability string) string {
 	if strings.HasPrefix(capability, "CAP_") {
 		return capability
@@ -83,7 +73,7 @@ func NormalizeCapability(capability string) string {
 	return "CAP_" + capability
 }
 
-func HasCapability(pod nodes.PodCore, capability string) bool {
+func HasCapability(pod nodes.Pod, capability string) bool {
 	if capability == "" {
 		return false
 	}

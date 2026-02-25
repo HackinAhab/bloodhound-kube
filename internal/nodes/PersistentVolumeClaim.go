@@ -1,5 +1,9 @@
 package nodes
 
+type PersistentVolumeClaim struct {
+	GraphNodeBase
+}
+
 func init() {
 	Register("PersistentVolumeClaim", BuildPVCNode)
 }
@@ -24,8 +28,8 @@ func BuildPVCNode(resource map[string]any) (BuildResult, bool) {
 	core := CoreEntry{
 		Namespace: namespace,
 		Cluster:   false,
-		Data: PersistentVolumeClaimCore{
-			CoreNode: CoreNode{
+		Data: PersistentVolumeClaim{
+			GraphNodeBase: GraphNodeBase{
 				ID:             BuildID("PersistentVolumeClaim", namespace, name),
 				Kinds:          []string{"PersistentVolumeClaim"},
 				Name:           name,

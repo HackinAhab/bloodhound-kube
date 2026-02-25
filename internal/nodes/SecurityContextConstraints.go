@@ -1,5 +1,9 @@
 package nodes
 
+type SecurityContextConstraints struct {
+	GraphNodeBase
+}
+
 func init() {
 	Register("SecurityContextConstraints", BuildSecurityContextConstraintsNode)
 }
@@ -22,8 +26,8 @@ func BuildSecurityContextConstraintsNode(resource map[string]any) (BuildResult, 
 
 	core := CoreEntry{
 		Cluster: true,
-		Data: SecurityContextConstraintsCore{
-			CoreNode: CoreNode{
+		Data: SecurityContextConstraints{
+			GraphNodeBase: GraphNodeBase{
 				ID:             BuildID("SecurityContextConstraints", "", name),
 				Kinds:          []string{"SecurityContextConstraints"},
 				Name:           name,

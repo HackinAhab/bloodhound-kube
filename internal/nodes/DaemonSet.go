@@ -1,5 +1,10 @@
 package nodes
 
+type DaemonSetCore struct {
+	GraphNodeBase
+	SelectorMap map[string]any
+}
+
 func init() {
 	Register("DaemonSet", BuildDaemonSetNode)
 }
@@ -29,7 +34,7 @@ func BuildDaemonSetNode(resource map[string]any) (BuildResult, bool) {
 		Namespace: namespace,
 		Cluster:   false,
 		Data: DaemonSetCore{
-			CoreNode: CoreNode{
+			GraphNodeBase: GraphNodeBase{
 				ID:             BuildID("DaemonSet", namespace, name),
 				Kinds:          []string{"DaemonSet"},
 				Name:           name,

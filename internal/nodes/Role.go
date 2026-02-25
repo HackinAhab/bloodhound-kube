@@ -4,6 +4,12 @@ func init() {
 	Register("Role", BuildRoleNode)
 }
 
+type Role struct {
+	GraphNodeBase
+	PermsDisplay []string
+	RbacRules    []RbacRule
+}
+
 func BuildRoleNode(resource map[string]any) (BuildResult, bool) {
 	metadata := GetMap(resource, "metadata")
 	name := GetString(metadata, "name")
@@ -13,9 +19,9 @@ func BuildRoleNode(resource map[string]any) (BuildResult, bool) {
 	namespace := GetString(metadata, "namespace")
 	labelsMap := GetMap(metadata, "labels")
 	annotationsMap := GetMap(metadata, "annotations")
+	parsedRBACRules := buildRbacRules(GetSlice(resource, "rules"))
 
-	perms := buildRBACPerms(GetSlice(resource, "rules"))
-
+	perms := buildRbacRulesDisplay(parsedRBACRules)
 	properties := map[string]any{
 		"name":        name,
 		"namespace":   namespace,
@@ -27,8 +33,8 @@ func BuildRoleNode(resource map[string]any) (BuildResult, bool) {
 	core := CoreEntry{
 		Namespace: namespace,
 		Cluster:   false,
-		Data: RoleCore{
-			CoreNode: CoreNode{
+		Data: Role{
+			GraphNodeBase: GraphNodeBase{
 				ID:             BuildID("Role", namespace, name),
 				Kinds:          []string{"Role"},
 				Name:           name,
@@ -36,7 +42,7 @@ func BuildRoleNode(resource map[string]any) (BuildResult, bool) {
 				LabelsMap:      labelsMap,
 				AnnotationsMap: annotationsMap,
 			},
-			Perms: perms,
+			PermsDisplay: perms,
 		},
 	}
 

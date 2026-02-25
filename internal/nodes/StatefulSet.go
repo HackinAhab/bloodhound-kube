@@ -1,5 +1,10 @@
 package nodes
 
+type StatefulSetCore struct {
+	GraphNodeBase
+	SelectorMap map[string]any
+}
+
 func init() {
 	Register("StatefulSet", BuildStatefulSetNode)
 }
@@ -30,7 +35,7 @@ func BuildStatefulSetNode(resource map[string]any) (BuildResult, bool) {
 		Namespace: namespace,
 		Cluster:   false,
 		Data: StatefulSetCore{
-			CoreNode: CoreNode{
+			GraphNodeBase: GraphNodeBase{
 				ID:             BuildID("StatefulSet", namespace, name),
 				Kinds:          []string{"StatefulSet"},
 				Name:           name,

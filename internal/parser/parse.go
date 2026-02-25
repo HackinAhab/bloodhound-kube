@@ -92,20 +92,16 @@ func parseJSONLToResourcesReader(reader io.Reader) ([]map[string]any, error) {
 
 	var extracted []map[string]any
 	err := utils.ReadJSONL(reader, func(line int, raw []byte) error {
-		var resource model.ResourceData
+		var resource map[string]any
 		if err := json.Unmarshal(raw, &resource); err != nil {
 			log.Error("Parse JSONL line failed", "line", line, "error", err)
 			return errors.New("parse JSONL failed")
 		}
-
-		// Extract the actual K8s resource from the wrapper
-		// JSONL format: {"type": "secret", "timestamp": "...", "resource": {...}}
-		// Edge rules expect: {"kind": "Secret", "metadata": {...}, ...}
-		if payload, ok := resource.Resource.(map[string]any); ok {
-			extracted = append(extracted, payload)
+		if resource == nil {
+			log.Warn("Missing resource payload; skipping line", "line", line)
 			return nil
 		}
-		log.Warn("Missing resource field; skipping line", "line", line)
+		extracted = append(extracted, resource)
 		return nil
 	})
 	if err != nil {
@@ -116,17 +112,17 @@ func parseJSONLToResourcesReader(reader io.Reader) ([]map[string]any, error) {
 }
 
 // JSONL parsing utility
-func ParseFromJSONL(jsonlData []byte) ([]model.ResourceData, error) {
+func ParseFromJSONL(jsonlData []byte) ([]map[string]any, error) {
 	return ParseFromJSONLReader(bytes.NewReader(jsonlData))
 }
 
 // ParseFromJSONLReader parses JSONL data from a reader.
-func ParseFromJSONLReader(reader io.Reader) ([]model.ResourceData, error) {
+func ParseFromJSONLReader(reader io.Reader) ([]map[string]any, error) {
 	log := utils.DefaultLogger().Component("parser")
-	var resources []model.ResourceData
+	var resources []map[string]any
 
 	err := utils.ReadJSONL(reader, func(line int, raw []byte) error {
-		var resource model.ResourceData
+		var resource map[string]any
 		if err := json.Unmarshal(raw, &resource); err != nil {
 			log.Error("Parse JSONL line failed", "line", line, "error", err)
 			return errors.New("parse JSONL failed")

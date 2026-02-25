@@ -3,7 +3,6 @@ package collector
 import (
 	"bloodhound-kube/internal/utils"
 	"context"
-	"time"
 )
 
 type ResourceHandler interface {
@@ -11,10 +10,10 @@ type ResourceHandler interface {
 	IsClusterScoped() bool
 	GetDescription() string
 	GetSupportedClusterTypes() []utils.ClusterType
-	Collect(ctx context.Context, c *Collector, namespace string) ([]Resource, error)
+	Collect(ctx context.Context, c *Collector, namespace string) ([]map[string]any, error)
 }
 
-type CollectFunc func(ctx context.Context, c *Collector, namespace string) ([]any, error)
+type CollectFunc func(ctx context.Context, c *Collector, namespace string) ([]map[string]any, error)
 
 type Handler struct {
 	name                  string
@@ -41,25 +40,12 @@ func (h *Handler) GetSupportedClusterTypes() []utils.ClusterType {
 	return h.supportedClusterTypes
 }
 
-func (h *Handler) Collect(ctx context.Context, c *Collector, namespace string) ([]Resource, error) {
+func (h *Handler) Collect(ctx context.Context, c *Collector, namespace string) ([]map[string]any, error) {
 	resources, err := h.collectFunc(ctx, c, namespace)
 	if err != nil {
 		return nil, err
 	}
-
-	timestamp := time.Now().Format(time.RFC3339)
-	batch := make([]Resource, 0, len(resources))
-
-	for _, resource := range resources {
-		batch = append(batch, Resource{
-			Type:      h.resourceType,
-			Namespace: namespace,
-			Resource:  resource,
-			Timestamp: timestamp,
-		})
-	}
-
-	return batch, nil
+	return resources, nil
 }
 
 // NewHandler creates a new handler from metadata with validation

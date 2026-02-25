@@ -19,11 +19,3 @@ type BloodHoundEdge struct {
 	Kind       string            `json:"kind"`
 	Properties map[string]any    `json:"properties,omitempty"`
 }
-
-// ResourceData represents a Kubernetes resource for parsing
-type ResourceData struct {
-	Type      string `json:"type"`
-	Namespace string `json:"namespace,omitempty"`
-	Resource  any    `json:"resource"`
-	Timestamp string `json:"timestamp"`
-}

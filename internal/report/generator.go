@@ -79,22 +79,20 @@ func (g *Generator) loadData() error {
 
 	err := utils.ReadJSONLFile(g.config.InputFile, func(line int, raw []byte) error {
 		lineNum = line
-		var rawItem map[string]any
-		if err := json.Unmarshal(raw, &rawItem); err != nil {
+		var resource map[string]any
+		if err := json.Unmarshal(raw, &resource); err != nil {
 			g.log.Debug("Failed to parse JSON line", "line", line, "error", err)
 			skipped++
 			return nil
 		}
-
-		itemType, ok := rawItem["type"].(string)
-		if !ok {
-			g.log.Debug("Missing or invalid type field", "line", line)
+		if resource == nil {
+			g.log.Debug("Missing resource payload", "line", line)
 			skipped++
 			return nil
 		}
 
-		if err := g.processItem(itemType, rawItem); err != nil {
-			g.log.Debug("Failed to process item", "type", itemType, "line", line, "error", err)
+		if err := g.processItem(resource); err != nil {
+			g.log.Debug("Failed to process item", "kind", getString(resource, "kind"), "line", line, "error", err)
 			skipped++
 			return nil
 		}
@@ -117,19 +115,15 @@ func (g *Generator) loadData() error {
 }
 
 // processItem processes a single item from the JSONL file
-func (g *Generator) processItem(itemType string, rawItem map[string]interface{}) error {
-	resource, _ := rawItem["resource"].(map[string]any)
+func (g *Generator) processItem(resource map[string]any) error {
 	kind := strings.ToLower(getString(resource, "kind"))
-	typeKey := strings.ToLower(itemType)
 
-	switch {
-	case kind == "pod" || typeKey == "pod" || typeKey == "pods":
+	switch kind {
+	case "pod":
 		return g.processPod(resource)
-	case kind == "secret" || typeKey == "secret" || typeKey == "secrets":
+	case "secret":
 		return g.processSecret(resource)
-	case kind == "role" || kind == "clusterrole" || kind == "rolebinding" || kind == "clusterrolebinding" ||
-		typeKey == "role" || typeKey == "roles" || typeKey == "clusterrole" || typeKey == "clusterroles" ||
-		typeKey == "rolebinding" || typeKey == "rolebindings" || typeKey == "clusterrolebinding" || typeKey == "clusterrolebindings":
+	case "role", "clusterrole", "rolebinding", "clusterrolebinding":
 		return g.processRBAC(resource)
 	default:
 		// Skip unknown types

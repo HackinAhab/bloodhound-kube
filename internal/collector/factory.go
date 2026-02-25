@@ -161,7 +161,7 @@ func (g *GenericCollector) GetSupportedClusterTypes() []utils.ClusterType {
 }
 
 // Collect collects resources using the dynamic client
-func (g *GenericCollector) Collect(ctx context.Context, c *Collector, namespace string) ([]Resource, error) {
+func (g *GenericCollector) Collect(ctx context.Context, c *Collector, namespace string) ([]map[string]any, error) {
 	// Parse API version to extract just the version part
 	// API versions can be in format "v1" or "apps/v1"
 	version := g.apiVersion
@@ -178,7 +178,7 @@ func (g *GenericCollector) Collect(ctx context.Context, c *Collector, namespace 
 		Resource: g.plural,
 	}
 
-	var resources []Resource
+	var resources []map[string]any
 	continueToken := ""
 	page := 0
 
@@ -207,7 +207,7 @@ func (g *GenericCollector) Collect(ctx context.Context, c *Collector, namespace 
 
 		processStart := time.Now()
 		if resources == nil {
-			resources = make([]Resource, 0, len(list.Items))
+			resources = make([]map[string]any, 0, len(list.Items))
 		}
 		resources = append(resources, g.buildDynamicResources(list, namespace, c.IsRedacted())...)
 		g.logger.Trace("Processed resources page", "type", g.resourceType, "namespace", namespace, "page", page, "count", len(list.Items), "duration", time.Since(processStart))
@@ -234,20 +234,14 @@ func (g *GenericCollector) listDynamic(ctx context.Context, gvr schema.GroupVers
 	return g.dynamicClient.Resource(gvr).Namespace(namespace).List(ctx, listOpts)
 }
 
-func (g *GenericCollector) buildDynamicResources(list *unstructured.UnstructuredList, namespace string, redacted bool) []Resource {
-	resources := make([]Resource, 0, len(list.Items))
-	timestamp := metav1.Now().Format("2006-01-02T15:04:05Z07:00")
+func (g *GenericCollector) buildDynamicResources(list *unstructured.UnstructuredList, namespace string, redacted bool) []map[string]any {
+	resources := make([]map[string]any, 0, len(list.Items))
 	for _, item := range list.Items {
 		processed := applyCollectionHelpers(item.Object, g.plural, redacted)
 		if processed == nil {
 			continue
 		}
-		resources = append(resources, Resource{
-			Type:      g.resourceType,
-			Namespace: namespace,
-			Resource:  processed,
-			Timestamp: timestamp,
-		})
+		resources = append(resources, processed)
 	}
 	return resources
 }

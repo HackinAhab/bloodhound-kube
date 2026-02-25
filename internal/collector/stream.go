@@ -5,16 +5,10 @@ import (
 	"context"
 	"crypto/rand"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 )
-
-type Resource struct {
-	Type      string `json:"type"`
-	Namespace string `json:"namespace,omitempty"`
-	Resource  any    `json:"resource"`
-	Timestamp string `json:"timestamp"`
-}
 
 type CollectionJob struct {
 	Handler   ResourceHandler
@@ -34,7 +28,7 @@ func RunCollection(ctx context.Context, c *Collector, w *utils.AsyncWriter, type
 	jobBufferSize := max(len(typesToCollect)*len(namespacesToCollect), 100)
 
 	jobs := make(chan CollectionJob, jobBufferSize)
-	results := make(chan []Resource, 200)
+	results := make(chan []map[string]any, 200)
 
 	var wg sync.WaitGroup
 
@@ -60,8 +54,8 @@ func RunCollection(ctx context.Context, c *Collector, w *utils.AsyncWriter, type
 					log.Trace("Flushed batch", "size", len(batchBuffer), "duration", time.Since(flushStart))
 				}
 				for _, item := range batchBuffer {
-					if res, ok := item.(Resource); ok {
-						stats.AddCount(res.Type, 1)
+					if res, ok := item.(map[string]any); ok {
+						stats.AddCount(resourceKind(res), 1)
 					}
 				}
 				batchBuffer = batchBuffer[:0]
@@ -251,8 +245,8 @@ func RunCollectionWithCheckpoint(ctx context.Context, c *Collector, w *utils.Asy
 					log.Trace("Flushed batch", "size", len(batchBuffer), "duration", time.Since(flushStart))
 				}
 				for _, item := range batchBuffer {
-					if res, ok := item.(Resource); ok {
-						stats.AddCount(res.Type, 1)
+					if res, ok := item.(map[string]any); ok {
+						stats.AddCount(resourceKind(res), 1)
 					}
 				}
 				batchBuffer = batchBuffer[:0]
@@ -346,7 +340,7 @@ func RunCollectionWithCheckpoint(ctx context.Context, c *Collector, w *utils.Asy
 type CollectionResult struct {
 	JobType   string
 	Namespace string
-	Resources []Resource
+	Resources []map[string]any
 	Duration  time.Duration
 	Error     error
 }
@@ -418,7 +412,7 @@ func generateCollectionID() string {
 	return fmt.Sprintf("%x", bytes)
 }
 
-func collectWorker(ctx context.Context, c *Collector, jobs <-chan CollectionJob, results chan<- []Resource, log utils.Logger) {
+func collectWorker(ctx context.Context, c *Collector, jobs <-chan CollectionJob, results chan<- []map[string]any, log utils.Logger) {
 	for job := range jobs {
 		select {
 		case <-ctx.Done():
@@ -470,4 +464,14 @@ func collectWorker(ctx context.Context, c *Collector, jobs <-chan CollectionJob,
 			log.Trace("Finished collection job", "type", job.Handler.GetName(), "duration", duration, "count", len(batch))
 		}
 	}
+}
+
+func resourceKind(resource map[string]any) string {
+	if resource == nil {
+		return "unknown"
+	}
+	if kind, ok := resource["kind"].(string); ok && kind != "" {
+		return strings.ToLower(kind)
+	}
+	return "unknown"
 }

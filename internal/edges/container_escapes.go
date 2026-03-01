@@ -108,7 +108,7 @@ func podHasSocketHostPath(pod *nodes.Pod) string {
 		return ""
 	}
 	for _, volume := range pod.Volumes {
-		hostPath := MapString(volume, "hostPath")
+		hostPath := volume.HostPath
 		if hostPath == "" {
 			continue
 		}
@@ -129,7 +129,7 @@ func ceUmhCorePatternCheck(pod *nodes.Pod) (string, bool) {
 		"/proc/sys/kernel": {},
 	}
 	for _, volume := range pod.Volumes {
-		hostPath := MapString(volume, "hostPath")
+		hostPath := volume.HostPath
 		if hostPath == "" {
 			continue
 		}
@@ -169,7 +169,7 @@ func ceVarLogSymlinkCheck(pod *nodes.Pod) (string, bool) {
 		}
 	}
 	for _, volume := range pod.Volumes {
-		hostPath := MapString(volume, "hostPath")
+		hostPath := volume.HostPath
 		if hostPath == "/var/log" || hostPath == "/var" {
 			return hostPath, true
 		}

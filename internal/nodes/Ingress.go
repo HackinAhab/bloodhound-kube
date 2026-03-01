@@ -1,27 +1,32 @@
 package nodes
 
+import (
+	networkingv1 "k8s.io/api/networking/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+)
+
 type Ingress struct {
 	GraphNodeBase
 	BackendServices []string
 	TLS             []any
 }
 
-func init() {
-	Register("Ingress", BuildIngressNode)
-}
-
-func BuildIngressNode(resource map[string]any) (BuildResult, bool) {
-	metadata := GetMap(resource, "metadata")
-	name := GetString(metadata, "name")
+func BuildIngressNode(obj runtime.Object) (BuildResult, bool) {
+	ingress, ok := obj.(*networkingv1.Ingress)
+	if !ok || ingress == nil {
+		return BuildResult{}, false
+	}
+	name := ingress.Name
 	if name == "" {
 		return BuildResult{}, false
 	}
-	namespace := GetString(metadata, "namespace")
-	labelsMap := GetMap(metadata, "labels")
-	annotationsMap := GetMap(metadata, "annotations")
 
-	spec := GetMap(resource, "spec")
-	backendServices := extractIngressBackendServices(spec)
+	namespace := ingress.Namespace
+	labelsMap := StringMapToAnyMap(ingress.Labels)
+	annotationsMap := StringMapToAnyMap(ingress.Annotations)
+
+	backendServices := extractIngressBackendServices(ingress.Spec)
+	tlsEntries := ingressTLSToAnySlice(ingress.Spec.TLS)
 
 	properties := map[string]any{
 		"name":        name,
@@ -43,7 +48,7 @@ func BuildIngressNode(resource map[string]any) (BuildResult, bool) {
 				AnnotationsMap: annotationsMap,
 			},
 			BackendServices: backendServices,
-			TLS:             GetSlice(spec, "tls"),
+			TLS:             tlsEntries,
 		},
 	}
 
@@ -57,34 +62,35 @@ func BuildIngressNode(resource map[string]any) (BuildResult, bool) {
 	}, true
 }
 
-func extractIngressBackendServices(spec map[string]any) []string {
-	rules := GetSlice(spec, "rules")
-	if len(rules) == 0 {
-		return []string{}
-	}
+func extractIngressBackendServices(spec networkingv1.IngressSpec) []string {
 	services := map[string]struct{}{}
-	for _, rule := range rules {
-		ruleMap, ok := rule.(map[string]any)
-		if !ok {
+	for _, rule := range spec.Rules {
+		if rule.HTTP == nil {
 			continue
 		}
-		http := GetMap(ruleMap, "http")
-		paths := GetSlice(http, "paths")
-		for _, path := range paths {
-			pathMap, ok := path.(map[string]any)
-			if !ok {
+		for _, path := range rule.HTTP.Paths {
+			if path.Backend.Service == nil {
 				continue
 			}
-			backend := GetMap(pathMap, "backend")
-			if svc := GetString(backend, "serviceName"); svc != "" {
-				services[svc] = struct{}{}
-				continue
-			}
-			service := GetMap(backend, "service")
-			if svc := GetString(service, "name"); svc != "" {
-				services[svc] = struct{}{}
+			name := path.Backend.Service.Name
+			if name != "" {
+				services[name] = struct{}{}
 			}
 		}
 	}
 	return setToSortedList(services)
+}
+
+func ingressTLSToAnySlice(tls []networkingv1.IngressTLS) []any {
+	if len(tls) == 0 {
+		return []any{}
+	}
+	items := make([]any, 0, len(tls))
+	for _, entry := range tls {
+		items = append(items, map[string]any{
+			"hosts":      entry.Hosts,
+			"secretName": entry.SecretName,
+		})
+	}
+	return items
 }

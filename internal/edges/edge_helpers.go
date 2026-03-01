@@ -1,7 +1,6 @@
 package edges
 
 import (
-	"fmt"
 	"maps"
 	"strings"
 
@@ -85,110 +84,17 @@ func HasCapability(pod nodes.Pod, capability string) bool {
 	return false
 }
 
-func LabelsMatchSelector(labels map[string]any, selector map[string]any) bool {
+func labelsMatchOnly(labels map[string]any, selector map[string]string) bool {
 	if len(selector) == 0 {
 		return true
 	}
+	if labels == nil {
+		return false
+	}
 	for key, value := range selector {
-		if labels == nil {
-			return false
-		}
 		if labels[key] != value {
 			return false
 		}
 	}
 	return true
-}
-
-func IsSubset(subset map[string]any, superset map[string]any) bool {
-	return LabelsMatchSelector(superset, subset)
-}
-
-func MapString(m map[string]any, key string) string {
-	if m == nil {
-		return ""
-	}
-	if value, ok := m[key]; ok {
-		if s, ok := value.(string); ok {
-			return s
-		}
-	}
-	return ""
-}
-
-func MapBool(m map[string]any, key string) bool {
-	if m == nil {
-		return false
-	}
-	value, ok := m[key]
-	if !ok || value == nil {
-		return false
-	}
-	switch v := value.(type) {
-	case bool:
-		return v
-	case string:
-		return v == "true" || v == "1"
-	case int:
-		return v != 0
-	case int64:
-		return v != 0
-	case float64:
-		return v != 0
-	default:
-		return false
-	}
-}
-
-func MapSlice(m map[string]any, key string) []any {
-	if m == nil {
-		return nil
-	}
-	if value, ok := m[key]; ok {
-		if s, ok := value.([]any); ok {
-			return s
-		}
-	}
-	return nil
-}
-
-func MapMap(m map[string]any, key string) map[string]any {
-	if m == nil {
-		return nil
-	}
-	if value, ok := m[key]; ok {
-		if v, ok := value.(map[string]any); ok {
-			return v
-		}
-	}
-	return nil
-}
-
-func MapNumber(m map[string]any, key string) int {
-	if m == nil {
-		return 0
-	}
-	value, ok := m[key]
-	if !ok || value == nil {
-		return 0
-	}
-	switch v := value.(type) {
-	case int:
-		return v
-	case int64:
-		return int(v)
-	case float64:
-		return int(v)
-	case float32:
-		return int(v)
-	default:
-		return 0
-	}
-}
-
-func joinNamespaceKey(namespace, name string) string {
-	if namespace == "" {
-		return name
-	}
-	return fmt.Sprintf("%s/%s", namespace, name)
 }

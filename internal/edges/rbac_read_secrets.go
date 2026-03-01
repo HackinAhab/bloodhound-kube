@@ -2,6 +2,32 @@ package edges
 
 import "bloodhound-kube/internal/model"
 
+type rbacReadSecretsEdgesRule struct{}
+
+// TODO: This produces a *lot* of edges, need to figure out a better way of flagging these in the UI instead of just creating edges for every single secret in the cluster for every SA that can read secrets
+// func init() {
+// 	RegisterEdgeRule(rbacReadSecretsEdgesRule{})
+// }
+
+func (r rbacReadSecretsEdgesRule) Name() string {
+	return "rbac_read_secrets"
+}
+
+func (r rbacReadSecretsEdgesRule) Apply(ctx *EdgeContext) []model.BloodHoundEdge {
+	if ctx == nil || ctx.Core == nil {
+		return nil
+	}
+	var edges []model.BloodHoundEdge
+	for ns, space := range ctx.Core.Namespaces {
+		if space == nil {
+			continue
+		}
+		edges = append(edges, saReadSecretNamespaced(ctx, ns, space)...)
+	}
+	edges = append(edges, saReadSecretCluster(ctx)...)
+	return edges
+}
+
 // SA w/ read access to secrets -> Secrets
 func saReadSecretNamespaced(ctx *EdgeContext, namespace string, space *model.Namespace) []model.BloodHoundEdge {
 	if ctx == nil || space == nil {

@@ -5,36 +5,49 @@ import (
 	"encoding/base64"
 	"encoding/pem"
 	"time"
+
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 )
 
 type Secret struct {
 	GraphNodeBase
-	SecretType string
-	Data       map[string]any
+	SecretType         string
+	Data               map[string]any
+	ServiceAccountName string
 }
 
-func init() {
-	Register("Secret", BuildSecretNode)
-}
-
-func BuildSecretNode(resource map[string]any) (BuildResult, bool) {
-	metadata := GetMap(resource, "metadata")
-	name := GetString(metadata, "name")
+func BuildSecretNode(obj runtime.Object) (BuildResult, bool) {
+	secret, ok := obj.(*corev1.Secret)
+	if !ok || secret == nil {
+		return BuildResult{}, false
+	}
+	name := secret.Name
 	if name == "" {
 		return BuildResult{}, false
 	}
-	namespace := GetString(metadata, "namespace")
-	labelsMap := GetMap(metadata, "labels")
-	annotationsMap := GetMap(metadata, "annotations")
 
-	data := GetMap(resource, "data")
+	namespace := secret.Namespace
+	labelsMap := StringMapToAnyMap(secret.Labels)
+	annotationsMap := StringMapToAnyMap(secret.Annotations)
+	saName := ""
+	if value, ok := annotationsMap["kubernetes.io/service-account.name"].(string); ok {
+		saName = value
+	}
+
+	data := secretDataToAnyMap(secret)
 	keys := MapKeysSorted(data)
 	entries := MapEntriesSorted(data)
 
-	secretType := GetString(resource, "type")
-	// Helm release secrets have the "release" key in their data, and it is huge/unnecessary for this.
+	secretType := string(secret.Type)
+
 	if secretType == "helm.sh/release.v1" {
-		entries[0] = "release={{Removed for clarity}}"
+		for i, entry := range entries {
+			if len(entry) >= 8 && entry[:8] == "release=" {
+				entries[i] = "release={{Removed for clarity}}"
+				break
+			}
+		}
 	}
 
 	properties := map[string]any{
@@ -79,8 +92,9 @@ func BuildSecretNode(resource map[string]any) (BuildResult, bool) {
 				LabelsMap:      labelsMap,
 				AnnotationsMap: annotationsMap,
 			},
-			SecretType: secretType,
-			Data:       data,
+			SecretType:         secretType,
+			Data:               data,
+			ServiceAccountName: saName,
 		},
 	}
 
@@ -92,6 +106,22 @@ func BuildSecretNode(resource map[string]any) (BuildResult, bool) {
 		},
 		Core: []CoreEntry{core},
 	}, true
+}
+
+func secretDataToAnyMap(secret *corev1.Secret) map[string]any {
+	if secret == nil {
+		return map[string]any{}
+	}
+	data := make(map[string]any)
+	for key, value := range secret.Data {
+		data[key] = base64.StdEncoding.EncodeToString(value)
+	}
+	for key, value := range secret.StringData {
+		if _, exists := data[key]; !exists {
+			data[key] = value
+		}
+	}
+	return data
 }
 
 func parseTLSCertificate(data map[string]any) (map[string]any, bool) {

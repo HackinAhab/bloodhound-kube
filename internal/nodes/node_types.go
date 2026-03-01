@@ -34,7 +34,3 @@ func (n GraphNodeBase) EdgeName() string {
 func (n GraphNodeBase) EdgeNamespace() string {
 	return n.Namespace
 }
-
-type External struct {
-	GraphNodeBase
-}

@@ -2,6 +2,31 @@ package edges
 
 import "bloodhound-kube/internal/model"
 
+type rbacNodeProxyEdgesRule struct{}
+
+// func init() {
+// 	RegisterEdgeRule(rbacNodeProxyEdgesRule{})
+// }
+
+func (r rbacNodeProxyEdgesRule) Name() string {
+	return "rbac_node_proxy"
+}
+
+func (r rbacNodeProxyEdgesRule) Apply(ctx *EdgeContext) []model.BloodHoundEdge {
+	if ctx == nil || ctx.Core == nil {
+		return nil
+	}
+	var edges []model.BloodHoundEdge
+	for ns, space := range ctx.Core.Namespaces {
+		if space == nil {
+			continue
+		}
+		edges = append(edges, rbacNodeProxyToPodNamespaced(ctx, ns)...)
+	}
+	edges = append(edges, rbacNodeProxyToPodCluster(ctx)...)
+	return edges
+}
+
 // SA w/ node/proxy -> All pods on the same node (if only scopped for a single node, otherwise all pods in the cluster)
 // Based on https://grahamhelton.com/blog/nodes-proxy-rce
 func rbacNodeProxyToPodNamespaced(ctx *EdgeContext, namespace string) []model.BloodHoundEdge {

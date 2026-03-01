@@ -49,10 +49,10 @@ func (r podEdgesRule) Apply(ctx *EdgeContext) []model.BloodHoundEdge {
 			if len(volumes) > 0 {
 				for _, secret := range secrets {
 					for _, volume := range volumes {
-						if MapString(volume, "type") != "secret" {
+						if volume.Type != "secret" {
 							continue
 						}
-						if MapString(volume, "secretName") == secret.Name {
+						if volume.SecretName == secret.Name {
 							edges = append(edges, CreateEdge(&secret, pod, "MountedBy"))
 						}
 					}

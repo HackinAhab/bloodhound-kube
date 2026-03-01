@@ -1,26 +1,29 @@
 package nodes
 
+import (
+	networkingv1 "k8s.io/api/networking/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+)
+
 type NetworkPolicy struct {
 	GraphNodeBase
-	PodSelector map[string]any
+	PodSelectorLabels map[string]string
 }
 
-func init() {
-	Register("NetworkPolicy", BuildNetworkPolicyNode)
-}
-
-func BuildNetworkPolicyNode(resource map[string]any) (BuildResult, bool) {
-	metadata := GetMap(resource, "metadata")
-	name := GetString(metadata, "name")
+func BuildNetworkPolicyNode(obj runtime.Object) (BuildResult, bool) {
+	policy, ok := obj.(*networkingv1.NetworkPolicy)
+	if !ok || policy == nil {
+		return BuildResult{}, false
+	}
+	name := policy.Name
 	if name == "" {
 		return BuildResult{}, false
 	}
-	namespace := GetString(metadata, "namespace")
-	labelsMap := GetMap(metadata, "labels")
-	annotationsMap := GetMap(metadata, "annotations")
 
-	spec := GetMap(resource, "spec")
-	podSelector := GetMap(spec, "podSelector")
+	namespace := policy.Namespace
+	labelsMap := StringMapToAnyMap(policy.Labels)
+	annotationsMap := StringMapToAnyMap(policy.Annotations)
+	selectorLabels := policy.Spec.PodSelector.MatchLabels
 
 	properties := map[string]any{
 		"name":        name,
@@ -41,7 +44,7 @@ func BuildNetworkPolicyNode(resource map[string]any) (BuildResult, bool) {
 				LabelsMap:      labelsMap,
 				AnnotationsMap: annotationsMap,
 			},
-			PodSelector: podSelector,
+			PodSelectorLabels: selectorLabels,
 		},
 	}
 

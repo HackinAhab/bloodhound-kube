@@ -22,24 +22,8 @@ func (r rbacEdgesRule) Apply(ctx *EdgeContext) []model.BloodHoundEdge {
 		edges = append(edges, roleToServiceAccountFromRoleBinding(ctx, ns)...)
 		edges = append(edges, clusterRoleToServiceAccountFromRoleBinding(ctx, ns)...)
 		edges = append(edges, serviceAccountToSecret(ctx, ns, space)...)
-		// edges = append(edges, podDebugNamespaced(ctx, ns, space)...)
-		// edges = append(edges, podExecNamespaced(ctx, ns, space)...)
-		// edges = append(edges, workloadCreateNamespaced(ctx, ns)...)
-		// edges = append(edges, workloadPatchNamespaced(ctx, ns, space)...)
-		// edges = append(edges, rbacCreateNamespaced(ctx, ns, space)...)
-		// edges = append(edges, saImpersonateNamespaced(ctx, ns, space)...)
-		// edges = append(edges, saReadSecretNamespaced(ctx, ns, space)...)
-		// edges = append(edges, rbacNodeProxyToPodNamespaced(ctx, ns)...)
 	}
 	edges = append(edges, clusterRoleToServiceAccountFromClusterRoleBinding(ctx)...)
-	// edges = append(edges, podDebugCluster(ctx)...)
-	// edges = append(edges, podExecCluster(ctx)...)
-	// edges = append(edges, workloadCreateCluster(ctx)...)
-	// edges = append(edges, workloadPatchCluster(ctx)...)
-	// edges = append(edges, rbacCreateCluster(ctx)...)
-	// edges = append(edges, saImpersonateCluster(ctx)...)
-	// edges = append(edges, saReadSecretCluster(ctx)...)
-	// edges = append(edges, rbacNodeProxyToPodCluster(ctx)...)
 	return edges
 }
 
@@ -157,12 +141,7 @@ func serviceAccountToSecret(ctx *EdgeContext, namespace string, space *model.Nam
 		if secret.SecretType != "kubernetes.io/service-account-token" {
 			continue
 		}
-		saName := ""
-		if secret.AnnotationsMap != nil {
-			if name, ok := secret.AnnotationsMap["kubernetes.io/service-account.name"].(string); ok {
-				saName = name
-			}
-		}
+		saName := secret.ServiceAccountName
 		if saName == "" {
 			continue
 		}

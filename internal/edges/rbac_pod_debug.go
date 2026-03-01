@@ -2,6 +2,31 @@ package edges
 
 import "bloodhound-kube/internal/model"
 
+type rbacPodDebugEdgesRule struct{}
+
+// func init() {
+// 	RegisterEdgeRule(rbacPodDebugEdgesRule{})
+// }
+
+func (r rbacPodDebugEdgesRule) Name() string {
+	return "rbac_pod_debug"
+}
+
+func (r rbacPodDebugEdgesRule) Apply(ctx *EdgeContext) []model.BloodHoundEdge {
+	if ctx == nil || ctx.Core == nil {
+		return nil
+	}
+	var edges []model.BloodHoundEdge
+	for ns, space := range ctx.Core.Namespaces {
+		if space == nil {
+			continue
+		}
+		edges = append(edges, podDebugNamespaced(ctx, ns, space)...)
+	}
+	edges = append(edges, podDebugCluster(ctx)...)
+	return edges
+}
+
 // SA w/ debug -> Pods that can be debugged by the SA
 func podDebugNamespaced(ctx *EdgeContext, namespace string, space *model.Namespace) []model.BloodHoundEdge {
 	if ctx == nil || space == nil {

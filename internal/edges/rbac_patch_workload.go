@@ -2,6 +2,31 @@ package edges
 
 import "bloodhound-kube/internal/model"
 
+type rbacPatchWorkloadEdgesRule struct{}
+
+// func init() {
+// 	RegisterEdgeRule(rbacPatchWorkloadEdgesRule{})
+// }
+
+func (r rbacPatchWorkloadEdgesRule) Name() string {
+	return "rbac_patch_workload"
+}
+
+func (r rbacPatchWorkloadEdgesRule) Apply(ctx *EdgeContext) []model.BloodHoundEdge {
+	if ctx == nil || ctx.Core == nil {
+		return nil
+	}
+	var edges []model.BloodHoundEdge
+	for ns, space := range ctx.Core.Namespaces {
+		if space == nil {
+			continue
+		}
+		edges = append(edges, workloadPatchNamespaced(ctx, ns, space)...)
+	}
+	edges = append(edges, workloadPatchCluster(ctx)...)
+	return edges
+}
+
 // SA w/ patch on workload -> Workloads that can be patched by the SA
 func workloadPatchNamespaced(ctx *EdgeContext, namespace string, space *model.Namespace) []model.BloodHoundEdge {
 	if ctx == nil || space == nil {

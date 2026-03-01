@@ -1,5 +1,10 @@
 package nodes
 
+import (
+	rbacv1 "k8s.io/api/rbac/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+)
+
 type RoleBinding struct {
 	GraphNodeBase
 	RoleName string
@@ -7,25 +12,22 @@ type RoleBinding struct {
 	Subjects []Subject
 }
 
-func init() {
-	Register("RoleBinding", BuildRoleBindingNode)
-}
-
-func BuildRoleBindingNode(resource map[string]any) (BuildResult, bool) {
-	metadata := GetMap(resource, "metadata")
-	name := GetString(metadata, "name")
+func BuildRoleBindingNode(obj runtime.Object) (BuildResult, bool) {
+	binding, ok := obj.(*rbacv1.RoleBinding)
+	if !ok || binding == nil {
+		return BuildResult{}, false
+	}
+	name := binding.Name
 	if name == "" {
 		return BuildResult{}, false
 	}
-	namespace := GetString(metadata, "namespace")
-	labelsMap := GetMap(metadata, "labels")
-	annotationsMap := GetMap(metadata, "annotations")
+	namespace := binding.Namespace
+	labelsMap := StringMapToAnyMap(binding.Labels)
+	annotationsMap := StringMapToAnyMap(binding.Annotations)
 
-	subjects := GetSlice(resource, "subjects")
-	subjectCores := extractRbacSubjectCores(subjects)
-	roleRef := GetMap(resource, "roleRef")
-	roleName := GetString(roleRef, "name")
-	roleKind := GetString(roleRef, "kind")
+	subjectCores := extractRbacSubjectCores(binding.Subjects)
+	roleName := binding.RoleRef.Name
+	roleKind := binding.RoleRef.Kind
 
 	properties := map[string]any{
 		"name":        name,
@@ -34,7 +36,7 @@ func BuildRoleBindingNode(resource map[string]any) (BuildResult, bool) {
 		"annotations": MapToSortedList(annotationsMap),
 		"roleName":    roleName,
 		"roleKind":    roleKind,
-		"subjects":    summarizeRbacSubjects(subjects, namespace),
+		"subjects":    summarizeRbacSubjects(binding.Subjects, namespace),
 	}
 
 	core := CoreEntry{

@@ -1,33 +1,57 @@
 package nodes
 
+import (
+	"k8s.io/apimachinery/pkg/runtime"
+
+	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
+	gatewayv1beta1 "sigs.k8s.io/gateway-api/apis/v1beta1"
+)
+
 type HTTPRoute struct {
 	GraphNodeBase
 	BackendRefKeys []string
+	BackendRefs    []HTTPRouteBackendRef
 }
 
-func init() {
-	Register("HTTPRoute", BuildHTTPRouteNode)
+type HTTPRouteBackendRef struct {
+	Namespace string
+	Name      string
 }
 
-func BuildHTTPRouteNode(resource map[string]any) (BuildResult, bool) {
-	metadata := GetMap(resource, "metadata")
-	name := GetString(metadata, "name")
+func BuildHTTPRouteNode(obj runtime.Object) (BuildResult, bool) {
+	switch typed := obj.(type) {
+	case *gatewayv1.HTTPRoute:
+		return buildHTTPRouteFromV1(typed)
+	case *gatewayv1beta1.HTTPRoute:
+		converted := gatewayv1.HTTPRoute(*typed)
+		return buildHTTPRouteFromV1(&converted)
+	default:
+		return BuildResult{}, false
+	}
+}
+
+func buildHTTPRouteFromV1(route *gatewayv1.HTTPRoute) (BuildResult, bool) {
+	if route == nil {
+		return BuildResult{}, false
+	}
+	name := route.Name
 	if name == "" {
 		return BuildResult{}, false
 	}
-	namespace := GetString(metadata, "namespace")
-	labelsMap := GetMap(metadata, "labels")
-	annotationsMap := GetMap(metadata, "annotations")
+	namespace := route.Namespace
+	labelsMap := StringMapToAnyMap(route.Labels)
+	annotationsMap := StringMapToAnyMap(route.Annotations)
 
-	spec := GetMap(resource, "spec")
-	backendRefKeys := extractHTTPRouteBackendRefKeys(spec)
-	parentRefs := summarizeHTTPRouteParents(GetSlice(spec, "parentRefs"), namespace)
+	backendRefs, backendRefKeys := extractHTTPRouteBackendRefs(route.Spec.Rules, namespace)
+	parentRefs := summarizeHTTPRouteParents(route.Spec.ParentRefs, namespace)
+	hostnames := httpRouteHostnames(route.Spec.Hostnames)
+
 	properties := map[string]any{
 		"name":           name,
 		"namespace":      namespace,
 		"labels":         MapToSortedList(labelsMap),
 		"annotations":    MapToSortedList(annotationsMap),
-		"hostnames":      StringSlice(GetSlice(spec, "hostnames")),
+		"hostnames":      hostnames,
 		"parentRefs":     parentRefs,
 		"backendRefKeys": backendRefKeys,
 	}
@@ -45,6 +69,7 @@ func BuildHTTPRouteNode(resource map[string]any) (BuildResult, bool) {
 				AnnotationsMap: annotationsMap,
 			},
 			BackendRefKeys: backendRefKeys,
+			BackendRefs:    backendRefs,
 		},
 	}
 
@@ -58,57 +83,71 @@ func BuildHTTPRouteNode(resource map[string]any) (BuildResult, bool) {
 	}, true
 }
 
-func extractHTTPRouteBackendRefKeys(spec map[string]any) []string {
-	rules := GetSlice(spec, "rules")
+func extractHTTPRouteBackendRefs(rules []gatewayv1.HTTPRouteRule, defaultNamespace string) ([]HTTPRouteBackendRef, []string) {
 	if len(rules) == 0 {
-		return []string{}
+		return []HTTPRouteBackendRef{}, []string{}
 	}
 	keys := map[string]struct{}{}
-	for _, item := range rules {
-		rule, ok := item.(map[string]any)
-		if !ok {
-			continue
-		}
-		for _, backendItem := range GetSlice(rule, "backendRefs") {
-			backend, ok := backendItem.(map[string]any)
-			if !ok {
+	refs := map[string]HTTPRouteBackendRef{}
+	for _, rule := range rules {
+		for _, backend := range rule.BackendRefs {
+			kind := ""
+			if backend.Kind != nil {
+				kind = string(*backend.Kind)
+			}
+			if kind != "" && kind != "Service" {
 				continue
 			}
-			if kind := GetString(backend, "kind"); kind != "" && kind != "Service" {
-				continue
-			}
-			name := GetString(backend, "name")
+			name := string(backend.Name)
 			if name == "" {
 				continue
 			}
-			ns := GetString(backend, "namespace")
-			keys[ns+"/"+name] = struct{}{}
+			ns := defaultNamespace
+			if backend.Namespace != nil {
+				ns = string(*backend.Namespace)
+			}
+			key := ns + "/" + name
+			keys[key] = struct{}{}
+			refs[key] = HTTPRouteBackendRef{
+				Namespace: ns,
+				Name:      name,
+			}
 		}
 	}
-	return SortedSetKeys(keys)
+	return backendRefsFromMap(refs, keys)
 }
 
-func summarizeHTTPRouteParents(parents []any, defaultNamespace string) []string {
+func backendRefsFromMap(refs map[string]HTTPRouteBackendRef, keys map[string]struct{}) ([]HTTPRouteBackendRef, []string) {
+	if len(keys) == 0 {
+		return []HTTPRouteBackendRef{}, []string{}
+	}
+	sortedKeys := SortedSetKeys(keys)
+	items := make([]HTTPRouteBackendRef, 0, len(sortedKeys))
+	for _, key := range sortedKeys {
+		if ref, ok := refs[key]; ok {
+			items = append(items, ref)
+		}
+	}
+	return items, sortedKeys
+}
+
+func summarizeHTTPRouteParents(parents []gatewayv1.ParentReference, defaultNamespace string) []string {
 	if len(parents) == 0 {
 		return []string{}
 	}
 	entries := make([]string, 0, len(parents))
-	for _, item := range parents {
-		parent, ok := item.(map[string]any)
-		if !ok {
-			continue
-		}
-		name := GetString(parent, "name")
+	for _, parent := range parents {
+		name := string(parent.Name)
 		if name == "" {
 			continue
 		}
-		kind := GetString(parent, "kind")
-		if kind == "" {
-			kind = "Gateway"
+		kind := "Gateway"
+		if parent.Kind != nil && *parent.Kind != "" {
+			kind = string(*parent.Kind)
 		}
-		ns := GetString(parent, "namespace")
-		if ns == "" {
-			ns = defaultNamespace
+		ns := defaultNamespace
+		if parent.Namespace != nil && *parent.Namespace != "" {
+			ns = string(*parent.Namespace)
 		}
 		if ns != "" {
 			entries = append(entries, kind+":"+ns+"/"+name)
@@ -117,4 +156,15 @@ func summarizeHTTPRouteParents(parents []any, defaultNamespace string) []string 
 		entries = append(entries, kind+":"+name)
 	}
 	return entries
+}
+
+func httpRouteHostnames(hostnames []gatewayv1.Hostname) []string {
+	if len(hostnames) == 0 {
+		return []string{}
+	}
+	items := make([]string, 0, len(hostnames))
+	for _, hostname := range hostnames {
+		items = append(items, string(hostname))
+	}
+	return items
 }

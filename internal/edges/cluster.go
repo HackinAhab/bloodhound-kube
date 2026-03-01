@@ -22,7 +22,7 @@ func (r clusterEdgesRule) Apply(ctx *EdgeContext) []model.BloodHoundEdge {
 			for j := range space.Pods {
 				pod := &space.Pods[j]
 				for _, volume := range pod.Volumes {
-					if MapString(volume, "pvcName") == pvc.Name {
+					if volume.PVCName == pvc.Name {
 						edges = append(edges, CreateEdge(pvc, pod, "MountedBy"))
 					}
 				}
@@ -32,8 +32,11 @@ func (r clusterEdgesRule) Apply(ctx *EdgeContext) []model.BloodHoundEdge {
 	for i := range ctx.Core.Cluster.PersistentVolumes {
 		pv := &ctx.Core.Cluster.PersistentVolumes[i]
 		claimRef := pv.ClaimRef
-		claimName := MapString(claimRef, "name")
-		claimNamespace := MapString(claimRef, "namespace")
+		if claimRef == nil {
+			continue
+		}
+		claimName := claimRef.Name
+		claimNamespace := claimRef.Namespace
 		if claimName == "" || claimNamespace == "" {
 			continue
 		}

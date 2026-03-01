@@ -21,7 +21,7 @@ func (r deploymentEdgesRule) Apply(ctx *EdgeContext) []model.BloodHoundEdge {
 			deploy := &space.Deployments[i]
 			for j := range space.Pods {
 				pod := &space.Pods[j]
-				if LabelsMatchSelector(pod.LabelsMap, deploy.SelectorMap) {
+				if labelsMatchOnly(pod.LabelsMap, deploy.SelectorLabels) {
 					edges = append(edges, CreateEdge(deploy, pod, "ManagedBy"))
 				}
 			}

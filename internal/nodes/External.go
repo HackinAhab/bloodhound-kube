@@ -1,5 +1,9 @@
 package nodes
 
+type External struct {
+	GraphNodeBase
+}
+
 func ExternalNode() NodeResult {
 	return NodeResult{
 		ID:    BuildID("External", "", "external"),

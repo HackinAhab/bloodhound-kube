@@ -2,6 +2,31 @@ package edges
 
 import "bloodhound-kube/internal/model"
 
+type rbacImpersonateEdgesRule struct{}
+
+// func init() {
+// 	RegisterEdgeRule(rbacImpersonateEdgesRule{})
+// }
+
+func (r rbacImpersonateEdgesRule) Name() string {
+	return "rbac_impersonate"
+}
+
+func (r rbacImpersonateEdgesRule) Apply(ctx *EdgeContext) []model.BloodHoundEdge {
+	if ctx == nil || ctx.Core == nil {
+		return nil
+	}
+	var edges []model.BloodHoundEdge
+	for ns, space := range ctx.Core.Namespaces {
+		if space == nil {
+			continue
+		}
+		edges = append(edges, saImpersonateNamespaced(ctx, ns, space)...)
+	}
+	edges = append(edges, saImpersonateCluster(ctx)...)
+	return edges
+}
+
 // SA w/ impersonate -> SA that can be impersonated
 func saImpersonateNamespaced(ctx *EdgeContext, namespace string, space *model.Namespace) []model.BloodHoundEdge {
 	if ctx == nil || space == nil {

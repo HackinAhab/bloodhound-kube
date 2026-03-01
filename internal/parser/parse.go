@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"time"
 
@@ -29,14 +30,17 @@ func ConvertToBloodHoundResultFromReader(reader io.Reader, clusterName string, p
 	log := utils.DefaultLogger().Component("parser")
 
 	parseStart := time.Now()
-	resources, err := parseJSONLToResourcesReader(reader)
+	rawResources, err := parseJSONLToRawResourcesReader(reader)
 	if err != nil {
 		return nil, err
 	}
-	log.Debug("Parsed JSONL resources", "count", len(resources), "duration", time.Since(parseStart))
+	log.Debug("Parsed JSONL resources", "count", len(rawResources), "duration", time.Since(parseStart))
 
 	buildStart := time.Now()
-	nodes, coreFacts := createNodes(resources, parseUndefinedNodes)
+	nodes, coreFacts, err := createNodesFromRawResources(rawResources, parseUndefinedNodes)
+	if err != nil {
+		return nil, err
+	}
 	log.Debug("Built nodes and core facts", "nodes", len(nodes), "duration", time.Since(buildStart))
 
 	edgeStart := time.Now()
@@ -82,7 +86,6 @@ func ConvertToBloodHoundResultFromReader(reader io.Reader, clusterName string, p
 }
 
 // parseJSONLToResources converts JSONL bytes to raw resource maps
-// Extracts the .resource field from the JSONL wrapper structure
 func parseJSONLToResources(jsonlData []byte) ([]map[string]any, error) {
 	return parseJSONLToResourcesReader(bytes.NewReader(jsonlData))
 }
@@ -102,6 +105,27 @@ func parseJSONLToResourcesReader(reader io.Reader) ([]map[string]any, error) {
 			return nil
 		}
 		extracted = append(extracted, resource)
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return extracted, nil
+}
+
+func parseJSONLToRawResourcesReader(reader io.Reader) ([]json.RawMessage, error) {
+	log := utils.DefaultLogger().Component("parser")
+
+	var extracted []json.RawMessage
+	err := utils.ReadJSONL(reader, func(line int, raw []byte) error {
+		if !json.Valid(raw) {
+			log.Error("Parse JSONL line failed", "line", line)
+			return errors.New("parse JSONL failed")
+		}
+		copied := make([]byte, len(raw))
+		copy(copied, raw)
+		extracted = append(extracted, json.RawMessage(copied))
 		return nil
 	})
 	if err != nil {
@@ -146,14 +170,19 @@ func createRelationships(coreFacts *model.CoreFacts) ([]model.BloodHoundEdge, er
 	return edges, nil
 }
 
-func createNodes(resources []map[string]any, parseUndefinedNodes bool) ([]model.BloodHoundNode, *model.CoreFacts) {
+func createNodesFromRawResources(resources []json.RawMessage, parseUndefinedNodes bool) ([]model.BloodHoundNode, *model.CoreFacts, error) {
 	nodeList := []model.BloodHoundNode{}
 	coreFacts := model.NewCoreFacts()
 
-	for _, resource := range resources {
-		result, ok := nodes.Build(resource)
-		if !ok && parseUndefinedNodes {
-			result, ok = nodes.BuildGenericNode(resource)
+	for i, raw := range resources {
+		decoded, err := utils.DecodeJSON(raw)
+		if err != nil {
+			return nil, nil, fmt.Errorf("parse JSONL resource %d: %w", i+1, err)
+		}
+
+		result, ok, err := buildNodeFromDecoded(decoded, parseUndefinedNodes)
+		if err != nil {
+			return nil, nil, fmt.Errorf("build resource %d: %w", i+1, err)
 		}
 		if !ok {
 			continue
@@ -178,5 +207,35 @@ func createNodes(resources []map[string]any, parseUndefinedNodes bool) ([]model.
 	})
 	coreFacts.Add(nodes.CoreEntry{Cluster: true, Data: nodes.ExternalCoreEntry()})
 
-	return nodeList, coreFacts
+	return nodeList, coreFacts, nil
+}
+
+func buildNodeFromDecoded(decoded utils.DecodedResource, parseUndefinedNodes bool) (nodes.BuildResult, bool, error) {
+	if decoded.Object != nil {
+		if result, ok := nodes.BuildTyped(decoded.GVK, decoded.Object); ok {
+			return result, true, nil
+		}
+		resource, err := utils.ToMap(decoded.Object)
+		if err != nil {
+			return nodes.BuildResult{}, false, err
+		}
+		return buildNodeFromMap(resource, parseUndefinedNodes)
+	}
+
+	if decoded.Raw != nil {
+		return buildNodeFromMap(decoded.Raw, parseUndefinedNodes)
+	}
+
+	return nodes.BuildResult{}, false, nil
+}
+
+func buildNodeFromMap(resource map[string]any, parseUndefinedNodes bool) (nodes.BuildResult, bool, error) {
+	if resource == nil {
+		return nodes.BuildResult{}, false, nil
+	}
+	result, ok := nodes.Build(resource)
+	if !ok && parseUndefinedNodes {
+		result, ok = nodes.BuildGenericNode(resource)
+	}
+	return result, ok, nil
 }

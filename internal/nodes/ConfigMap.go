@@ -1,25 +1,30 @@
 package nodes
 
+import (
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+)
+
 type ConfigMap struct {
 	GraphNodeBase
 	Data map[string]any
 }
 
-func init() {
-	Register("ConfigMap", BuildConfigMapNode)
-}
-
-func BuildConfigMapNode(resource map[string]any) (BuildResult, bool) {
-	metadata := GetMap(resource, "metadata")
-	name := GetString(metadata, "name")
+func BuildConfigMapNode(obj runtime.Object) (BuildResult, bool) {
+	cm, ok := obj.(*corev1.ConfigMap)
+	if !ok || cm == nil {
+		return BuildResult{}, false
+	}
+	name := cm.Name
 	if name == "" {
 		return BuildResult{}, false
 	}
-	namespace := GetString(metadata, "namespace")
-	labelsMap := GetMap(metadata, "labels")
-	annotationsMap := GetMap(metadata, "annotations")
 
-	data := GetMap(resource, "data")
+	namespace := cm.Namespace
+	labelsMap := StringMapToAnyMap(cm.Labels)
+	annotationsMap := StringMapToAnyMap(cm.Annotations)
+
+	data := StringMapToAnyMap(cm.Data)
 	keys := MapKeysSorted(data)
 	entries := MapEntriesSorted(data)
 

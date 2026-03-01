@@ -1,6 +1,11 @@
 package nodes
 
-import "fmt"
+import (
+	"fmt"
+
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+)
 
 type VolumeMount struct {
 	Name      string
@@ -54,80 +59,122 @@ type Container struct {
 	Raw                    map[string]any
 }
 
+type VolumeDetail struct {
+	Name          string
+	Type          string
+	SecretName    string
+	ConfigMapName string
+	PVCName       string
+	HostPath      string
+}
+
 type Pod struct {
 	GraphNodeBase
 	NodeName         string
 	ServiceAccount   string
 	Containers       []Container
 	InitContainers   []Container
-	Volumes          []map[string]any
+	Volumes          []VolumeDetail
 	CapabilitiesAdd  []string
 	CapabilitiesDrop []string
 	SeLinuxOptions   map[string]any
 	HostPID          bool
 }
 
-func init() {
-	Register("Pod", BuildPodNode)
-}
-
-func BuildPodNode(resource map[string]any) (BuildResult, bool) {
-	metadata := GetMap(resource, "metadata")
-	name := GetString(metadata, "name")
+func BuildPodNode(obj runtime.Object) (BuildResult, bool) {
+	pod, ok := obj.(*corev1.Pod)
+	if !ok || pod == nil {
+		return BuildResult{}, false
+	}
+	name := pod.Name
 	if name == "" {
 		return BuildResult{}, false
 	}
 
-	namespace := GetString(metadata, "namespace")
-	labelsMap := GetMap(metadata, "labels")
-	annotationsMap := GetMap(metadata, "annotations")
+	namespace := pod.Namespace
+	labelsMap := StringMapToAnyMap(pod.Labels)
+	annotationsMap := StringMapToAnyMap(pod.Annotations)
 
-	spec := GetMap(resource, "spec")
-	securityContext := GetMap(spec, "securityContext")
-	seccompProfile := GetMap(securityContext, "seccompProfile")
-	seLinuxRaw := GetMap(securityContext, "seLinuxOptions")
+	var podSec *corev1.PodSecurityContext
+	if pod.Spec.SecurityContext != nil {
+		podSec = pod.Spec.SecurityContext
+	}
+	seccompProfile := ""
+	seLinuxRaw := map[string]any{}
+	if podSec != nil {
+		if podSec.SeccompProfile != nil {
+			seccompProfile = string(podSec.SeccompProfile.Type)
+		}
+		seLinuxRaw = SeLinuxOptionsToMap(podSec.SELinuxOptions)
+	}
 
-	capAdd, capDrop := extractCapabilities(spec)
-	containerImages := extractContainerImages(GetSlice(spec, "containers"))
-	initContainerImages := extractContainerImages(GetSlice(spec, "initContainers"))
+	capAdd, capDrop := extractCapabilitiesFromContainers(pod.Spec.Containers)
+	containerImages := extractContainerImages(pod.Spec.Containers)
+	initContainerImages := extractContainerImages(pod.Spec.InitContainers)
 
-	privateContainers := extractContainersDetail(GetSlice(spec, "containers"), securityContext, seccompProfile, seLinuxRaw)
-	privateInitContainers := extractInitContainersDetail(GetSlice(spec, "initContainers"))
-	privateVolumes := extractVolumesDetail(GetSlice(spec, "volumes"))
+	privateContainers := extractContainersDetail(pod.Spec.Containers, podSec)
+	privateInitContainers := extractInitContainersDetail(pod.Spec.InitContainers)
+	privateVolumes := extractVolumesDetail(pod.Spec.Volumes)
 
 	containerSummaries := summarizeContainers(privateContainers, false)
 	initContainerSummaries := summarizeContainers(privateInitContainers, true)
 	volumeSummaries := summarizeVolumes(privateVolumes)
+
+	runAsUser := 0
+	runAsGroup := 0
+	fsGroup := 0
+	var supplementalGroups []int64
+	var runAsNonRoot any = false
+	if podSec != nil {
+		if podSec.RunAsUser != nil {
+			runAsUser = int(*podSec.RunAsUser)
+		}
+		if podSec.RunAsGroup != nil {
+			runAsGroup = int(*podSec.RunAsGroup)
+		}
+		if podSec.FSGroup != nil {
+			fsGroup = int(*podSec.FSGroup)
+		}
+		if podSec.RunAsNonRoot != nil {
+			runAsNonRoot = *podSec.RunAsNonRoot
+		}
+		supplementalGroups = podSec.SupplementalGroups
+	}
+
+	appArmorPod := ""
+	if podSec != nil {
+		appArmorPod = AppArmorProfileValue(podSec.AppArmorProfile)
+	}
 
 	properties := map[string]any{
 		"name":                      name,
 		"namespace":                 namespace,
 		"labels":                    MapToSortedList(labelsMap),
 		"annotations":               MapToSortedList(annotationsMap),
-		"securityContextConstraint": GetString(annotationsMap, "openshift.io/scc"),
-		"nodeName":                  GetString(spec, "nodeName"),
-		"serviceAccount":            GetString(spec, "serviceAccountName"),
+		"securityContextConstraint": annotationsMap["openshift.io/scc"],
+		"nodeName":                  pod.Spec.NodeName,
+		"serviceAccount":            pod.Spec.ServiceAccountName,
 		"containers":                containerSummaries,
 		"initContainers":            initContainerSummaries,
 		"containerImages":           containerImages,
 		"initContainerImages":       initContainerImages,
 		"capabilitiesAdd":           capAdd,
 		"capabilitiesDrop":          capDrop,
-		"hostNetwork":               GetBool(spec, "hostNetwork"),
-		"hostPid":                   GetBool(spec, "hostPID"),
-		"hostIpc":                   GetBool(spec, "hostIPC"),
-		"runAsUser":                 GetNumber(securityContext, "runAsUser"),
-		"runAsGroup":                GetNumber(securityContext, "runAsGroup"),
-		"runAsNonRoot":              GetBool(securityContext, "runAsNonRoot"),
-		"fsGroup":                   GetNumber(securityContext, "fsGroup"),
-		"supplementalGroups":        GetSlice(securityContext, "supplementalGroups"),
-		"seccompProfile":            GetString(seccompProfile, "type"),
-		"appArmorProfile":           AppArmorProfileValue(securityContext),
+		"hostNetwork":               pod.Spec.HostNetwork,
+		"hostPid":                   pod.Spec.HostPID,
+		"hostIpc":                   pod.Spec.HostIPC,
+		"runAsUser":                 runAsUser,
+		"runAsGroup":                runAsGroup,
+		"runAsNonRoot":              runAsNonRoot,
+		"fsGroup":                   fsGroup,
+		"supplementalGroups":        supplementalGroups,
+		"seccompProfile":            seccompProfile,
+		"appArmorProfile":           appArmorPod,
 		"seLinuxOptions":            SeLinuxSummary(seLinuxRaw),
 		"volumes":                   volumeSummaries,
 	}
 
-	hostPID := GetBoolValue(spec, "hostPID")
+	hostPID := pod.Spec.HostPID
 	core := CoreEntry{
 		Namespace: namespace,
 		Cluster:   false,
@@ -140,8 +187,8 @@ func BuildPodNode(resource map[string]any) (BuildResult, bool) {
 				LabelsMap:      labelsMap,
 				AnnotationsMap: annotationsMap,
 			},
-			NodeName:         GetString(spec, "nodeName"),
-			ServiceAccount:   GetString(spec, "serviceAccountName"),
+			NodeName:         pod.Spec.NodeName,
+			ServiceAccount:   pod.Spec.ServiceAccountName,
 			Containers:       privateContainers,
 			InitContainers:   privateInitContainers,
 			Volumes:          privateVolumes,
@@ -162,47 +209,34 @@ func BuildPodNode(resource map[string]any) (BuildResult, bool) {
 	}, true
 }
 
-func extractContainerImages(containers []any) []string {
+func extractContainerImages(containers []corev1.Container) []string {
 	if len(containers) == 0 {
 		return []string{}
 	}
 	images := make([]string, 0, len(containers))
-	for _, item := range containers {
-		container, ok := item.(map[string]any)
-		if !ok {
-			continue
-		}
-		if image, ok := container["image"].(string); ok {
-			images = append(images, image)
+	for _, container := range containers {
+		if container.Image != "" {
+			images = append(images, container.Image)
 		}
 	}
 	return images
 }
 
-func extractCapabilities(spec map[string]any) ([]string, []string) {
-	containers := GetSlice(spec, "containers")
+func extractCapabilitiesFromContainers(containers []corev1.Container) ([]string, []string) {
 	addSet := map[string]struct{}{}
 	dropSet := map[string]struct{}{}
-
-	for _, item := range containers {
-		container, ok := item.(map[string]any)
-		if !ok {
+	for _, container := range containers {
+		sec := container.SecurityContext
+		if sec == nil || sec.Capabilities == nil {
 			continue
 		}
-		sec := GetMap(container, "securityContext")
-		caps := GetMap(sec, "capabilities")
-		for _, cap := range GetSlice(caps, "add") {
-			if s, ok := cap.(string); ok {
-				addSet[s] = struct{}{}
-			}
+		for _, cap := range sec.Capabilities.Add {
+			addSet[string(cap)] = struct{}{}
 		}
-		for _, cap := range GetSlice(caps, "drop") {
-			if s, ok := cap.(string); ok {
-				dropSet[s] = struct{}{}
-			}
+		for _, cap := range sec.Capabilities.Drop {
+			dropSet[string(cap)] = struct{}{}
 		}
 	}
-
 	add := setToSortedList(addSet)
 	drop := setToSortedList(dropSet)
 	return add, drop
@@ -212,44 +246,77 @@ func setToSortedList(set map[string]struct{}) []string {
 	return SortedSetKeys(set)
 }
 
-func extractContainersDetail(containers []any, podSec map[string]any, podSeccomp map[string]any, podSeLinux map[string]any) []Container {
+func extractContainersDetail(containers []corev1.Container, podSec *corev1.PodSecurityContext) []Container {
 	if len(containers) == 0 {
 		return []Container{}
 	}
 
 	results := make([]Container, 0, len(containers))
-	for _, item := range containers {
-		container, ok := item.(map[string]any)
-		if !ok {
-			continue
-		}
-		sec := GetMap(container, "securityContext")
-		seccomp := GetMap(sec, "seccompProfile")
-		seLinux := GetMap(sec, "seLinuxOptions")
+	for _, container := range containers {
+		sec := container.SecurityContext
+		var seccompType string
+		var appArmor string
+		var seLinuxRaw map[string]any
 
-		privileged := GetBoolValue(sec, "privileged")
-		readOnly := GetBoolValue(sec, "readOnlyRootFilesystem")
-		runAsUser := int64PointerWithFallback(sec, podSec, "runAsUser")
-		runAsGroup := int64PointerWithFallback(sec, podSec, "runAsGroup")
-		runAsNonRoot := boolWithFallback(sec, podSec, "runAsNonRoot")
-
-		seccompType := GetString(seccomp, "type")
-		if seccompType == "" {
-			seccompType = GetString(podSeccomp, "type")
+		if sec != nil && sec.SeccompProfile != nil {
+			seccompType = string(sec.SeccompProfile.Type)
 		}
-		appArmor := AppArmorProfileValue(sec)
-		if appArmor == "" {
-			appArmor = AppArmorProfileValue(podSec)
+		if seccompType == "" && podSec != nil && podSec.SeccompProfile != nil {
+			seccompType = string(podSec.SeccompProfile.Type)
 		}
 
-		seLinuxRaw := seLinux
-		if len(seLinuxRaw) == 0 {
-			seLinuxRaw = podSeLinux
+		if sec != nil {
+			appArmor = AppArmorProfileValue(sec.AppArmorProfile)
 		}
+		if appArmor == "" && podSec != nil {
+			appArmor = AppArmorProfileValue(podSec.AppArmorProfile)
+		}
+
+		seLinuxRaw = map[string]any{}
+		if sec != nil && sec.SELinuxOptions != nil {
+			seLinuxRaw = SeLinuxOptionsToMap(sec.SELinuxOptions)
+		} else if podSec != nil && podSec.SELinuxOptions != nil {
+			seLinuxRaw = SeLinuxOptionsToMap(podSec.SELinuxOptions)
+		}
+
+		privileged := false
+		readOnly := false
+		if sec != nil {
+			if sec.Privileged != nil {
+				privileged = *sec.Privileged
+			}
+			if sec.ReadOnlyRootFilesystem != nil {
+				readOnly = *sec.ReadOnlyRootFilesystem
+			}
+		}
+
+		runAsUser := int64PointerWithFallback(sec, podSec, func(ctx *corev1.SecurityContext) *int64 {
+			if ctx == nil {
+				return nil
+			}
+			return ctx.RunAsUser
+		}, func(ctx *corev1.PodSecurityContext) *int64 {
+			if ctx == nil {
+				return nil
+			}
+			return ctx.RunAsUser
+		})
+		runAsGroup := int64PointerWithFallback(sec, podSec, func(ctx *corev1.SecurityContext) *int64 {
+			if ctx == nil {
+				return nil
+			}
+			return ctx.RunAsGroup
+		}, func(ctx *corev1.PodSecurityContext) *int64 {
+			if ctx == nil {
+				return nil
+			}
+			return ctx.RunAsGroup
+		})
+		runAsNonRoot := boolWithFallback(sec, podSec)
 
 		result := Container{
-			Name:                   GetString(container, "name"),
-			Image:                  GetString(container, "image"),
+			Name:                   container.Name,
+			Image:                  container.Image,
 			Privileged:             privileged,
 			RunAsUser:              runAsUser,
 			RunAsGroup:             runAsGroup,
@@ -264,12 +331,12 @@ func extractContainersDetail(containers []any, podSec map[string]any, podSeccomp
 				SeLinuxOptions:         seLinuxRaw,
 				ReadOnlyRootFilesystem: readOnly,
 				Privileged:             privileged,
-				Raw:                    sec,
+				Raw:                    nil,
 			},
-			EnvFrom:      extractEnvFrom(container),
-			HostPorts:    extractHostPorts(container),
-			VolumeMounts: extractVolumeMounts(container),
-			Raw:          container,
+			EnvFrom:      extractEnvFrom(container.EnvFrom),
+			HostPorts:    extractHostPorts(container.Ports),
+			VolumeMounts: extractVolumeMounts(container.VolumeMounts),
+			Raw:          nil,
 		}
 		results = append(results, result)
 	}
@@ -277,145 +344,154 @@ func extractContainersDetail(containers []any, podSec map[string]any, podSeccomp
 	return results
 }
 
-func extractInitContainersDetail(containers []any) []Container {
+func extractInitContainersDetail(containers []corev1.Container) []Container {
 	if len(containers) == 0 {
 		return []Container{}
 	}
 	results := make([]Container, 0, len(containers))
-	for _, item := range containers {
-		container, ok := item.(map[string]any)
-		if !ok {
-			continue
+	for _, container := range containers {
+		privileged := false
+		if container.SecurityContext != nil && container.SecurityContext.Privileged != nil {
+			privileged = *container.SecurityContext.Privileged
 		}
-		sec := GetMap(container, "securityContext")
 		result := Container{
-			Name:       GetString(container, "name"),
-			Image:      GetString(container, "image"),
-			Privileged: GetBoolValue(sec, "privileged"),
-			Raw:        container,
+			Name:       container.Name,
+			Image:      container.Image,
+			Privileged: privileged,
+			Raw:        nil,
 		}
 		results = append(results, result)
 	}
 	return results
 }
 
-func extractEnvFrom(container map[string]any) []EnvFromSource {
-	items := GetSlice(container, "envFrom")
+func extractEnvFrom(items []corev1.EnvFromSource) []EnvFromSource {
 	if len(items) == 0 {
 		return []EnvFromSource{}
 	}
 	results := make([]EnvFromSource, 0, len(items))
-	for _, item := range items {
-		entry, ok := item.(map[string]any)
-		if !ok {
-			continue
+	for _, entry := range items {
+		result := EnvFromSource{}
+		if entry.SecretRef != nil {
+			result.SecretRef = &NamedObjectRef{Name: entry.SecretRef.Name}
 		}
-		result := EnvFromSource{
-			Raw: entry,
-		}
-		if ref, ok := entry["secretRef"].(map[string]any); ok {
-			result.SecretRef = &NamedObjectRef{Name: GetString(ref, "name")}
-		}
-		if ref, ok := entry["configMapRef"].(map[string]any); ok {
-			result.ConfigMapRef = &NamedObjectRef{Name: GetString(ref, "name")}
+		if entry.ConfigMapRef != nil {
+			result.ConfigMapRef = &NamedObjectRef{Name: entry.ConfigMapRef.Name}
 		}
 		results = append(results, result)
 	}
 	return results
 }
 
-func extractHostPorts(container map[string]any) []HostPort {
-	items := GetSlice(container, "ports")
-	if len(items) == 0 {
+func extractHostPorts(ports []corev1.ContainerPort) []HostPort {
+	if len(ports) == 0 {
 		return []HostPort{}
 	}
-	results := make([]HostPort, 0, len(items))
-	for _, item := range items {
-		port, ok := item.(map[string]any)
-		if !ok {
+	results := make([]HostPort, 0, len(ports))
+	for _, port := range ports {
+		if port.HostPort == 0 {
 			continue
 		}
-		hostPort := GetNumber(port, "hostPort")
-		if hostPort == 0 {
-			continue
+		protocol := string(port.Protocol)
+		if protocol == "" {
+			protocol = "TCP"
 		}
 		results = append(results, HostPort{
-			ContainerPort: GetNumber(port, "containerPort"),
-			HostPort:      hostPort,
-			HostIP:        GetString(port, "hostIP"),
-			Protocol:      GetStringDefault(port, "protocol", "TCP"),
-			Raw:           port,
+			ContainerPort: int(port.ContainerPort),
+			HostPort:      int(port.HostPort),
+			HostIP:        port.HostIP,
+			Protocol:      protocol,
+			Raw:           nil,
 		})
 	}
 	return results
 }
 
-func extractVolumeMounts(container map[string]any) []VolumeMount {
-	items := GetSlice(container, "volumeMounts")
-	if len(items) == 0 {
+func extractVolumeMounts(mounts []corev1.VolumeMount) []VolumeMount {
+	if len(mounts) == 0 {
 		return []VolumeMount{}
 	}
-	results := make([]VolumeMount, 0, len(items))
-	for _, item := range items {
-		mount, ok := item.(map[string]any)
-		if !ok {
-			continue
-		}
+	results := make([]VolumeMount, 0, len(mounts))
+	for _, mount := range mounts {
 		results = append(results, VolumeMount{
-			Name:      GetString(mount, "name"),
-			MountPath: GetString(mount, "mountPath"),
-			ReadOnly:  GetBoolValue(mount, "readOnly"),
-			Raw:       mount,
+			Name:      mount.Name,
+			MountPath: mount.MountPath,
+			ReadOnly:  mount.ReadOnly,
+			Raw:       nil,
 		})
 	}
 	return results
 }
 
-func extractVolumesDetail(volumes []any) []map[string]any {
+func extractVolumesDetail(volumes []corev1.Volume) []VolumeDetail {
 	if len(volumes) == 0 {
-		return []map[string]any{}
+		return []VolumeDetail{}
 	}
-	results := make([]map[string]any, 0, len(volumes))
-	for _, item := range volumes {
-		volume, ok := item.(map[string]any)
-		if !ok {
-			continue
-		}
-		results = append(results, map[string]any{
-			"name":          GetString(volume, "name"),
-			"type":          volumeType(volume),
-			"secretName":    GetString(GetMap(volume, "secret"), "secretName"),
-			"configMapName": GetString(GetMap(volume, "configMap"), "name"),
-			"pvcName":       GetString(GetMap(volume, "persistentVolumeClaim"), "claimName"),
-			"hostPath":      GetString(GetMap(volume, "hostPath"), "path"),
+	results := make([]VolumeDetail, 0, len(volumes))
+	for _, volume := range volumes {
+		results = append(results, VolumeDetail{
+			Name:          volume.Name,
+			Type:          volumeType(volume),
+			SecretName:    volumeSecretName(volume),
+			ConfigMapName: volumeConfigMapName(volume),
+			PVCName:       volumePVCName(volume),
+			HostPath:      volumeHostPath(volume),
 		})
 	}
 	return results
 }
 
-func volumeType(volume map[string]any) string {
-	if _, ok := volume["secret"]; ok {
+func volumeType(volume corev1.Volume) string {
+	if volume.Secret != nil {
 		return "secret"
 	}
-	if _, ok := volume["configMap"]; ok {
+	if volume.ConfigMap != nil {
 		return "configmap"
 	}
-	if _, ok := volume["persistentVolumeClaim"]; ok {
+	if volume.PersistentVolumeClaim != nil {
 		return "persistentVolumeClaim"
 	}
-	if _, ok := volume["hostPath"]; ok {
+	if volume.HostPath != nil {
 		return "hostPath"
 	}
-	if _, ok := volume["emptyDir"]; ok {
+	if volume.EmptyDir != nil {
 		return "emptyDir"
 	}
-	if _, ok := volume["projected"]; ok {
+	if volume.Projected != nil {
 		return "projected"
 	}
-	if _, ok := volume["downwardAPI"]; ok {
+	if volume.DownwardAPI != nil {
 		return "downwardAPI"
 	}
 	return "other"
+}
+
+func volumeSecretName(volume corev1.Volume) string {
+	if volume.Secret == nil {
+		return ""
+	}
+	return volume.Secret.SecretName
+}
+
+func volumeConfigMapName(volume corev1.Volume) string {
+	if volume.ConfigMap == nil {
+		return ""
+	}
+	return volume.ConfigMap.Name
+}
+
+func volumePVCName(volume corev1.Volume) string {
+	if volume.PersistentVolumeClaim == nil {
+		return ""
+	}
+	return volume.PersistentVolumeClaim.ClaimName
+}
+
+func volumeHostPath(volume corev1.Volume) string {
+	if volume.HostPath == nil {
+		return ""
+	}
+	return volume.HostPath.Path
 }
 
 func summarizeContainers(containers []Container, init bool) []string {
@@ -440,22 +516,6 @@ func summarizeContainers(containers []Container, init bool) []string {
 	return items
 }
 
-func int64PointerWithFallback(primary, fallback map[string]any, key string) *int64 {
-	if _, ok := primary[key]; ok {
-		if value := GetInt64Pointer(primary, key); value != nil {
-			return value
-		}
-	}
-	return GetInt64Pointer(fallback, key)
-}
-
-func boolWithFallback(primary, fallback map[string]any, key string) bool {
-	if _, ok := primary[key]; ok {
-		return GetBoolValue(primary, key)
-	}
-	return GetBoolValue(fallback, key)
-}
-
 func int64PointerValue(value *int64) any {
 	if value == nil {
 		return ""
@@ -463,20 +523,47 @@ func int64PointerValue(value *int64) any {
 	return *value
 }
 
-func summarizeVolumes(volumes []map[string]any) []string {
+func summarizeVolumes(volumes []VolumeDetail) []string {
 	if len(volumes) == 0 {
 		return []string{}
 	}
 	items := make([]string, 0, len(volumes))
 	for _, volume := range volumes {
 		items = append(items, fmt.Sprintf("%s: type=%v, secret=%v, configMap=%v, pvc=%v, hostPath=%v",
-			volume["name"],
-			volume["type"],
-			volume["secretName"],
-			volume["configMapName"],
-			volume["pvcName"],
-			volume["hostPath"],
+			volume.Name,
+			volume.Type,
+			volume.SecretName,
+			volume.ConfigMapName,
+			volume.PVCName,
+			volume.HostPath,
 		))
 	}
 	return items
+}
+
+func int64PointerWithFallback(
+	containerSec *corev1.SecurityContext,
+	podSec *corev1.PodSecurityContext,
+	fromContainer func(*corev1.SecurityContext) *int64,
+	fromPod func(*corev1.PodSecurityContext) *int64,
+) *int64 {
+	if containerSec != nil {
+		if value := fromContainer(containerSec); value != nil {
+			return value
+		}
+	}
+	if podSec != nil {
+		return fromPod(podSec)
+	}
+	return nil
+}
+
+func boolWithFallback(containerSec *corev1.SecurityContext, podSec *corev1.PodSecurityContext) bool {
+	if containerSec != nil && containerSec.RunAsNonRoot != nil {
+		return *containerSec.RunAsNonRoot
+	}
+	if podSec != nil && podSec.RunAsNonRoot != nil {
+		return *podSec.RunAsNonRoot
+	}
+	return false
 }

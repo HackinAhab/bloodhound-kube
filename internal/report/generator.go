@@ -79,8 +79,8 @@ func (g *Generator) loadData() error {
 
 	err := utils.ReadJSONLFile(g.config.InputFile, func(line int, raw []byte) error {
 		lineNum = line
-		var resource map[string]any
-		if err := json.Unmarshal(raw, &resource); err != nil {
+		resource, err := utils.DecodeJSONToMap(raw)
+		if err != nil {
 			g.log.Debug("Failed to parse JSON line", "line", line, "error", err)
 			skipped++
 			return nil

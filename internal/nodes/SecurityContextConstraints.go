@@ -1,21 +1,25 @@
 package nodes
 
+import (
+	securityv1 "github.com/openshift/api/security/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+)
+
 type SecurityContextConstraints struct {
 	GraphNodeBase
 }
 
-func init() {
-	Register("SecurityContextConstraints", BuildSecurityContextConstraintsNode)
-}
-
-func BuildSecurityContextConstraintsNode(resource map[string]any) (BuildResult, bool) {
-	metadata := GetMap(resource, "metadata")
-	name := GetString(metadata, "name")
+func BuildSecurityContextConstraintsNode(obj runtime.Object) (BuildResult, bool) {
+	scc, ok := obj.(*securityv1.SecurityContextConstraints)
+	if !ok || scc == nil {
+		return BuildResult{}, false
+	}
+	name := scc.Name
 	if name == "" {
 		return BuildResult{}, false
 	}
-	labelsMap := GetMap(metadata, "labels")
-	annotationsMap := GetMap(metadata, "annotations")
+	labelsMap := StringMapToAnyMap(scc.Labels)
+	annotationsMap := StringMapToAnyMap(scc.Annotations)
 
 	properties := map[string]any{
 		"name":        name,

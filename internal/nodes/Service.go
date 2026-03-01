@@ -1,28 +1,33 @@
 package nodes
 
+import (
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+)
+
 type Service struct {
 	GraphNodeBase
-	SelectorMap map[string]any
 	Ports       []any
 	ServiceType string
 }
 
-func init() {
-	Register("Service", BuildServiceNode)
-}
-
-func BuildServiceNode(resource map[string]any) (BuildResult, bool) {
-	metadata := GetMap(resource, "metadata")
-	name := GetString(metadata, "name")
+func BuildServiceNode(obj runtime.Object) (BuildResult, bool) {
+	svc, ok := obj.(*corev1.Service)
+	if !ok || svc == nil {
+		return BuildResult{}, false
+	}
+	name := svc.Name
 	if name == "" {
 		return BuildResult{}, false
 	}
-	namespace := GetString(metadata, "namespace")
-	labelsMap := GetMap(metadata, "labels")
-	annotationsMap := GetMap(metadata, "annotations")
 
-	spec := GetMap(resource, "spec")
-	selectorMap := GetMap(spec, "selector")
+	namespace := svc.Namespace
+	labelsMap := StringMapToAnyMap(svc.Labels)
+	annotationsMap := StringMapToAnyMap(svc.Annotations)
+	selectorMap := StringMapToAnyMap(svc.Spec.Selector)
+
+	ports := servicePortsToAnySlice(svc.Spec.Ports)
+	serviceType := string(svc.Spec.Type)
 
 	properties := map[string]any{
 		"name":        name,
@@ -30,8 +35,8 @@ func BuildServiceNode(resource map[string]any) (BuildResult, bool) {
 		"labels":      MapToSortedList(labelsMap),
 		"annotations": MapToSortedList(annotationsMap),
 		"selector":    MapToSortedList(selectorMap),
-		"serviceType": GetString(spec, "type"),
-		"clusterIP":   GetString(spec, "clusterIP"),
+		"serviceType": serviceType,
+		"clusterIP":   svc.Spec.ClusterIP,
 	}
 
 	core := CoreEntry{
@@ -46,9 +51,8 @@ func BuildServiceNode(resource map[string]any) (BuildResult, bool) {
 				LabelsMap:      labelsMap,
 				AnnotationsMap: annotationsMap,
 			},
-			SelectorMap: selectorMap,
-			Ports:       GetSlice(spec, "ports"),
-			ServiceType: GetString(spec, "type"),
+			Ports:       ports,
+			ServiceType: serviceType,
 		},
 	}
 
@@ -60,4 +64,33 @@ func BuildServiceNode(resource map[string]any) (BuildResult, bool) {
 		},
 		Core: []CoreEntry{core},
 	}, true
+}
+
+func servicePortsToAnySlice(ports []corev1.ServicePort) []any {
+	if len(ports) == 0 {
+		return []any{}
+	}
+	items := make([]any, 0, len(ports))
+	for _, port := range ports {
+		targetPort := ""
+		if port.TargetPort.Type != 0 || port.TargetPort.IntVal != 0 || port.TargetPort.StrVal != "" {
+			targetPort = port.TargetPort.String()
+		}
+		entry := map[string]any{
+			"name":     port.Name,
+			"protocol": string(port.Protocol),
+			"port":     port.Port,
+		}
+		if targetPort != "" {
+			entry["targetPort"] = targetPort
+		}
+		if port.NodePort != 0 {
+			entry["nodePort"] = port.NodePort
+		}
+		if port.AppProtocol != nil && *port.AppProtocol != "" {
+			entry["appProtocol"] = *port.AppProtocol
+		}
+		items = append(items, entry)
+	}
+	return items
 }

@@ -21,7 +21,7 @@ func (r networkPolicyEdgesRule) Apply(ctx *EdgeContext) []model.BloodHoundEdge {
 			netpol := &space.NetworkPolicies[i]
 			for j := range space.Pods {
 				pod := &space.Pods[j]
-				if IsSubset(netpol.PodSelector, pod.LabelsMap) {
+				if labelsMatchOnly(pod.LabelsMap, netpol.PodSelectorLabels) {
 					edges = append(edges, CreateEdge(netpol, pod, "AppliesTo"))
 				}
 			}

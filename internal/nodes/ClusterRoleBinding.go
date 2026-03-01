@@ -1,8 +1,9 @@
 package nodes
 
-func init() {
-	Register("ClusterRoleBinding", BuildClusterRoleBindingNode)
-}
+import (
+	rbacv1 "k8s.io/api/rbac/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+)
 
 type ClusterRoleBinding struct {
 	GraphNodeBase
@@ -11,20 +12,21 @@ type ClusterRoleBinding struct {
 	Subjects []Subject
 }
 
-func BuildClusterRoleBindingNode(resource map[string]any) (BuildResult, bool) {
-	metadata := GetMap(resource, "metadata")
-	name := GetString(metadata, "name")
+func BuildClusterRoleBindingNode(obj runtime.Object) (BuildResult, bool) {
+	binding, ok := obj.(*rbacv1.ClusterRoleBinding)
+	if !ok || binding == nil {
+		return BuildResult{}, false
+	}
+	name := binding.Name
 	if name == "" {
 		return BuildResult{}, false
 	}
-	labelsMap := GetMap(metadata, "labels")
-	annotationsMap := GetMap(metadata, "annotations")
+	labelsMap := StringMapToAnyMap(binding.Labels)
+	annotationsMap := StringMapToAnyMap(binding.Annotations)
 
-	subjects := GetSlice(resource, "subjects")
-	subjectCores := extractRbacSubjectCores(subjects)
-	roleRef := GetMap(resource, "roleRef")
-	roleName := GetString(roleRef, "name")
-	roleKind := GetString(roleRef, "kind")
+	subjectCores := extractRbacSubjectCores(binding.Subjects)
+	roleName := binding.RoleRef.Name
+	roleKind := binding.RoleRef.Kind
 
 	properties := map[string]any{
 		"name":        name,
@@ -33,7 +35,7 @@ func BuildClusterRoleBindingNode(resource map[string]any) (BuildResult, bool) {
 		"annotations": MapToSortedList(annotationsMap),
 		"roleName":    roleName,
 		"roleKind":    roleKind,
-		"subjects":    summarizeRbacSubjects(subjects, ""),
+		"subjects":    summarizeRbacSubjects(binding.Subjects, ""),
 	}
 
 	core := CoreEntry{

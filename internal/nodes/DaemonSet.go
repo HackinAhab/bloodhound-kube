@@ -1,26 +1,29 @@
 package nodes
 
+import (
+	appsv1 "k8s.io/api/apps/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+)
+
 type DaemonSetCore struct {
 	GraphNodeBase
-	SelectorMap map[string]any
 }
 
-func init() {
-	Register("DaemonSet", BuildDaemonSetNode)
-}
-
-func BuildDaemonSetNode(resource map[string]any) (BuildResult, bool) {
-	metadata := GetMap(resource, "metadata")
-	name := GetString(metadata, "name")
+func BuildDaemonSetNode(obj runtime.Object) (BuildResult, bool) {
+	set, ok := obj.(*appsv1.DaemonSet)
+	if !ok || set == nil {
+		return BuildResult{}, false
+	}
+	name := set.Name
 	if name == "" {
 		return BuildResult{}, false
 	}
-	namespace := GetString(metadata, "namespace")
-	labelsMap := GetMap(metadata, "labels")
-	annotationsMap := GetMap(metadata, "annotations")
 
-	spec := GetMap(resource, "spec")
-	selectorMap := GetMap(GetMap(spec, "selector"), "matchLabels")
+	namespace := set.Namespace
+	labelsMap := StringMapToAnyMap(set.Labels)
+	annotationsMap := StringMapToAnyMap(set.Annotations)
+
+	selectorMap := StringMapToAnyMap(set.Spec.Selector.MatchLabels)
 
 	properties := map[string]any{
 		"name":        name,
@@ -42,7 +45,6 @@ func BuildDaemonSetNode(resource map[string]any) (BuildResult, bool) {
 				LabelsMap:      labelsMap,
 				AnnotationsMap: annotationsMap,
 			},
-			SelectorMap: selectorMap,
 		},
 	}
 

@@ -22,7 +22,7 @@ func (r configMapEdgesRule) Apply(ctx *EdgeContext) []model.BloodHoundEdge {
 			for j := range space.Pods {
 				pod := &space.Pods[j]
 				for _, volume := range pod.Volumes {
-					if MapString(volume, "type") == "configmap" && MapString(volume, "configMapName") == cm.Name {
+					if volume.Type == "configmap" && volume.ConfigMapName == cm.Name {
 						edges = append(edges, CreateEdge(cm, pod, "MountedBy"))
 					}
 				}

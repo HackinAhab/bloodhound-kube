@@ -1,8 +1,9 @@
 package nodes
 
-func init() {
-	Register("ClusterRole", BuildClusterRoleNode)
-}
+import (
+	rbacv1 "k8s.io/api/rbac/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+)
 
 type ClusterRole struct {
 	GraphNodeBase
@@ -10,17 +11,19 @@ type ClusterRole struct {
 	RbacRules    []RbacRule
 }
 
-func BuildClusterRoleNode(resource map[string]any) (BuildResult, bool) {
-	metadata := GetMap(resource, "metadata")
-	name := GetString(metadata, "name")
+func BuildClusterRoleNode(obj runtime.Object) (BuildResult, bool) {
+	role, ok := obj.(*rbacv1.ClusterRole)
+	if !ok || role == nil {
+		return BuildResult{}, false
+	}
+	name := role.Name
 	if name == "" {
 		return BuildResult{}, false
 	}
-	labelsMap := GetMap(metadata, "labels")
-	annotationsMap := GetMap(metadata, "annotations")
+	labelsMap := StringMapToAnyMap(role.Labels)
+	annotationsMap := StringMapToAnyMap(role.Annotations)
 
-	parsedRBACRules := buildRbacRules(GetSlice(resource, "rules"))
-
+	parsedRBACRules := buildRbacRules(role.Rules)
 	perms := buildRbacRulesDisplay(parsedRBACRules)
 
 	properties := map[string]any{

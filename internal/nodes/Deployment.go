@@ -1,37 +1,47 @@
 package nodes
 
+import (
+	appsv1 "k8s.io/api/apps/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+)
+
 type Deployment struct {
 	GraphNodeBase
-	SelectorMap       map[string]any
+	SelectorLabels    map[string]string
 	PodTemplateLabels map[string]any
 	ServiceAccount    string
 }
 
-func init() {
-	Register("Deployment", BuildDeploymentNode)
-}
-
-func BuildDeploymentNode(resource map[string]any) (BuildResult, bool) {
-	metadata := GetMap(resource, "metadata")
-	name := GetString(metadata, "name")
+func BuildDeploymentNode(obj runtime.Object) (BuildResult, bool) {
+	deploy, ok := obj.(*appsv1.Deployment)
+	if !ok || deploy == nil {
+		return BuildResult{}, false
+	}
+	name := deploy.Name
 	if name == "" {
 		return BuildResult{}, false
 	}
-	namespace := GetString(metadata, "namespace")
-	labelsMap := GetMap(metadata, "labels")
-	annotationsMap := GetMap(metadata, "annotations")
 
-	spec := GetMap(resource, "spec")
-	selectorMap := GetMap(GetMap(spec, "selector"), "matchLabels")
-	template := GetMap(spec, "template")
-	templateLabels := GetMap(GetMap(template, "metadata"), "labels")
+	namespace := deploy.Namespace
+	labelsMap := StringMapToAnyMap(deploy.Labels)
+	annotationsMap := StringMapToAnyMap(deploy.Annotations)
+
+	selectorLabels := deploy.Spec.Selector.MatchLabels
+	selectorMap := StringMapToAnyMap(selectorLabels)
+	templateLabels := StringMapToAnyMap(deploy.Spec.Template.Labels)
+	serviceAccount := deploy.Spec.Template.Spec.ServiceAccountName
+
+	replicas := 0
+	if deploy.Spec.Replicas != nil {
+		replicas = int(*deploy.Spec.Replicas)
+	}
 
 	properties := map[string]any{
 		"name":        name,
 		"namespace":   namespace,
 		"labels":      MapToSortedList(labelsMap),
 		"annotations": MapToSortedList(annotationsMap),
-		"replicas":    GetNumber(spec, "replicas"),
+		"replicas":    replicas,
 		"selector":    MapToSortedList(selectorMap),
 	}
 
@@ -47,9 +57,9 @@ func BuildDeploymentNode(resource map[string]any) (BuildResult, bool) {
 				LabelsMap:      labelsMap,
 				AnnotationsMap: annotationsMap,
 			},
-			SelectorMap:       selectorMap,
+			SelectorLabels:    selectorLabels,
 			PodTemplateLabels: templateLabels,
-			ServiceAccount:    GetString(GetMap(template, "spec"), "serviceAccountName"),
+			ServiceAccount:    serviceAccount,
 		},
 	}
 

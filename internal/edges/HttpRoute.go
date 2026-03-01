@@ -1,10 +1,6 @@
 package edges
 
-import (
-	"strings"
-
-	"bloodhound-kube/internal/model"
-)
+import "bloodhound-kube/internal/model"
 
 type httpRouteEdgesRule struct{}
 
@@ -23,16 +19,9 @@ func (r httpRouteEdgesRule) Apply(ctx *EdgeContext) []model.BloodHoundEdge {
 		}
 		for i := range space.HTTPRoutes {
 			route := &space.HTTPRoutes[i]
-			for _, key := range route.BackendRefKeys {
-				parts := strings.SplitN(key, "/", 2)
-				backendNS := ""
-				backendName := ""
-				if len(parts) == 2 {
-					backendNS = parts[0]
-					backendName = parts[1]
-				} else if len(parts) == 1 {
-					backendName = parts[0]
-				}
+			for _, backend := range route.BackendRefs {
+				backendNS := backend.Namespace
+				backendName := backend.Name
 				if backendName == "" {
 					continue
 				}

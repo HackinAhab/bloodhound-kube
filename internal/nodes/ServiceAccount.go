@@ -1,30 +1,33 @@
 package nodes
 
+import (
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+)
+
 type ServiceAccount struct {
 	GraphNodeBase
 	Secrets []string
 }
 
-func init() {
-	Register("ServiceAccount", BuildServiceAccountNode)
-}
-
-func BuildServiceAccountNode(resource map[string]any) (BuildResult, bool) {
-	metadata := GetMap(resource, "metadata")
-	name := GetString(metadata, "name")
+func BuildServiceAccountNode(obj runtime.Object) (BuildResult, bool) {
+	sa, ok := obj.(*corev1.ServiceAccount)
+	if !ok || sa == nil {
+		return BuildResult{}, false
+	}
+	name := sa.Name
 	if name == "" {
 		return BuildResult{}, false
 	}
-	namespace := GetString(metadata, "namespace")
-	labelsMap := GetMap(metadata, "labels")
-	annotationsMap := GetMap(metadata, "annotations")
 
-	secrets := []string{}
-	for _, s := range GetSlice(resource, "secrets") {
-		if m, ok := s.(map[string]any); ok {
-			if n, ok := m["name"].(string); ok {
-				secrets = append(secrets, n)
-			}
+	namespace := sa.Namespace
+	labelsMap := StringMapToAnyMap(sa.Labels)
+	annotationsMap := StringMapToAnyMap(sa.Annotations)
+
+	secrets := make([]string, 0, len(sa.Secrets))
+	for _, secret := range sa.Secrets {
+		if secret.Name != "" {
+			secrets = append(secrets, secret.Name)
 		}
 	}
 

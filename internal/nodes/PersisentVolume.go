@@ -1,25 +1,38 @@
 package nodes
 
+import (
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+)
+
 type PersistentVolume struct {
 	GraphNodeBase
-	ClaimRef map[string]any
+	ClaimRef *ClaimRef
 }
 
-func init() {
-	Register("PersistentVolume", BuildPVNode)
+type ClaimRef struct {
+	APIVersion      string
+	Kind            string
+	Name            string
+	Namespace       string
+	UID             string
+	ResourceVersion string
+	FieldPath       string
 }
 
-func BuildPVNode(resource map[string]any) (BuildResult, bool) {
-	metadata := GetMap(resource, "metadata")
-	name := GetString(metadata, "name")
+func BuildPVNode(obj runtime.Object) (BuildResult, bool) {
+	pv, ok := obj.(*corev1.PersistentVolume)
+	if !ok || pv == nil {
+		return BuildResult{}, false
+	}
+	name := pv.Name
 	if name == "" {
 		return BuildResult{}, false
 	}
-	labelsMap := GetMap(metadata, "labels")
-	annotationsMap := GetMap(metadata, "annotations")
+	labelsMap := StringMapToAnyMap(pv.Labels)
+	annotationsMap := StringMapToAnyMap(pv.Annotations)
 
-	spec := GetMap(resource, "spec")
-	claimRef := GetMap(spec, "claimRef")
+	claimRef := objectRefToClaimRef(pv.Spec.ClaimRef)
 
 	properties := map[string]any{
 		"name":        name,
@@ -51,4 +64,19 @@ func BuildPVNode(resource map[string]any) (BuildResult, bool) {
 		},
 		Core: []CoreEntry{core},
 	}, true
+}
+
+func objectRefToClaimRef(ref *corev1.ObjectReference) *ClaimRef {
+	if ref == nil {
+		return nil
+	}
+	return &ClaimRef{
+		APIVersion:      ref.APIVersion,
+		Kind:            ref.Kind,
+		Name:            ref.Name,
+		Namespace:       ref.Namespace,
+		UID:             string(ref.UID),
+		ResourceVersion: ref.ResourceVersion,
+		FieldPath:       ref.FieldPath,
+	}
 }

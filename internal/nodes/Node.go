@@ -1,21 +1,25 @@
 package nodes
 
+import (
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+)
+
 type Node struct {
 	GraphNodeBase
 }
 
-func init() {
-	Register("Node", BuildNodeNode)
-}
-
-func BuildNodeNode(resource map[string]any) (BuildResult, bool) {
-	metadata := GetMap(resource, "metadata")
-	name := GetString(metadata, "name")
+func BuildNodeNode(obj runtime.Object) (BuildResult, bool) {
+	node, ok := obj.(*corev1.Node)
+	if !ok || node == nil {
+		return BuildResult{}, false
+	}
+	name := node.Name
 	if name == "" {
 		return BuildResult{}, false
 	}
-	labelsMap := GetMap(metadata, "labels")
-	annotationsMap := GetMap(metadata, "annotations")
+	labelsMap := StringMapToAnyMap(node.Labels)
+	annotationsMap := StringMapToAnyMap(node.Annotations)
 	properties := map[string]any{
 		"name":        name,
 		"namespace":   "",

@@ -2,6 +2,16 @@ package edges
 
 import "bloodhound-kube/internal/model"
 
+type rbacCreateWorkloadEdgesRule struct{}
+
+// func init() {
+// 	RegisterEdgeRule(rbacCreateWorkloadEdgesRule{})
+// }
+
+func (r rbacCreateWorkloadEdgesRule) Name() string {
+	return "rbac_create_workload"
+}
+
 // SA w/ create on workloads -> Nodes that can be scheduled on
 func workloadCreateNamespaced(ctx *EdgeContext, namespace string) []model.BloodHoundEdge {
 	if ctx == nil {

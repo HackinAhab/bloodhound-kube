@@ -1,22 +1,27 @@
 package nodes
 
+import (
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+)
+
 type PersistentVolumeClaim struct {
 	GraphNodeBase
 }
 
-func init() {
-	Register("PersistentVolumeClaim", BuildPVCNode)
-}
-
-func BuildPVCNode(resource map[string]any) (BuildResult, bool) {
-	metadata := GetMap(resource, "metadata")
-	name := GetString(metadata, "name")
+func BuildPVCNode(obj runtime.Object) (BuildResult, bool) {
+	pvc, ok := obj.(*corev1.PersistentVolumeClaim)
+	if !ok || pvc == nil {
+		return BuildResult{}, false
+	}
+	name := pvc.Name
 	if name == "" {
 		return BuildResult{}, false
 	}
-	namespace := GetString(metadata, "namespace")
-	labelsMap := GetMap(metadata, "labels")
-	annotationsMap := GetMap(metadata, "annotations")
+
+	namespace := pvc.Namespace
+	labelsMap := StringMapToAnyMap(pvc.Labels)
+	annotationsMap := StringMapToAnyMap(pvc.Annotations)
 
 	properties := map[string]any{
 		"name":        name,

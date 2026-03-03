@@ -4,9 +4,9 @@ import "bloodhound-kube/internal/model"
 
 type rbacPatchWorkloadEdgesRule struct{}
 
-// func init() {
-// 	RegisterEdgeRule(rbacPatchWorkloadEdgesRule{})
-// }
+func init() {
+	RegisterEdgeRule(rbacPatchWorkloadEdgesRule{})
+}
 
 func (r rbacPatchWorkloadEdgesRule) Name() string {
 	return "rbac_patch_workload"
@@ -179,56 +179,75 @@ func workloadPatchCluster(ctx *EdgeContext) []model.BloodHoundEdge {
 			if sa == nil {
 				continue
 			}
-			for _, space := range ctx.Core.Namespaces {
-				if space == nil {
-					continue
+			if allPods {
+				if len(ctx.Core.Cluster.AllPods) > 0 {
+					agg := &ctx.Core.Cluster.AllPods[0]
+					edges = append(edges, CreateEdge(sa, agg, "WorkloadPatch"))
 				}
-				if allPods || len(podNames) > 0 {
+			} else if len(podNames) > 0 {
+				for _, space := range ctx.Core.Namespaces {
+					if space == nil {
+						continue
+					}
 					for i := range space.Pods {
 						pod := &space.Pods[i]
-						if allPods {
-							edges = append(edges, CreateEdge(sa, pod, "WorkloadPatch"))
-							continue
-						}
 						if _, ok := podNames[pod.Name]; ok {
 							edges = append(edges, CreateEdge(sa, pod, "WorkloadPatch"))
 						}
 					}
 				}
+			}
 
-				if allDeployments || len(deploymentNames) > 0 {
+			if allDeployments {
+				if len(ctx.Core.Cluster.AllDeployments) > 0 {
+					agg := &ctx.Core.Cluster.AllDeployments[0]
+					edges = append(edges, CreateEdge(sa, agg, "WorkloadPatch"))
+				}
+			} else if len(deploymentNames) > 0 {
+				for _, space := range ctx.Core.Namespaces {
+					if space == nil {
+						continue
+					}
 					for i := range space.Deployments {
 						deployment := &space.Deployments[i]
-						if allDeployments {
-							edges = append(edges, CreateEdge(sa, deployment, "WorkloadPatch"))
-							continue
-						}
 						if _, ok := deploymentNames[deployment.Name]; ok {
 							edges = append(edges, CreateEdge(sa, deployment, "WorkloadPatch"))
 						}
 					}
 				}
+			}
 
-				if allDaemonSets || len(daemonSetNames) > 0 {
+			if allDaemonSets {
+				if len(ctx.Core.Cluster.AllDaemonSets) > 0 {
+					agg := &ctx.Core.Cluster.AllDaemonSets[0]
+					edges = append(edges, CreateEdge(sa, agg, "WorkloadPatch"))
+				}
+			} else if len(daemonSetNames) > 0 {
+				for _, space := range ctx.Core.Namespaces {
+					if space == nil {
+						continue
+					}
 					for i := range space.DaemonSets {
 						daemonSet := &space.DaemonSets[i]
-						if allDaemonSets {
-							edges = append(edges, CreateEdge(sa, daemonSet, "WorkloadPatch"))
-							continue
-						}
 						if _, ok := daemonSetNames[daemonSet.Name]; ok {
 							edges = append(edges, CreateEdge(sa, daemonSet, "WorkloadPatch"))
 						}
 					}
 				}
+			}
 
-				if allStatefulSets || len(statefulSetNames) > 0 {
+			if allStatefulSets {
+				if len(ctx.Core.Cluster.AllStatefulSets) > 0 {
+					agg := &ctx.Core.Cluster.AllStatefulSets[0]
+					edges = append(edges, CreateEdge(sa, agg, "WorkloadPatch"))
+				}
+			} else if len(statefulSetNames) > 0 {
+				for _, space := range ctx.Core.Namespaces {
+					if space == nil {
+						continue
+					}
 					for i := range space.StatefulSets {
 						statefulSet := &space.StatefulSets[i]
-						if allStatefulSets {
-							edges = append(edges, CreateEdge(sa, statefulSet, "WorkloadPatch"))
-							continue
-						}
 						if _, ok := statefulSetNames[statefulSet.Name]; ok {
 							edges = append(edges, CreateEdge(sa, statefulSet, "WorkloadPatch"))
 						}

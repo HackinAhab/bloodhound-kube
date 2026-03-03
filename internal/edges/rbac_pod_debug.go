@@ -4,9 +4,9 @@ import "bloodhound-kube/internal/model"
 
 type rbacPodDebugEdgesRule struct{}
 
-// func init() {
-// 	RegisterEdgeRule(rbacPodDebugEdgesRule{})
-// }
+func init() {
+	RegisterEdgeRule(rbacPodDebugEdgesRule{})
+}
 
 func (r rbacPodDebugEdgesRule) Name() string {
 	return "rbac_pod_debug"
@@ -84,7 +84,6 @@ func podDebugNamespaced(ctx *EdgeContext, namespace string, space *model.Namespa
 			if sa == nil {
 				continue
 			}
-
 			for i := range space.Pods {
 				pod := &space.Pods[i]
 				if all {

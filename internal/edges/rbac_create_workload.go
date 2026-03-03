@@ -77,7 +77,6 @@ func workloadCreateNamespaced(ctx *EdgeContext, namespace string) []model.BloodH
 			if sa == nil {
 				continue
 			}
-
 			for i := range ctx.Core.Cluster.Nodes {
 				node := &ctx.Core.Cluster.Nodes[i]
 				edges = append(edges, CreateEdge(sa, node, "WorkloadCreate"))

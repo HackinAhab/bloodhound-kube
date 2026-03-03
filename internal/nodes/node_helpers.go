@@ -210,9 +210,6 @@ func AppArmorProfileValue(profile *corev1.AppArmorProfile) string {
 	return ""
 }
 
-// RemoveKeyFromSlice removes a string from a slice.
-// Example: RemoveKeyFromSlice([]string{"a", "b"}, "a") -> []string{"b"}.
-
 func buildRbacRulesDisplay(rules []RbacRule) []string {
 	entries := make([]string, 0, len(rules))
 	for _, rule := range rules {

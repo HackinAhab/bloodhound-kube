@@ -4,9 +4,9 @@ import "bloodhound-kube/internal/model"
 
 type rbacPodExecEdgesRule struct{}
 
-// func init() {
-// 	RegisterEdgeRule(rbacPodExecEdgesRule{})
-// }
+func init() {
+	RegisterEdgeRule(rbacPodExecEdgesRule{})
+}
 
 func (r rbacPodExecEdgesRule) Name() string {
 	return "rbac_pod_exec"
@@ -84,7 +84,6 @@ func podExecNamespaced(ctx *EdgeContext, namespace string, space *model.Namespac
 			if sa == nil {
 				continue
 			}
-
 			for i := range space.Pods {
 				pod := &space.Pods[i]
 				if all {
@@ -134,17 +133,20 @@ func podExecCluster(ctx *EdgeContext) []model.BloodHoundEdge {
 			if sa == nil {
 				continue
 			}
-			for _, space := range ctx.Core.Namespaces {
-				if space == nil {
-					continue
+			if all {
+				if len(ctx.Core.Cluster.AllPods) > 0 {
+					agg := &ctx.Core.Cluster.AllPods[0]
+					edges = append(edges, CreateEdge(sa, agg, "PodExec"))
 				}
-				for i := range space.Pods {
-					pod := &space.Pods[i]
-					if all {
-						edges = append(edges, CreateEdge(sa, pod, "PodExec"))
+				continue
+			}
+			if len(names) > 0 {
+				for _, space := range ctx.Core.Namespaces {
+					if space == nil {
 						continue
 					}
-					if names != nil {
+					for i := range space.Pods {
+						pod := &space.Pods[i]
 						if _, ok := names[pod.Name]; ok {
 							edges = append(edges, CreateEdge(sa, pod, "PodExec"))
 						}

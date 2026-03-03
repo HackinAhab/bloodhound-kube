@@ -4,10 +4,9 @@ import "bloodhound-kube/internal/model"
 
 type rbacReadSecretsEdgesRule struct{}
 
-// TODO: This produces a *lot* of edges, need to figure out a better way of flagging these in the UI instead of just creating edges for every single secret in the cluster for every SA that can read secrets
-// func init() {
-// 	RegisterEdgeRule(rbacReadSecretsEdgesRule{})
-// }
+func init() {
+	RegisterEdgeRule(rbacReadSecretsEdgesRule{})
+}
 
 func (r rbacReadSecretsEdgesRule) Name() string {
 	return "rbac_read_secrets"
@@ -85,7 +84,6 @@ func saReadSecretNamespaced(ctx *EdgeContext, namespace string, space *model.Nam
 			if sa == nil {
 				continue
 			}
-
 			for i := range space.Secrets {
 				secret := &space.Secrets[i]
 				if all {
@@ -135,17 +133,20 @@ func saReadSecretCluster(ctx *EdgeContext) []model.BloodHoundEdge {
 			if sa == nil {
 				continue
 			}
-			for _, space := range ctx.Core.Namespaces {
-				if space == nil {
-					continue
+			if all {
+				if len(ctx.Core.Cluster.AllSecrets) > 0 {
+					agg := &ctx.Core.Cluster.AllSecrets[0]
+					edges = append(edges, CreateEdge(sa, agg, "SAReadSecret"))
 				}
-				for i := range space.Secrets {
-					secret := &space.Secrets[i]
-					if all {
-						edges = append(edges, CreateEdge(sa, secret, "SAReadSecret"))
+				continue
+			}
+			if len(names) > 0 {
+				for _, space := range ctx.Core.Namespaces {
+					if space == nil {
 						continue
 					}
-					if names != nil {
+					for i := range space.Secrets {
+						secret := &space.Secrets[i]
 						if _, ok := names[secret.Name]; ok {
 							edges = append(edges, CreateEdge(sa, secret, "SAReadSecret"))
 						}

@@ -34,6 +34,20 @@ func (c *CoreFacts) Add(entry nodes.CoreEntry) {
 			c.Cluster.SecurityContextConstraints = append(c.Cluster.SecurityContextConstraints, v)
 		case nodes.External:
 			c.Cluster.External = append(c.Cluster.External, v)
+		case nodes.AllNodes:
+			c.Cluster.AllNodes = append(c.Cluster.AllNodes, v)
+		case nodes.AllPods:
+			c.Cluster.AllPods = append(c.Cluster.AllPods, v)
+		case nodes.AllSecrets:
+			c.Cluster.AllSecrets = append(c.Cluster.AllSecrets, v)
+		case nodes.AllServiceAccounts:
+			c.Cluster.AllServiceAccounts = append(c.Cluster.AllServiceAccounts, v)
+		case nodes.AllDeployments:
+			c.Cluster.AllDeployments = append(c.Cluster.AllDeployments, v)
+		case nodes.AllDaemonSets:
+			c.Cluster.AllDaemonSets = append(c.Cluster.AllDaemonSets, v)
+		case nodes.AllStatefulSets:
+			c.Cluster.AllStatefulSets = append(c.Cluster.AllStatefulSets, v)
 		}
 		return
 	}

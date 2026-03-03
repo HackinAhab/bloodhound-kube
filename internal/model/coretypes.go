@@ -23,10 +23,17 @@ type Namespace struct {
 
 type Cluster struct {
 	Nodes                      []nodes.Node
+	AllNodes                   []nodes.AllNodes
 	ClusterRoles               []nodes.ClusterRole
 	ClusterRoleBindings        []nodes.ClusterRoleBinding
 	PersistentVolumes          []nodes.PersistentVolume
 	ClusterSecretStores        []nodes.ClusterSecretStore
 	SecurityContextConstraints []nodes.SecurityContextConstraints
 	External                   []nodes.External
+	AllPods                    []nodes.AllPods
+	AllSecrets                 []nodes.AllSecrets
+	AllServiceAccounts         []nodes.AllServiceAccounts
+	AllDeployments             []nodes.AllDeployments
+	AllDaemonSets              []nodes.AllDaemonSets
+	AllStatefulSets            []nodes.AllStatefulSets
 }

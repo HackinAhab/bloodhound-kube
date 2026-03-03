@@ -4,9 +4,9 @@ import "bloodhound-kube/internal/model"
 
 type rbacImpersonateEdgesRule struct{}
 
-// func init() {
-// 	RegisterEdgeRule(rbacImpersonateEdgesRule{})
-// }
+func init() {
+	RegisterEdgeRule(rbacImpersonateEdgesRule{})
+}
 
 func (r rbacImpersonateEdgesRule) Name() string {
 	return "rbac_impersonate"
@@ -84,7 +84,6 @@ func saImpersonateNamespaced(ctx *EdgeContext, namespace string, space *model.Na
 			if sa == nil {
 				continue
 			}
-
 			for i := range space.ServiceAccounts {
 				target := &space.ServiceAccounts[i]
 				if all {
@@ -134,16 +133,19 @@ func saImpersonateCluster(ctx *EdgeContext) []model.BloodHoundEdge {
 			if sa == nil {
 				continue
 			}
+			if all {
+				if len(ctx.Core.Cluster.AllServiceAccounts) > 0 {
+					agg := &ctx.Core.Cluster.AllServiceAccounts[0]
+					edges = append(edges, CreateEdge(sa, agg, "SAImpersonate"))
+				}
+				continue
+			}
 			for _, space := range ctx.Core.Namespaces {
 				if space == nil {
 					continue
 				}
 				for i := range space.ServiceAccounts {
 					target := &space.ServiceAccounts[i]
-					if all {
-						edges = append(edges, CreateEdge(sa, target, "SAImpersonate"))
-						continue
-					}
 					if names != nil {
 						if _, ok := names[target.Name]; ok {
 							edges = append(edges, CreateEdge(sa, target, "SAImpersonate"))

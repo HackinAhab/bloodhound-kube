@@ -2,14 +2,33 @@ package edges
 
 import "bloodhound-kube/internal/model"
 
-type clusterEdgesRule struct{}
+type clusterScopeEdgesRule struct{}
 
-func (r clusterEdgesRule) Name() string {
+func (r clusterScopeEdgesRule) Name() string {
 	return "cluster"
 }
 
-func (r clusterEdgesRule) Apply(ctx *EdgeContext) []model.BloodHoundEdge {
+func init() {
+	RegisterEdgeRule(clusterScopeEdgesRule{})
+}
+
+func (r clusterScopeEdgesRule) Apply(ctx *EdgeContext) []model.BloodHoundEdge {
 	if ctx == nil || ctx.Core == nil {
+		return nil
+	}
+	var edges []model.BloodHoundEdge
+	for ns, space := range ctx.Core.Namespaces {
+		if space == nil {
+			continue
+		}
+		edges = append(edges, pvcMountedByPod(ctx, ns, space)...)
+	}
+	edges = append(edges, pvBoundToPVC(ctx)...)
+	return edges
+}
+
+func pvcMountedByPod(ctx *EdgeContext, namespace string, space *model.Namespace) []model.BloodHoundEdge {
+	if ctx == nil || space == nil {
 		return nil
 	}
 	var edges []model.BloodHoundEdge
@@ -29,6 +48,14 @@ func (r clusterEdgesRule) Apply(ctx *EdgeContext) []model.BloodHoundEdge {
 			}
 		}
 	}
+	return edges
+}
+
+func pvBoundToPVC(ctx *EdgeContext) []model.BloodHoundEdge {
+	if ctx == nil || ctx.Core == nil {
+		return nil
+	}
+	var edges []model.BloodHoundEdge
 	for i := range ctx.Core.Cluster.PersistentVolumes {
 		pv := &ctx.Core.Cluster.PersistentVolumes[i]
 		claimRef := pv.ClaimRef
@@ -52,8 +79,4 @@ func (r clusterEdgesRule) Apply(ctx *EdgeContext) []model.BloodHoundEdge {
 		}
 	}
 	return edges
-}
-
-func init() {
-	RegisterEdgeRule(clusterEdgesRule{})
 }

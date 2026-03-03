@@ -199,6 +199,8 @@ func createNodesFromRawResources(resources []json.RawMessage, parseUndefinedNode
 		}
 	}
 
+	addAggregateNodes(&nodeList, coreFacts)
+
 	external := nodes.ExternalNode()
 	nodeList = append(nodeList, model.BloodHoundNode{
 		ID:         external.ID,
@@ -208,6 +210,30 @@ func createNodesFromRawResources(resources []json.RawMessage, parseUndefinedNode
 	coreFacts.Add(nodes.CoreEntry{Cluster: true, Data: nodes.ExternalCoreEntry()})
 
 	return nodeList, coreFacts, nil
+}
+
+func addAggregateNodes(nodeList *[]model.BloodHoundNode, coreFacts *model.CoreFacts) {
+	if nodeList == nil || coreFacts == nil {
+		return
+	}
+	appendBuildResult(nodeList, coreFacts, nodes.BuildAllPods())
+	appendBuildResult(nodeList, coreFacts, nodes.BuildAllSecrets())
+	appendBuildResult(nodeList, coreFacts, nodes.BuildAllServiceAccounts())
+	appendBuildResult(nodeList, coreFacts, nodes.BuildAllNodes())
+	appendBuildResult(nodeList, coreFacts, nodes.BuildAllDeployments())
+	appendBuildResult(nodeList, coreFacts, nodes.BuildAllDaemonSets())
+	appendBuildResult(nodeList, coreFacts, nodes.BuildAllStatefulSets())
+}
+
+func appendBuildResult(nodeList *[]model.BloodHoundNode, coreFacts *model.CoreFacts, result nodes.BuildResult) {
+	*nodeList = append(*nodeList, model.BloodHoundNode{
+		ID:         result.Node.ID,
+		Kinds:      result.Node.Kinds,
+		Properties: result.Node.Properties,
+	})
+	for _, entry := range result.Core {
+		coreFacts.Add(entry)
+	}
 }
 
 func buildNodeFromDecoded(decoded utils.DecodedResource, parseUndefinedNodes bool) (nodes.BuildResult, bool, error) {

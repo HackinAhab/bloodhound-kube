@@ -12,6 +12,11 @@ func (r rbacPodExecEdgesRule) Name() string {
 	return "rbac_pod_exec"
 }
 
+var edgePropertiesRBACPodExec = map[string]any{
+	"Description": "ServiceAccount has RBAC permissions to exec into pods.",
+	"Reference":   "https://kubehound.io/reference/attacks/POD_EXEC/",
+}
+
 func (r rbacPodExecEdgesRule) Apply(ctx *EdgeContext) []model.BloodHoundEdge {
 	if ctx == nil || ctx.Core == nil {
 		return nil
@@ -87,12 +92,12 @@ func podExecNamespaced(ctx *EdgeContext, namespace string, space *model.Namespac
 			for i := range space.Pods {
 				pod := &space.Pods[i]
 				if all {
-					edges = append(edges, CreateEdge(sa, pod, "PodExec"))
+					edges = append(edges, CreateEdgeWithProperties(sa, pod, "PodExec", edgePropertiesRBACPodExec))
 					continue
 				}
 				if names != nil {
 					if _, ok := names[pod.Name]; ok {
-						edges = append(edges, CreateEdge(sa, pod, "PodExec"))
+						edges = append(edges, CreateEdgeWithProperties(sa, pod, "PodExec", edgePropertiesRBACPodExec))
 					}
 				}
 			}
@@ -136,7 +141,7 @@ func podExecCluster(ctx *EdgeContext) []model.BloodHoundEdge {
 			if all {
 				if len(ctx.Core.Cluster.AllPods) > 0 {
 					agg := &ctx.Core.Cluster.AllPods[0]
-					edges = append(edges, CreateEdge(sa, agg, "PodExec"))
+					edges = append(edges, CreateEdgeWithProperties(sa, agg, "PodExec", edgePropertiesRBACPodExec))
 				}
 				continue
 			}
@@ -148,7 +153,7 @@ func podExecCluster(ctx *EdgeContext) []model.BloodHoundEdge {
 					for i := range space.Pods {
 						pod := &space.Pods[i]
 						if _, ok := names[pod.Name]; ok {
-							edges = append(edges, CreateEdge(sa, pod, "PodExec"))
+							edges = append(edges, CreateEdgeWithProperties(sa, pod, "PodExec", edgePropertiesRBACPodExec))
 						}
 					}
 				}

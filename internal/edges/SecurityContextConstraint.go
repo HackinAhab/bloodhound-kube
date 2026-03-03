@@ -8,6 +8,10 @@ func (r sccEdgesRule) Name() string {
 	return "security_context_constraints"
 }
 
+func init() {
+	RegisterEdgeRule(sccEdgesRule{})
+}
+
 func (r sccEdgesRule) Apply(ctx *EdgeContext) []model.BloodHoundEdge {
 	if ctx == nil || ctx.Core == nil {
 		return nil
@@ -32,8 +36,4 @@ func (r sccEdgesRule) Apply(ctx *EdgeContext) []model.BloodHoundEdge {
 		}
 	}
 	return edges
-}
-
-func init() {
-	RegisterEdgeRule(sccEdgesRule{})
 }

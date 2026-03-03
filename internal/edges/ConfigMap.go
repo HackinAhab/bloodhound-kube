@@ -8,6 +8,10 @@ func (r configMapEdgesRule) Name() string {
 	return "configmap"
 }
 
+func init() {
+	RegisterEdgeRule(configMapEdgesRule{})
+}
+
 func (r configMapEdgesRule) Apply(ctx *EdgeContext) []model.BloodHoundEdge {
 	if ctx == nil || ctx.Core == nil {
 		return nil
@@ -37,8 +41,4 @@ func (r configMapEdgesRule) Apply(ctx *EdgeContext) []model.BloodHoundEdge {
 		}
 	}
 	return edges
-}
-
-func init() {
-	RegisterEdgeRule(configMapEdgesRule{})
 }

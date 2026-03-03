@@ -12,6 +12,10 @@ func (r externalSecretsEdgesRule) Name() string {
 	return "external_secrets"
 }
 
+func init() {
+	RegisterEdgeRule(externalSecretsEdgesRule{})
+}
+
 func (r externalSecretsEdgesRule) Apply(ctx *EdgeContext) []model.BloodHoundEdge {
 	if ctx == nil || ctx.Core == nil {
 		return nil
@@ -58,8 +62,4 @@ func (r externalSecretsEdgesRule) Apply(ctx *EdgeContext) []model.BloodHoundEdge
 		}
 	}
 	return edges
-}
-
-func init() {
-	RegisterEdgeRule(externalSecretsEdgesRule{})
 }

@@ -24,6 +24,11 @@
             "name": "All Paths to Nodes with External IPs",
             "description": "Retrieves all paths from HTTPRoute nodes to Nodes.",
             "query": "MATCH p=(s:HTTPRoute)-[*1..3]->(t:K8s_Node)\nRETURN p"
+        },
+        {
+            "name": "All Aggregate Nodes",
+            "description": "Retrieves all nodes that are aggregates of other nodes.",
+            "query": "MATCH p=(s)-[]->(t)\nWHERE t.name STARTS WITH 'ALL'\nRETURN p"
         }
     ]
 }

@@ -13,6 +13,10 @@ func (r containerEscapeRule) Name() string {
 	return "container_escapes"
 }
 
+func init() {
+	RegisterEdgeRule(containerEscapeRule{})
+}
+
 func (r containerEscapeRule) Apply(ctx *EdgeContext) []model.BloodHoundEdge {
 	if ctx == nil || ctx.Core == nil {
 		return nil
@@ -175,8 +179,4 @@ func ceVarLogSymlinkCheck(pod *nodes.Pod) (string, bool) {
 		}
 	}
 	return "", false
-}
-
-func init() {
-	RegisterEdgeRule(containerEscapeRule{})
 }

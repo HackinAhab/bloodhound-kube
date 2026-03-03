@@ -8,6 +8,10 @@ func (r httpRouteEdgesRule) Name() string {
 	return "httproutes"
 }
 
+func init() {
+	RegisterEdgeRule(httpRouteEdgesRule{})
+}
+
 func (r httpRouteEdgesRule) Apply(ctx *EdgeContext) []model.BloodHoundEdge {
 	if ctx == nil || ctx.Core == nil {
 		return nil
@@ -40,8 +44,4 @@ func (r httpRouteEdgesRule) Apply(ctx *EdgeContext) []model.BloodHoundEdge {
 		}
 	}
 	return edges
-}
-
-func init() {
-	RegisterEdgeRule(httpRouteEdgesRule{})
 }

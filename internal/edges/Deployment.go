@@ -8,6 +8,10 @@ func (r deploymentEdgesRule) Name() string {
 	return "deployment"
 }
 
+func init() {
+	RegisterEdgeRule(deploymentEdgesRule{})
+}
+
 func (r deploymentEdgesRule) Apply(ctx *EdgeContext) []model.BloodHoundEdge {
 	if ctx == nil || ctx.Core == nil {
 		return nil
@@ -28,8 +32,4 @@ func (r deploymentEdgesRule) Apply(ctx *EdgeContext) []model.BloodHoundEdge {
 		}
 	}
 	return edges
-}
-
-func init() {
-	RegisterEdgeRule(deploymentEdgesRule{})
 }

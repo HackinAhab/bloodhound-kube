@@ -12,6 +12,11 @@ func (r rbacPodDebugEdgesRule) Name() string {
 	return "rbac_pod_debug"
 }
 
+var edgePropertiesRBACPodDebug = map[string]any{
+	"Description": "ServiceAccount has RBAC permissions to debug pods.",
+	"Reference":   "https://kubehound.io/reference/attacks/POD_ATTACH/",
+}
+
 func (r rbacPodDebugEdgesRule) Apply(ctx *EdgeContext) []model.BloodHoundEdge {
 	if ctx == nil || ctx.Core == nil {
 		return nil
@@ -87,12 +92,12 @@ func podDebugNamespaced(ctx *EdgeContext, namespace string, space *model.Namespa
 			for i := range space.Pods {
 				pod := &space.Pods[i]
 				if all {
-					edges = append(edges, CreateEdge(sa, pod, "PodDebug"))
+					edges = append(edges, CreateEdgeWithProperties(sa, pod, "PodDebug", edgePropertiesRBACPodDebug))
 					continue
 				}
 				if names != nil {
 					if _, ok := names[pod.Name]; ok {
-						edges = append(edges, CreateEdge(sa, pod, "PodDebug"))
+						edges = append(edges, CreateEdgeWithProperties(sa, pod, "PodDebug", edgePropertiesRBACPodDebug))
 					}
 				}
 			}
@@ -140,12 +145,12 @@ func podDebugCluster(ctx *EdgeContext) []model.BloodHoundEdge {
 				for i := range space.Pods {
 					pod := &space.Pods[i]
 					if all {
-						edges = append(edges, CreateEdge(sa, pod, "PodDebug"))
+						edges = append(edges, CreateEdgeWithProperties(sa, pod, "PodDebug", edgePropertiesRBACPodDebug))
 						continue
 					}
 					if names != nil {
 						if _, ok := names[pod.Name]; ok {
-							edges = append(edges, CreateEdge(sa, pod, "PodDebug"))
+							edges = append(edges, CreateEdgeWithProperties(sa, pod, "PodDebug", edgePropertiesRBACPodDebug))
 						}
 					}
 				}

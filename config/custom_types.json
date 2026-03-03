@@ -7,6 +7,55 @@
         "color": "#4CAF50"
       }
     },
+    "AllPods": {
+      "icon": {
+        "type": "font-awesome",
+        "name": "globe",
+        "color": "#F29D0A"
+      }
+    },
+    "AllDeployments": {
+      "icon": {
+        "type": "font-awesome",
+        "name": "globe",
+        "color": "#F29D0A"
+      }
+    },
+    "AllDaemonSets": {
+      "icon": {
+        "type": "font-awesome",
+        "name": "globe",
+        "color": "#F29D0A"
+      }
+    },
+    "AllStatefulSets": {
+      "icon": {
+        "type": "font-awesome",
+        "name": "globe",
+        "color": "#F29D0A"
+      }
+    },
+    "AllSecrets": {
+      "icon": {
+        "type": "font-awesome",
+        "name": "globe",
+        "color": "#F29D0A"
+      }
+    },
+    "AllNodes": {
+      "icon": {
+        "type": "font-awesome",
+        "name": "globe",
+        "color": "#F29D0A"
+      }
+    },
+    "AllServiceAccounts": {
+      "icon": {
+        "type": "font-awesome",
+        "name": "globe",
+        "color": "#F29D0A"
+      }
+    },
     "K8s_Node": {
       "icon": {
         "type": "font-awesome",

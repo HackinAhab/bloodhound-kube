@@ -8,6 +8,10 @@ func (r ingressEdgesRule) Name() string {
 	return "ingress"
 }
 
+func init() {
+	RegisterEdgeRule(ingressEdgesRule{})
+}
+
 func (r ingressEdgesRule) Apply(ctx *EdgeContext) []model.BloodHoundEdge {
 	if ctx == nil || ctx.Core == nil {
 		return nil
@@ -34,8 +38,4 @@ func (r ingressEdgesRule) Apply(ctx *EdgeContext) []model.BloodHoundEdge {
 		}
 	}
 	return edges
-}
-
-func init() {
-	RegisterEdgeRule(ingressEdgesRule{})
 }

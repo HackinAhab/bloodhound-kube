@@ -11,6 +11,12 @@ func (r podEdgesRule) Name() string {
 	return "pods"
 }
 
+func init() {
+	RegisterEdgeRule(podEdgesRule{})
+}
+
+var _ nodes.EdgeNode = nodes.Pod{}
+
 func (r podEdgesRule) Apply(ctx *EdgeContext) []model.BloodHoundEdge {
 	if ctx == nil || ctx.Core == nil {
 		return nil
@@ -75,9 +81,3 @@ func (r podEdgesRule) Apply(ctx *EdgeContext) []model.BloodHoundEdge {
 	}
 	return edges
 }
-
-func init() {
-	RegisterEdgeRule(podEdgesRule{})
-}
-
-var _ nodes.EdgeNode = nodes.Pod{}

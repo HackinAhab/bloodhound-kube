@@ -8,6 +8,10 @@ func (r networkPolicyEdgesRule) Name() string {
 	return "networkpolicy"
 }
 
+func init() {
+	RegisterEdgeRule(networkPolicyEdgesRule{})
+}
+
 func (r networkPolicyEdgesRule) Apply(ctx *EdgeContext) []model.BloodHoundEdge {
 	if ctx == nil || ctx.Core == nil {
 		return nil
@@ -28,8 +32,4 @@ func (r networkPolicyEdgesRule) Apply(ctx *EdgeContext) []model.BloodHoundEdge {
 		}
 	}
 	return edges
-}
-
-func init() {
-	RegisterEdgeRule(networkPolicyEdgesRule{})
 }

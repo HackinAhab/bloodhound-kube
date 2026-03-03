@@ -12,6 +12,11 @@ func (r rbacCreateWorkloadEdgesRule) Name() string {
 	return "rbac_create_workload"
 }
 
+var edgePropertiesRBACWorkloadCreate = map[string]any{
+	"Description": "ServiceAccount has RBAC permissions to create workloads",
+	"Reference":   "https://kubernetes.io/docs/reference/access-authn-authz/rbac/#referring-to-resources",
+}
+
 // SA w/ create on workloads -> Nodes that can be scheduled on
 func workloadCreateNamespaced(ctx *EdgeContext, namespace string) []model.BloodHoundEdge {
 	if ctx == nil {
@@ -79,7 +84,7 @@ func workloadCreateNamespaced(ctx *EdgeContext, namespace string) []model.BloodH
 			}
 			for i := range ctx.Core.Cluster.Nodes {
 				node := &ctx.Core.Cluster.Nodes[i]
-				edges = append(edges, CreateEdge(sa, node, "WorkloadCreate"))
+				edges = append(edges, CreateEdgeWithProperties(sa, node, "WorkloadCreate", edgePropertiesRBACWorkloadCreate))
 			}
 		}
 	}
@@ -128,7 +133,7 @@ func workloadCreateCluster(ctx *EdgeContext) []model.BloodHoundEdge {
 			}
 			for i := range ctx.Core.Cluster.Nodes {
 				node := &ctx.Core.Cluster.Nodes[i]
-				edges = append(edges, CreateEdge(sa, node, "WorkloadCreate"))
+				edges = append(edges, CreateEdgeWithProperties(sa, node, "WorkloadCreate", edgePropertiesRBACWorkloadCreate))
 			}
 		}
 	}

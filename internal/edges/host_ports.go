@@ -12,6 +12,10 @@ func (r hostPortsEdgesRule) Name() string {
 	return "host_ports"
 }
 
+func init() {
+	RegisterEdgeRule(hostPortsEdgesRule{})
+}
+
 func (r hostPortsEdgesRule) Apply(ctx *EdgeContext) []model.BloodHoundEdge {
 	if ctx == nil || ctx.Core == nil {
 		return nil
@@ -51,8 +55,4 @@ func (r hostPortsEdgesRule) Apply(ctx *EdgeContext) []model.BloodHoundEdge {
 		}
 	}
 	return edges
-}
-
-func init() {
-	RegisterEdgeRule(hostPortsEdgesRule{})
 }

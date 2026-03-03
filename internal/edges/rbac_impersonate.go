@@ -12,6 +12,11 @@ func (r rbacImpersonateEdgesRule) Name() string {
 	return "rbac_impersonate"
 }
 
+var edgePropertiesRBACImpersonate = map[string]any{
+	"Description": "ServiceAccount has RBAC permissions to impersonate another ServiceAccount",
+	"Reference":   "https://kubehound.io/reference/attacks/IDENTITY_IMPERSONATE/",
+}
+
 func (r rbacImpersonateEdgesRule) Apply(ctx *EdgeContext) []model.BloodHoundEdge {
 	if ctx == nil || ctx.Core == nil {
 		return nil
@@ -87,12 +92,12 @@ func saImpersonateNamespaced(ctx *EdgeContext, namespace string, space *model.Na
 			for i := range space.ServiceAccounts {
 				target := &space.ServiceAccounts[i]
 				if all {
-					edges = append(edges, CreateEdge(sa, target, "SAImpersonate"))
+					edges = append(edges, CreateEdgeWithProperties(sa, target, "SAImpersonate", edgePropertiesRBACImpersonate))
 					continue
 				}
 				if names != nil {
 					if _, ok := names[target.Name]; ok {
-						edges = append(edges, CreateEdge(sa, target, "SAImpersonate"))
+						edges = append(edges, CreateEdgeWithProperties(sa, target, "SAImpersonate", edgePropertiesRBACImpersonate))
 					}
 				}
 			}
@@ -136,7 +141,7 @@ func saImpersonateCluster(ctx *EdgeContext) []model.BloodHoundEdge {
 			if all {
 				if len(ctx.Core.Cluster.AllServiceAccounts) > 0 {
 					agg := &ctx.Core.Cluster.AllServiceAccounts[0]
-					edges = append(edges, CreateEdge(sa, agg, "SAImpersonate"))
+					edges = append(edges, CreateEdgeWithProperties(sa, agg, "SAImpersonate", edgePropertiesRBACImpersonate))
 				}
 				continue
 			}
@@ -148,7 +153,7 @@ func saImpersonateCluster(ctx *EdgeContext) []model.BloodHoundEdge {
 					target := &space.ServiceAccounts[i]
 					if names != nil {
 						if _, ok := names[target.Name]; ok {
-							edges = append(edges, CreateEdge(sa, target, "SAImpersonate"))
+							edges = append(edges, CreateEdgeWithProperties(sa, target, "SAImpersonate", edgePropertiesRBACImpersonate))
 						}
 					}
 				}

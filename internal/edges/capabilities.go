@@ -8,6 +8,10 @@ func (r capabilityEdgesRule) Name() string {
 	return "capabilities"
 }
 
+func init() {
+	RegisterEdgeRule(capabilityEdgesRule{})
+}
+
 func (r capabilityEdgesRule) Apply(ctx *EdgeContext) []model.BloodHoundEdge {
 	if ctx == nil || ctx.Core == nil {
 		return nil
@@ -41,8 +45,4 @@ func (r capabilityEdgesRule) Apply(ctx *EdgeContext) []model.BloodHoundEdge {
 		}
 	}
 	return edges
-}
-
-func init() {
-	RegisterEdgeRule(capabilityEdgesRule{})
 }

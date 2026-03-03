@@ -12,6 +12,11 @@ func (r rbacPatchWorkloadEdgesRule) Name() string {
 	return "rbac_patch_workload"
 }
 
+var edgePropertiesRBACWorkloadPatch = map[string]any{
+	"Description": "ServiceAccount has RBAC permissions to patch workloads, which can allow for modification of running workloads.",
+	"Reference":   "https://kubehound.io/reference/attacks/POD_PATCH/",
+}
+
 func (r rbacPatchWorkloadEdgesRule) Apply(ctx *EdgeContext) []model.BloodHoundEdge {
 	if ctx == nil || ctx.Core == nil {
 		return nil
@@ -91,11 +96,11 @@ func workloadPatchNamespaced(ctx *EdgeContext, namespace string, space *model.Na
 				for i := range space.Pods {
 					pod := &space.Pods[i]
 					if allPods {
-						edges = append(edges, CreateEdge(sa, pod, "WorkloadPatch"))
+						edges = append(edges, CreateEdgeWithProperties(sa, pod, "WorkloadPatch", edgePropertiesRBACWorkloadPatch))
 						continue
 					}
 					if _, ok := podNames[pod.Name]; ok {
-						edges = append(edges, CreateEdge(sa, pod, "WorkloadPatch"))
+						edges = append(edges, CreateEdgeWithProperties(sa, pod, "WorkloadPatch", edgePropertiesRBACWorkloadPatch))
 					}
 				}
 			}
@@ -104,11 +109,11 @@ func workloadPatchNamespaced(ctx *EdgeContext, namespace string, space *model.Na
 				for i := range space.Deployments {
 					deployment := &space.Deployments[i]
 					if allDeployments {
-						edges = append(edges, CreateEdge(sa, deployment, "WorkloadPatch"))
+						edges = append(edges, CreateEdgeWithProperties(sa, deployment, "WorkloadPatch", edgePropertiesRBACWorkloadPatch))
 						continue
 					}
 					if _, ok := deploymentNames[deployment.Name]; ok {
-						edges = append(edges, CreateEdge(sa, deployment, "WorkloadPatch"))
+						edges = append(edges, CreateEdgeWithProperties(sa, deployment, "WorkloadPatch", edgePropertiesRBACWorkloadPatch))
 					}
 				}
 			}
@@ -117,11 +122,11 @@ func workloadPatchNamespaced(ctx *EdgeContext, namespace string, space *model.Na
 				for i := range space.DaemonSets {
 					daemonSet := &space.DaemonSets[i]
 					if allDaemonSets {
-						edges = append(edges, CreateEdge(sa, daemonSet, "WorkloadPatch"))
+						edges = append(edges, CreateEdgeWithProperties(sa, daemonSet, "WorkloadPatch", edgePropertiesRBACWorkloadPatch))
 						continue
 					}
 					if _, ok := daemonSetNames[daemonSet.Name]; ok {
-						edges = append(edges, CreateEdge(sa, daemonSet, "WorkloadPatch"))
+						edges = append(edges, CreateEdgeWithProperties(sa, daemonSet, "WorkloadPatch", edgePropertiesRBACWorkloadPatch))
 					}
 				}
 			}
@@ -130,11 +135,11 @@ func workloadPatchNamespaced(ctx *EdgeContext, namespace string, space *model.Na
 				for i := range space.StatefulSets {
 					statefulSet := &space.StatefulSets[i]
 					if allStatefulSets {
-						edges = append(edges, CreateEdge(sa, statefulSet, "WorkloadPatch"))
+						edges = append(edges, CreateEdgeWithProperties(sa, statefulSet, "WorkloadPatch", edgePropertiesRBACWorkloadPatch))
 						continue
 					}
 					if _, ok := statefulSetNames[statefulSet.Name]; ok {
-						edges = append(edges, CreateEdge(sa, statefulSet, "WorkloadPatch"))
+						edges = append(edges, CreateEdgeWithProperties(sa, statefulSet, "WorkloadPatch", edgePropertiesRBACWorkloadPatch))
 					}
 				}
 			}
@@ -182,7 +187,7 @@ func workloadPatchCluster(ctx *EdgeContext) []model.BloodHoundEdge {
 			if allPods {
 				if len(ctx.Core.Cluster.AllPods) > 0 {
 					agg := &ctx.Core.Cluster.AllPods[0]
-					edges = append(edges, CreateEdge(sa, agg, "WorkloadPatch"))
+					edges = append(edges, CreateEdgeWithProperties(sa, agg, "WorkloadPatch", edgePropertiesRBACWorkloadPatch))
 				}
 			} else if len(podNames) > 0 {
 				for _, space := range ctx.Core.Namespaces {
@@ -192,7 +197,7 @@ func workloadPatchCluster(ctx *EdgeContext) []model.BloodHoundEdge {
 					for i := range space.Pods {
 						pod := &space.Pods[i]
 						if _, ok := podNames[pod.Name]; ok {
-							edges = append(edges, CreateEdge(sa, pod, "WorkloadPatch"))
+							edges = append(edges, CreateEdgeWithProperties(sa, pod, "WorkloadPatch", edgePropertiesRBACWorkloadPatch))
 						}
 					}
 				}
@@ -201,7 +206,7 @@ func workloadPatchCluster(ctx *EdgeContext) []model.BloodHoundEdge {
 			if allDeployments {
 				if len(ctx.Core.Cluster.AllDeployments) > 0 {
 					agg := &ctx.Core.Cluster.AllDeployments[0]
-					edges = append(edges, CreateEdge(sa, agg, "WorkloadPatch"))
+					edges = append(edges, CreateEdgeWithProperties(sa, agg, "WorkloadPatch", edgePropertiesRBACWorkloadPatch))
 				}
 			} else if len(deploymentNames) > 0 {
 				for _, space := range ctx.Core.Namespaces {
@@ -211,7 +216,7 @@ func workloadPatchCluster(ctx *EdgeContext) []model.BloodHoundEdge {
 					for i := range space.Deployments {
 						deployment := &space.Deployments[i]
 						if _, ok := deploymentNames[deployment.Name]; ok {
-							edges = append(edges, CreateEdge(sa, deployment, "WorkloadPatch"))
+							edges = append(edges, CreateEdgeWithProperties(sa, deployment, "WorkloadPatch", edgePropertiesRBACWorkloadPatch))
 						}
 					}
 				}
@@ -220,7 +225,7 @@ func workloadPatchCluster(ctx *EdgeContext) []model.BloodHoundEdge {
 			if allDaemonSets {
 				if len(ctx.Core.Cluster.AllDaemonSets) > 0 {
 					agg := &ctx.Core.Cluster.AllDaemonSets[0]
-					edges = append(edges, CreateEdge(sa, agg, "WorkloadPatch"))
+					edges = append(edges, CreateEdgeWithProperties(sa, agg, "WorkloadPatch", edgePropertiesRBACWorkloadPatch))
 				}
 			} else if len(daemonSetNames) > 0 {
 				for _, space := range ctx.Core.Namespaces {
@@ -230,7 +235,7 @@ func workloadPatchCluster(ctx *EdgeContext) []model.BloodHoundEdge {
 					for i := range space.DaemonSets {
 						daemonSet := &space.DaemonSets[i]
 						if _, ok := daemonSetNames[daemonSet.Name]; ok {
-							edges = append(edges, CreateEdge(sa, daemonSet, "WorkloadPatch"))
+							edges = append(edges, CreateEdgeWithProperties(sa, daemonSet, "WorkloadPatch", edgePropertiesRBACWorkloadPatch))
 						}
 					}
 				}
@@ -239,7 +244,7 @@ func workloadPatchCluster(ctx *EdgeContext) []model.BloodHoundEdge {
 			if allStatefulSets {
 				if len(ctx.Core.Cluster.AllStatefulSets) > 0 {
 					agg := &ctx.Core.Cluster.AllStatefulSets[0]
-					edges = append(edges, CreateEdge(sa, agg, "WorkloadPatch"))
+					edges = append(edges, CreateEdgeWithProperties(sa, agg, "WorkloadPatch", edgePropertiesRBACWorkloadPatch))
 				}
 			} else if len(statefulSetNames) > 0 {
 				for _, space := range ctx.Core.Namespaces {
@@ -249,7 +254,7 @@ func workloadPatchCluster(ctx *EdgeContext) []model.BloodHoundEdge {
 					for i := range space.StatefulSets {
 						statefulSet := &space.StatefulSets[i]
 						if _, ok := statefulSetNames[statefulSet.Name]; ok {
-							edges = append(edges, CreateEdge(sa, statefulSet, "WorkloadPatch"))
+							edges = append(edges, CreateEdgeWithProperties(sa, statefulSet, "WorkloadPatch", edgePropertiesRBACWorkloadPatch))
 						}
 					}
 				}

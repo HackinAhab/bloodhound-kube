@@ -4,9 +4,15 @@ import "bloodhound-kube/internal/model"
 
 type rbacNodeProxyEdgesRule struct{}
 
+// TODO: Debug Noise
 // func init() {
 // 	RegisterEdgeRule(rbacNodeProxyEdgesRule{})
 // }
+
+var edgePropertiesRBACNodeProxy = map[string]any{
+	"Description": "ServiceAccount has RBAC permissions to proxy to nodes, which can allow for lateral movement and potential RCE if the permissions include 'get' verb",
+	"Reference":   "https://grahamhelton.com/blog/nodes-proxy-rce",
+}
 
 func (r rbacNodeProxyEdgesRule) Name() string {
 	return "rbac_node_proxy"
@@ -85,7 +91,6 @@ func rbacNodeProxyToPodNamespaced(ctx *EdgeContext, namespace string) []model.Bl
 			if sa == nil {
 				continue
 			}
-
 			for _, space := range ctx.Core.Namespaces {
 				if space == nil {
 					continue
@@ -101,7 +106,7 @@ func rbacNodeProxyToPodNamespaced(ctx *EdgeContext, namespace string) []model.Bl
 					}
 					if names != nil {
 						if _, ok := names[pod.NodeName]; ok {
-							edges = append(edges, CreateEdge(sa, pod, "NodeProxy"))
+							edges = append(edges, CreateEdgeWithProperties(sa, pod, "NodeProxy", edgePropertiesRBACNodeProxy))
 						}
 					}
 				}

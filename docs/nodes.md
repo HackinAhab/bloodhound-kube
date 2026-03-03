@@ -1,4 +1,5 @@
-
+# Nodes
+Nodes represent entities in the Kubernetes cluster. For example, a pod, a service account. 
 
 ## Aggregate Nodes
 Aggregate nodes represent a collection of nodes that would be not useful to display individually. For example, AllPods is an aggregate node that represents all pods in the cluster. This is useful because there can be thousands of pods in a cluster, and displaying edges to all of them would be overwhelming, and likely to cause neo4j to explode. The following aggregate nodes are currently implmemented:

@@ -12,6 +12,10 @@ func (r rbacReadSecretsEdgesRule) Name() string {
 	return "rbac_read_secrets"
 }
 
+var edgePropertiesRBACReadSecrets = map[string]any{
+	"Description": "ServiceAccount has RBAC permissions to read secrets.",
+}
+
 func (r rbacReadSecretsEdgesRule) Apply(ctx *EdgeContext) []model.BloodHoundEdge {
 	if ctx == nil || ctx.Core == nil {
 		return nil
@@ -87,12 +91,12 @@ func saReadSecretNamespaced(ctx *EdgeContext, namespace string, space *model.Nam
 			for i := range space.Secrets {
 				secret := &space.Secrets[i]
 				if all {
-					edges = append(edges, CreateEdge(sa, secret, "SAReadSecret"))
+					edges = append(edges, CreateEdgeWithProperties(sa, secret, "SAReadSecret", edgePropertiesRBACReadSecrets))
 					continue
 				}
 				if names != nil {
 					if _, ok := names[secret.Name]; ok {
-						edges = append(edges, CreateEdge(sa, secret, "SAReadSecret"))
+						edges = append(edges, CreateEdgeWithProperties(sa, secret, "SAReadSecret", edgePropertiesRBACReadSecrets))
 					}
 				}
 			}
@@ -136,7 +140,7 @@ func saReadSecretCluster(ctx *EdgeContext) []model.BloodHoundEdge {
 			if all {
 				if len(ctx.Core.Cluster.AllSecrets) > 0 {
 					agg := &ctx.Core.Cluster.AllSecrets[0]
-					edges = append(edges, CreateEdge(sa, agg, "SAReadSecret"))
+					edges = append(edges, CreateEdgeWithProperties(sa, agg, "SAReadSecret", edgePropertiesRBACReadSecrets))
 				}
 				continue
 			}
@@ -148,7 +152,7 @@ func saReadSecretCluster(ctx *EdgeContext) []model.BloodHoundEdge {
 					for i := range space.Secrets {
 						secret := &space.Secrets[i]
 						if _, ok := names[secret.Name]; ok {
-							edges = append(edges, CreateEdge(sa, secret, "SAReadSecret"))
+							edges = append(edges, CreateEdgeWithProperties(sa, secret, "SAReadSecret", edgePropertiesRBACReadSecrets))
 						}
 					}
 				}

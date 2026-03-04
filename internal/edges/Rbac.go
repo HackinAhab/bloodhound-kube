@@ -127,6 +127,7 @@ func roleToServiceAccountFromRoleBinding(ctx *EdgeContext, namespace string) []m
 	return edges
 }
 
+// TODO: Check for redundancy with Secret.go.
 func serviceAccountToSecret(ctx *EdgeContext, namespace string, space *model.Namespace) []model.BloodHoundEdge {
 	if ctx == nil || space == nil {
 		return nil

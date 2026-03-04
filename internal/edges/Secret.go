@@ -8,6 +8,10 @@ func (r secretEdgesRule) Name() string {
 	return "secret"
 }
 
+var edgePropertiesStaticServiceAccountToken = map[string]any{
+	"Description": "",
+}
+
 func (r secretEdgesRule) Apply(ctx *EdgeContext) []model.BloodHoundEdge {
 	if ctx == nil || ctx.Core == nil {
 		return nil
@@ -26,7 +30,7 @@ func (r secretEdgesRule) Apply(ctx *EdgeContext) []model.BloodHoundEdge {
 			for _, sa := range serviceAccounts {
 				for _, secretName := range sa.Secrets {
 					if secretName == secret.Name {
-						edges = append(edges, CreateEdge(secret, sa, "LongLivedToken"))
+						edges = append(edges, CreateEdgeWithProperties(secret, sa, "StaticServiceAccountToken", edgePropertiesStaticServiceAccountToken))
 					}
 				}
 			}

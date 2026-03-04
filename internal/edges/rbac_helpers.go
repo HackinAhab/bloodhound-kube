@@ -8,6 +8,7 @@ type parsedPerm struct {
 	resourceName string
 }
 
+// TODO: Build test cases for this helper.
 func accessForResource(perms []string, resourceKeys []string, verbs []string) (bool, map[string]struct{}) {
 	parsed := parseRBACPerms(perms)
 	var names map[string]struct{}

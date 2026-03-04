@@ -13,3 +13,11 @@ Aggregate nodes represent a collection of nodes that would be not useful to disp
     - This is to support the SAReadSecrets edge, which can be common for secrets managed by external secrets operators, and is extremely noisy to display edges to every single secret in the cluster
 - AllServiceAccounts
     - This is to support the SAImpersonate edge, because it is common for some service accounts to have the ability to impersonate all service accounts in the cluster, and is not always a vulnerable configuration, but is worth noting when it is present.
+
+## Object types not covered at this time
+The following object types are not currently covered by BloodHound-Kube, but may be added in a future release:
+- `Subject` nodes for anything besides a Service Account.
+- `TCPRoute` and `TLSRoute` nodes for Gateway API.
+- `CronJob` nodes for batch/v1.
+- `Job` nodes for batch/v1.
+- `ListenerSets` and `ListenerSetGroups` for Gateway API.

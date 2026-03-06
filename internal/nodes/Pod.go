@@ -72,6 +72,8 @@ type Pod struct {
 	GraphNodeBase
 	NodeName         string
 	ServiceAccount   string
+	AutomountSAToken *bool
+	ShareProcNs      *bool
 	Containers       []Container
 	InitContainers   []Container
 	Volumes          []VolumeDetail
@@ -146,6 +148,10 @@ func BuildPodNode(obj runtime.Object) (BuildResult, bool) {
 		appArmorPod = AppArmorProfileValue(podSec.AppArmorProfile)
 	}
 
+	shareProcessNamespace := false
+	if pod.Spec.ShareProcessNamespace != nil {
+		shareProcessNamespace = *pod.Spec.ShareProcessNamespace
+	}
 	properties := map[string]any{
 		"name":                      name,
 		"namespace":                 namespace,
@@ -163,6 +169,7 @@ func BuildPodNode(obj runtime.Object) (BuildResult, bool) {
 		"hostNetwork":               pod.Spec.HostNetwork,
 		"hostPid":                   pod.Spec.HostPID,
 		"hostIpc":                   pod.Spec.HostIPC,
+		"shareProcessNamespace":     shareProcessNamespace,
 		"runAsUser":                 runAsUser,
 		"runAsGroup":                runAsGroup,
 		"runAsNonRoot":              runAsNonRoot,
@@ -175,6 +182,8 @@ func BuildPodNode(obj runtime.Object) (BuildResult, bool) {
 	}
 
 	hostPID := pod.Spec.HostPID
+	automountSAToken := pod.Spec.AutomountServiceAccountToken
+	shareProcNs := pod.Spec.ShareProcessNamespace
 	core := CoreEntry{
 		Namespace: namespace,
 		Cluster:   false,
@@ -189,6 +198,8 @@ func BuildPodNode(obj runtime.Object) (BuildResult, bool) {
 			},
 			NodeName:         pod.Spec.NodeName,
 			ServiceAccount:   pod.Spec.ServiceAccountName,
+			AutomountSAToken: automountSAToken,
+			ShareProcNs:      shareProcNs,
 			Containers:       privateContainers,
 			InitContainers:   privateInitContainers,
 			Volumes:          privateVolumes,

@@ -209,7 +209,11 @@ func (g *GenericCollector) Collect(ctx context.Context, c *Collector, namespace 
 		if resources == nil {
 			resources = make([]map[string]any, 0, len(list.Items))
 		}
-		resources = append(resources, g.buildDynamicResources(list, namespace, c.IsRedacted())...)
+		redacted := false
+		if c != nil {
+			redacted = c.IsRedacted()
+		}
+		resources = append(resources, g.buildDynamicResources(list, namespace, redacted)...)
 		g.logger.Trace("Processed resources page", "type", g.resourceType, "namespace", namespace, "page", page, "count", len(list.Items), "duration", time.Since(processStart))
 
 		continueToken = list.GetContinue()

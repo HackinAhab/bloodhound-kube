@@ -1,6 +1,7 @@
 package upload
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
 	"encoding/json"
@@ -8,10 +9,12 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"slices"
 	"strings"
 	"time"
 
 	"bloodhound-kube/internal/utils"
+
 	"github.com/SpecterOps/bloodhound-go-sdk/sdk"
 )
 
@@ -110,8 +113,22 @@ func (c *Client) newRequest(ctx context.Context, method, url string, body io.Rea
 }
 
 func validateJSON(data []byte) error {
-	var payload any
-	return json.Unmarshal(data, &payload)
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	seenToken := false
+	for {
+		_, err := decoder.Token()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return err
+		}
+		seenToken = true
+	}
+	if !seenToken {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
 }
 
 func responseError(action string, resp *http.Response) error {
@@ -128,27 +145,41 @@ func responseError(action string, resp *http.Response) error {
 	return fmt.Errorf("%s failed with status %d: %s", action, resp.StatusCode, trimmed)
 }
 
-func (c *Client) ResetDatabase(ctx context.Context) error {
-	c.log.Info("Resetting database")
-	payload := `{"deleteCollectedGraphData": true,"deleteFileIngestHistory": true,"deleteDataQualityHistory": true,"deleteAssetGroupSelectors": []}`
-	req, err := c.newRequest(ctx, http.MethodPost, c.baseURL+"/api/v2/clear-database", strings.NewReader(payload))
+func statusAllowed(status int, allowed []int) bool {
+	return slices.Contains(allowed, status)
+}
+
+func (c *Client) doRequest(ctx context.Context, method, url, action string, body io.Reader, expectedStatus ...int) (*http.Response, error) {
+	req, err := c.newRequest(ctx, method, url, body)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		c.log.Error("Reset database request failed", "error", err)
+		c.log.Error(action+" request failed", "method", method, "url", url, "error", err)
+		return nil, fmt.Errorf("%s failed", action)
+	}
+
+	if !statusAllowed(resp.StatusCode, expectedStatus) {
+		err := responseError(action, resp)
+		c.log.Error(action+" failed", "method", method, "url", url, "status", resp.StatusCode, "error", err)
+		resp.Body.Close()
+		return nil, fmt.Errorf("%s failed", action)
+	}
+
+	return resp, nil
+}
+
+func (c *Client) ResetDatabase(ctx context.Context) error {
+	c.log.Info("Resetting database")
+	payload := `{"deleteCollectedGraphData": true,"deleteFileIngestHistory": true,"deleteDataQualityHistory": true,"deleteAssetGroupSelectors": []}`
+	resp, err := c.doRequest(ctx, http.MethodPost, c.baseURL+"/api/v2/clear-database", "reset database", strings.NewReader(payload), http.StatusNoContent)
+	if err != nil {
 		return errors.New("reset database failed")
 	}
 	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusNoContent {
-		err := responseError("reset database", resp)
-		c.log.Error("Reset database failed", "status", resp.StatusCode, "error", err)
-		return errors.New("reset database failed")
-	}
 
 	c.log.Info("Database reset completed")
 	return nil

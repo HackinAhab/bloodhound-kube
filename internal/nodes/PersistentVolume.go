@@ -41,27 +41,18 @@ func BuildPVNode(obj runtime.Object) (BuildResult, bool) {
 		"annotations": MapToSortedList(annotationsMap),
 	}
 
+	base := NewGraphNodeBase("PersistentVolume", "", name, labelsMap, annotationsMap)
+
 	core := CoreEntry{
 		Cluster: true,
 		Data: PersistentVolume{
-			GraphNodeBase: GraphNodeBase{
-				ID:             BuildID("PersistentVolume", "", name),
-				Kinds:          []string{"PersistentVolume"},
-				Name:           name,
-				Namespace:      "",
-				LabelsMap:      labelsMap,
-				AnnotationsMap: annotationsMap,
-			},
-			ClaimRef: claimRef,
+			GraphNodeBase: base,
+			ClaimRef:      claimRef,
 		},
 	}
 
 	return BuildResult{
-		Node: NodeResult{
-			ID:         BuildID("PersistentVolume", "", name),
-			Kinds:      []string{"PersistentVolume"},
-			Properties: properties,
-		},
+		Node: NewNodeResult(base, properties),
 		Core: []CoreEntry{core},
 	}, true
 }

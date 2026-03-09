@@ -8,7 +8,6 @@ import (
 type Ingress struct {
 	GraphNodeBase
 	BackendServices []string
-	TLS             []any
 }
 
 func BuildIngressNode(obj runtime.Object) (BuildResult, bool) {
@@ -26,8 +25,6 @@ func BuildIngressNode(obj runtime.Object) (BuildResult, bool) {
 	annotationsMap := StringMapToAnyMap(ingress.Annotations)
 
 	backendServices := extractIngressBackendServices(ingress.Spec)
-	tlsEntries := ingressTLSToAnySlice(ingress.Spec.TLS)
-
 	properties := map[string]any{
 		"name":        name,
 		"namespace":   namespace,
@@ -35,29 +32,19 @@ func BuildIngressNode(obj runtime.Object) (BuildResult, bool) {
 		"annotations": MapToSortedList(annotationsMap),
 	}
 
+	base := NewGraphNodeBase("Ingress", namespace, name, labelsMap, annotationsMap)
+
 	core := CoreEntry{
 		Namespace: namespace,
 		Cluster:   false,
 		Data: Ingress{
-			GraphNodeBase: GraphNodeBase{
-				ID:             BuildID("Ingress", namespace, name),
-				Kinds:          []string{"Ingress"},
-				Name:           name,
-				Namespace:      namespace,
-				LabelsMap:      labelsMap,
-				AnnotationsMap: annotationsMap,
-			},
+			GraphNodeBase:   base,
 			BackendServices: backendServices,
-			TLS:             tlsEntries,
 		},
 	}
 
 	return BuildResult{
-		Node: NodeResult{
-			ID:         BuildID("Ingress", namespace, name),
-			Kinds:      []string{"Ingress"},
-			Properties: properties,
-		},
+		Node: NewNodeResult(base, properties),
 		Core: []CoreEntry{core},
 	}, true
 }
@@ -78,19 +65,5 @@ func extractIngressBackendServices(spec networkingv1.IngressSpec) []string {
 			}
 		}
 	}
-	return setToSortedList(services)
-}
-
-func ingressTLSToAnySlice(tls []networkingv1.IngressTLS) []any {
-	if len(tls) == 0 {
-		return []any{}
-	}
-	items := make([]any, 0, len(tls))
-	for _, entry := range tls {
-		items = append(items, map[string]any{
-			"hosts":      entry.Hosts,
-			"secretName": entry.SecretName,
-		})
-	}
-	return items
+	return SortedSetKeys(services)
 }

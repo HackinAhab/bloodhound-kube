@@ -2,7 +2,6 @@ package parser
 
 import (
 	"bytes"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -20,28 +19,20 @@ import (
 )
 
 // Main parsing function - Go-based edge rules
-func ConvertToBloodHoundResult(jsonlData []byte, clusterName string, parseUndefinedNodes bool) (*gopengraph.OpenGraph, error) {
-	return ConvertToBloodHoundResultFromReader(bytes.NewReader(jsonlData), clusterName, parseUndefinedNodes)
+func ConvertToBloodHoundResult(jsonlData []byte, parseUndefinedNodes bool) (*gopengraph.OpenGraph, error) {
+	return ConvertToBloodHoundResultFromReader(bytes.NewReader(jsonlData), parseUndefinedNodes)
 }
 
 // ConvertToBloodHoundResultFromReader parses JSONL data from a reader.
-func ConvertToBloodHoundResultFromReader(reader io.Reader, clusterName string, parseUndefinedNodes bool) (*gopengraph.OpenGraph, error) {
-	_ = clusterName
+func ConvertToBloodHoundResultFromReader(reader io.Reader, parseUndefinedNodes bool) (*gopengraph.OpenGraph, error) {
 	log := utils.DefaultLogger().Component("parser")
 
-	parseStart := time.Now()
-	rawResources, err := parseJSONLToRawResourcesReader(reader)
+	processStart := time.Now()
+	nodes, coreFacts, parsedResources, err := createNodesAndCoreFactsFromReader(reader, parseUndefinedNodes)
 	if err != nil {
 		return nil, err
 	}
-	log.Debug("Parsed JSONL resources", "count", len(rawResources), "duration", time.Since(parseStart))
-
-	buildStart := time.Now()
-	nodes, coreFacts, err := createNodesFromRawResources(rawResources, parseUndefinedNodes)
-	if err != nil {
-		return nil, err
-	}
-	log.Debug("Built nodes and core facts", "nodes", len(nodes), "duration", time.Since(buildStart))
+	log.Debug("Parsed resources and built core facts", "resources", parsedResources, "nodes", len(nodes), "duration", time.Since(processStart))
 
 	edgeStart := time.Now()
 	edges, err := createRelationships(coreFacts)
@@ -85,82 +76,6 @@ func ConvertToBloodHoundResultFromReader(reader io.Reader, clusterName string, p
 	return graph, nil
 }
 
-// parseJSONLToResources converts JSONL bytes to raw resource maps
-func parseJSONLToResources(jsonlData []byte) ([]map[string]any, error) {
-	return parseJSONLToResourcesReader(bytes.NewReader(jsonlData))
-}
-
-func parseJSONLToResourcesReader(reader io.Reader) ([]map[string]any, error) {
-	log := utils.DefaultLogger().Component("parser")
-
-	var extracted []map[string]any
-	err := utils.ReadJSONL(reader, func(line int, raw []byte) error {
-		var resource map[string]any
-		if err := json.Unmarshal(raw, &resource); err != nil {
-			log.Error("Parse JSONL line failed", "line", line, "error", err)
-			return errors.New("parse JSONL failed")
-		}
-		if resource == nil {
-			log.Warn("Missing resource payload; skipping line", "line", line)
-			return nil
-		}
-		extracted = append(extracted, resource)
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	return extracted, nil
-}
-
-func parseJSONLToRawResourcesReader(reader io.Reader) ([]json.RawMessage, error) {
-	log := utils.DefaultLogger().Component("parser")
-
-	var extracted []json.RawMessage
-	err := utils.ReadJSONL(reader, func(line int, raw []byte) error {
-		if !json.Valid(raw) {
-			log.Error("Parse JSONL line failed", "line", line)
-			return errors.New("parse JSONL failed")
-		}
-		copied := make([]byte, len(raw))
-		copy(copied, raw)
-		extracted = append(extracted, json.RawMessage(copied))
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	return extracted, nil
-}
-
-// JSONL parsing utility
-func ParseFromJSONL(jsonlData []byte) ([]map[string]any, error) {
-	return ParseFromJSONLReader(bytes.NewReader(jsonlData))
-}
-
-// ParseFromJSONLReader parses JSONL data from a reader.
-func ParseFromJSONLReader(reader io.Reader) ([]map[string]any, error) {
-	log := utils.DefaultLogger().Component("parser")
-	var resources []map[string]any
-
-	err := utils.ReadJSONL(reader, func(line int, raw []byte) error {
-		var resource map[string]any
-		if err := json.Unmarshal(raw, &resource); err != nil {
-			log.Error("Parse JSONL line failed", "line", line, "error", err)
-			return errors.New("parse JSONL failed")
-		}
-		resources = append(resources, resource)
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	return resources, nil
-}
-
 // createRelationships builds edges from typed core facts
 func createRelationships(coreFacts *model.CoreFacts) ([]model.BloodHoundEdge, error) {
 	if coreFacts == nil {
@@ -170,23 +85,30 @@ func createRelationships(coreFacts *model.CoreFacts) ([]model.BloodHoundEdge, er
 	return edges, nil
 }
 
-func createNodesFromRawResources(resources []json.RawMessage, parseUndefinedNodes bool) ([]model.BloodHoundNode, *model.CoreFacts, error) {
+func createNodesAndCoreFactsFromReader(reader io.Reader, parseUndefinedNodes bool) ([]model.BloodHoundNode, *model.CoreFacts, int, error) {
+	if reader == nil {
+		return nil, nil, 0, errors.New("parse JSONL failed")
+	}
+
 	nodeList := []model.BloodHoundNode{}
 	coreFacts := model.NewCoreFacts()
+	parsedResources := 0
 
-	for i, raw := range resources {
+	err := utils.ReadJSONL(reader, func(line int, raw []byte) error {
 		decoded, err := utils.DecodeJSON(raw)
 		if err != nil {
-			return nil, nil, fmt.Errorf("parse JSONL resource %d: %w", i+1, err)
+			return fmt.Errorf("parse JSONL resource %d: %w", line, err)
 		}
 
 		result, ok, err := buildNodeFromDecoded(decoded, parseUndefinedNodes)
 		if err != nil {
-			return nil, nil, fmt.Errorf("build resource %d: %w", i+1, err)
+			return fmt.Errorf("build resource %d: %w", line, err)
 		}
 		if !ok {
-			continue
+			return nil
 		}
+
+		parsedResources++
 
 		nodeList = append(nodeList, model.BloodHoundNode{
 			ID:         result.Node.ID,
@@ -197,6 +119,11 @@ func createNodesFromRawResources(resources []json.RawMessage, parseUndefinedNode
 		for _, entry := range result.Core {
 			coreFacts.Add(entry)
 		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, nil, 0, err
 	}
 
 	addAggregateNodes(&nodeList, coreFacts)
@@ -209,7 +136,7 @@ func createNodesFromRawResources(resources []json.RawMessage, parseUndefinedNode
 	})
 	coreFacts.Add(nodes.CoreEntry{Cluster: true, Data: nodes.ExternalCoreEntry()})
 
-	return nodeList, coreFacts, nil
+	return nodeList, coreFacts, parsedResources, nil
 }
 
 func addAggregateNodes(nodeList *[]model.BloodHoundNode, coreFacts *model.CoreFacts) {

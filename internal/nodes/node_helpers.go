@@ -31,6 +31,25 @@ func BuildID(kind, namespace, name string) string {
 	return fmt.Sprintf("%s:%s:%s", kind, namespace, name)
 }
 
+func NewGraphNodeBase(kind, namespace, name string, labelsMap, annotationsMap map[string]any) GraphNodeBase {
+	return GraphNodeBase{
+		ID:             BuildID(kind, namespace, name),
+		Kinds:          []string{kind},
+		Name:           name,
+		Namespace:      namespace,
+		LabelsMap:      labelsMap,
+		AnnotationsMap: annotationsMap,
+	}
+}
+
+func NewNodeResult(base GraphNodeBase, properties map[string]any) NodeResult {
+	return NodeResult{
+		ID:         base.ID,
+		Kinds:      base.Kinds,
+		Properties: properties,
+	}
+}
+
 // GetMap returns a map value for key or an empty map.
 // Example: GetMap(map[string]any{"meta": map[string]any{"a": 1}}, "meta") -> map[a:1].
 func GetMap(parent map[string]any, key string) map[string]any {
@@ -118,19 +137,6 @@ func StringMapToAnyMap(input map[string]string) map[string]any {
 	return output
 }
 
-func AnyMapToStringMap(input map[string]any) map[string]string {
-	if len(input) == 0 {
-		return map[string]string{}
-	}
-	output := make(map[string]string)
-	for key, value := range input {
-		if s, ok := value.(string); ok {
-			output[key] = s
-		}
-	}
-	return output
-}
-
 // MapKeysSorted returns sorted keys for a map.
 // Example: MapKeysSorted(map[string]any{"b": 2, "a": 1}) -> []string{"a", "b"}.
 func MapKeysSorted(m map[string]any) []string {
@@ -140,17 +146,6 @@ func MapKeysSorted(m map[string]any) []string {
 	}
 	sort.Strings(keys)
 	return keys
-}
-
-// MapEntriesSorted formats a map into sorted "key=value" entries.
-// Example: MapEntriesSorted(map[string]any{"b": 2, "a": 1}) -> []string{"a=1", "b=2"}.
-func MapEntriesSorted(m map[string]any) []string {
-	keys := MapKeysSorted(m)
-	entries := make([]string, 0, len(keys))
-	for _, k := range keys {
-		entries = append(entries, fmt.Sprintf("%s=%v", k, m[k]))
-	}
-	return entries
 }
 
 // SortedSetKeys returns sorted keys from a set.

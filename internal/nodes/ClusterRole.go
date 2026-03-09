@@ -8,7 +8,6 @@ import (
 type ClusterRole struct {
 	GraphNodeBase
 	PermsDisplay []string
-	RbacRules    []RbacRule
 }
 
 func BuildClusterRoleNode(obj runtime.Object) (BuildResult, bool) {
@@ -34,27 +33,18 @@ func BuildClusterRoleNode(obj runtime.Object) (BuildResult, bool) {
 		"perms":       perms,
 	}
 
+	base := NewGraphNodeBase("ClusterRole", "", name, labelsMap, annotationsMap)
+
 	core := CoreEntry{
 		Cluster: true,
 		Data: ClusterRole{
-			GraphNodeBase: GraphNodeBase{
-				ID:             BuildID("ClusterRole", "", name),
-				Kinds:          []string{"ClusterRole"},
-				Name:           name,
-				Namespace:      "",
-				LabelsMap:      labelsMap,
-				AnnotationsMap: annotationsMap,
-			},
-			PermsDisplay: perms,
+			GraphNodeBase: base,
+			PermsDisplay:  perms,
 		},
 	}
 
 	return BuildResult{
-		Node: NodeResult{
-			ID:         BuildID("ClusterRole", "", name),
-			Kinds:      []string{"ClusterRole"},
-			Properties: properties,
-		},
+		Node: NewNodeResult(base, properties),
 		Core: []CoreEntry{core},
 	}, true
 }

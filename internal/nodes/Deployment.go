@@ -7,9 +7,8 @@ import (
 
 type Deployment struct {
 	GraphNodeBase
-	SelectorLabels    map[string]string
-	PodTemplateLabels map[string]any
-	ServiceAccount    string
+	SelectorLabels map[string]string
+	ServiceAccount string
 }
 
 func BuildDeploymentNode(obj runtime.Object) (BuildResult, bool) {
@@ -28,7 +27,6 @@ func BuildDeploymentNode(obj runtime.Object) (BuildResult, bool) {
 
 	selectorLabels := deploy.Spec.Selector.MatchLabels
 	selectorMap := StringMapToAnyMap(selectorLabels)
-	templateLabels := StringMapToAnyMap(deploy.Spec.Template.Labels)
 	serviceAccount := deploy.Spec.Template.Spec.ServiceAccountName
 
 	replicas := 0
@@ -45,30 +43,20 @@ func BuildDeploymentNode(obj runtime.Object) (BuildResult, bool) {
 		"selector":    MapToSortedList(selectorMap),
 	}
 
+	base := NewGraphNodeBase("Deployment", namespace, name, labelsMap, annotationsMap)
+
 	core := CoreEntry{
 		Namespace: namespace,
 		Cluster:   false,
 		Data: Deployment{
-			GraphNodeBase: GraphNodeBase{
-				ID:             BuildID("Deployment", namespace, name),
-				Kinds:          []string{"Deployment"},
-				Name:           name,
-				Namespace:      namespace,
-				LabelsMap:      labelsMap,
-				AnnotationsMap: annotationsMap,
-			},
-			SelectorLabels:    selectorLabels,
-			PodTemplateLabels: templateLabels,
-			ServiceAccount:    serviceAccount,
+			GraphNodeBase:  base,
+			SelectorLabels: selectorLabels,
+			ServiceAccount: serviceAccount,
 		},
 	}
 
 	return BuildResult{
-		Node: NodeResult{
-			ID:         BuildID("Deployment", namespace, name),
-			Kinds:      []string{"Deployment"},
-			Properties: properties,
-		},
+		Node: NewNodeResult(base, properties),
 		Core: []CoreEntry{core},
 	}, true
 }

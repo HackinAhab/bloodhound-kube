@@ -1,7 +1,6 @@
 package edges
 
 import (
-	"fmt"
 	"maps"
 	"sort"
 	"strings"
@@ -91,15 +90,22 @@ func hostPathMatchesAny(hostPath string, checkPath []string) bool {
 
 // DeduplicateEdges removes duplicate edges based on start→end:kind key
 func DeduplicateEdges(edges []model.BloodHoundEdge) []model.BloodHoundEdge {
-	seen := make(map[string]bool)
+	type edgeKey struct {
+		start string
+		end   string
+		kind  string
+	}
+
+	seen := make(map[edgeKey]struct{})
 	var unique []model.BloodHoundEdge
 
 	for _, edge := range edges {
-		key := fmt.Sprintf("%s→%s:%s", edge.Start.Value, edge.End.Value, edge.Kind)
-		if !seen[key] {
-			seen[key] = true
-			unique = append(unique, edge)
+		key := edgeKey{start: edge.Start.Value, end: edge.End.Value, kind: edge.Kind}
+		if _, ok := seen[key]; ok {
+			continue
 		}
+		seen[key] = struct{}{}
+		unique = append(unique, edge)
 	}
 
 	return unique

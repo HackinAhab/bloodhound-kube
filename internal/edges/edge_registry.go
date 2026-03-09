@@ -29,7 +29,6 @@ func BuildEdges(core *model.CoreFacts) []model.BloodHoundEdge {
 	}
 
 	edges = DeduplicateEdges(edges)
-	SortEdgesByKind(edges)
 	sort.SliceStable(edges, func(i, j int) bool {
 		if edges[i].Kind == edges[j].Kind {
 			if edges[i].Start.Value == edges[j].Start.Value {

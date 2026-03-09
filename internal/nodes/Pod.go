@@ -248,13 +248,9 @@ func extractCapabilitiesFromContainers(containers []corev1.Container) ([]string,
 			dropSet[string(cap)] = struct{}{}
 		}
 	}
-	add := setToSortedList(addSet)
-	drop := setToSortedList(dropSet)
+	add := SortedSetKeys(addSet)
+	drop := SortedSetKeys(dropSet)
 	return add, drop
-}
-
-func setToSortedList(set map[string]struct{}) []string {
-	return SortedSetKeys(set)
 }
 
 func extractContainersDetail(containers []corev1.Container, podSec *corev1.PodSecurityContext) []Container {

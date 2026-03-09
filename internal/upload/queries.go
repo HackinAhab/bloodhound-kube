@@ -57,24 +57,11 @@ func (c *Client) UploadQueriesFromFile(ctx context.Context, queriesFile string) 
 }
 
 func (c *Client) uploadQuery(ctx context.Context, payload []byte) error {
-	req, err := c.newRequest(ctx, http.MethodPost, c.savedQueriesImportURL(), bytes.NewReader(payload))
+	resp, err := c.doRequest(ctx, http.MethodPost, c.savedQueriesImportURL(), "upload query", bytes.NewReader(payload), http.StatusOK, http.StatusCreated)
 	if err != nil {
-		return err
-	}
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		c.log.Error("Upload query request failed", "error", err)
 		return errors.New("upload queries failed")
 	}
 	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-		err := responseError("upload query", resp)
-		c.log.Error("Upload query failed", "status", resp.StatusCode, "error", err)
-		return errors.New("upload queries failed")
-	}
 
 	return nil
 }
@@ -87,24 +74,11 @@ func (c *Client) deleteQuery(ctx context.Context, queryID string) error {
 
 	c.log.Debug("Deleting query", "query_id", queryID)
 	url := c.savedQueriesURL() + "/" + queryID
-	req, err := c.newRequest(ctx, http.MethodDelete, url, nil)
+	resp, err := c.doRequest(ctx, http.MethodDelete, url, "delete query", nil, http.StatusNoContent)
 	if err != nil {
-		return err
-	}
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		c.log.Error("Delete query request failed", "query_id", queryID, "error", err)
 		return errors.New("delete query failed")
 	}
 	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusNoContent {
-		err := responseError(fmt.Sprintf("delete query %q", queryID), resp)
-		c.log.Error("Delete query failed", "query_id", queryID, "status", resp.StatusCode, "error", err)
-		return errors.New("delete query failed")
-	}
 
 	c.log.Debug("Query deleted", "query_id", queryID)
 
@@ -113,24 +87,11 @@ func (c *Client) deleteQuery(ctx context.Context, queryID string) error {
 
 func (c *Client) getQueries(ctx context.Context) ([]map[string]any, error) {
 	c.log.Debug("Fetching saved queries")
-	req, err := c.newRequest(ctx, http.MethodGet, c.savedQueriesURL(), nil)
+	resp, err := c.doRequest(ctx, http.MethodGet, c.savedQueriesURL(), "get queries", nil, http.StatusOK)
 	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		c.log.Error("Get queries request failed", "error", err)
 		return nil, errors.New("get queries failed")
 	}
 	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		err := responseError("get queries", resp)
-		c.log.Error("Get queries failed", "status", resp.StatusCode, "error", err)
-		return nil, errors.New("get queries failed")
-	}
 
 	var payload struct {
 		Data []map[string]any `json:"data"`

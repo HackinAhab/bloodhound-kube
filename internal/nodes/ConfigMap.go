@@ -26,7 +26,7 @@ func BuildConfigMapNode(obj runtime.Object) (BuildResult, bool) {
 
 	data := StringMapToAnyMap(cm.Data)
 	keys := MapKeysSorted(data)
-	entries := MapEntriesSorted(data)
+	entries := MapToSortedList(data)
 
 	properties := map[string]any{
 		"name":          name,
@@ -38,28 +38,19 @@ func BuildConfigMapNode(obj runtime.Object) (BuildResult, bool) {
 		"dataEntries":   entries,
 	}
 
+	base := NewGraphNodeBase("ConfigMap", namespace, name, labelsMap, annotationsMap)
+
 	core := CoreEntry{
 		Namespace: namespace,
 		Cluster:   false,
 		Data: ConfigMap{
-			GraphNodeBase: GraphNodeBase{
-				ID:             BuildID("ConfigMap", namespace, name),
-				Kinds:          []string{"ConfigMap"},
-				Name:           name,
-				Namespace:      namespace,
-				LabelsMap:      labelsMap,
-				AnnotationsMap: annotationsMap,
-			},
-			Data: data,
+			GraphNodeBase: base,
+			Data:          data,
 		},
 	}
 
 	return BuildResult{
-		Node: NodeResult{
-			ID:         BuildID("ConfigMap", namespace, name),
-			Kinds:      []string{"ConfigMap"},
-			Properties: properties,
-		},
+		Node: NewNodeResult(base, properties),
 		Core: []CoreEntry{core},
 	}, true
 }

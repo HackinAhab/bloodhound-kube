@@ -28,22 +28,17 @@ func (r clusterScopeEdgesRule) Apply(ctx *EdgeContext) []model.BloodHoundEdge {
 }
 
 func pvcMountedByPod(ctx *EdgeContext, namespace string, space *model.Namespace) []model.BloodHoundEdge {
-	if ctx == nil || space == nil {
+	if ctx == nil || ctx.Core == nil || namespace == "" || space == nil {
 		return nil
 	}
 	var edges []model.BloodHoundEdge
-	for _, space := range ctx.Core.Namespaces {
-		if space == nil {
-			continue
-		}
-		for i := range space.PersistentVolumeClaims {
-			pvc := &space.PersistentVolumeClaims[i]
-			for j := range space.Pods {
-				pod := &space.Pods[j]
-				for _, volume := range pod.Volumes {
-					if volume.PVCName == pvc.Name {
-						edges = append(edges, CreateEdge(pvc, pod, "MountedBy"))
-					}
+	for i := range space.PersistentVolumeClaims {
+		pvc := &space.PersistentVolumeClaims[i]
+		for j := range space.Pods {
+			pod := &space.Pods[j]
+			for _, volume := range pod.Volumes {
+				if volume.PVCName == pvc.Name {
+					edges = append(edges, CreateEdge(pvc, pod, "MountedBy"))
 				}
 			}
 		}

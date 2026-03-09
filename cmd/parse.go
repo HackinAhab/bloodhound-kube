@@ -38,7 +38,7 @@ func runParseFromFile(inputPath, outputPath, clusterName string, log utils.Logge
 	log.Debug("Using cluster name", "cluster", clusterName)
 
 	log.Info("Parsing JSONL data")
-	graph, err := parser.ConvertToBloodHoundResultFromReader(file, clusterName, parseUndefinedNodes)
+	graph, err := parser.ConvertToBloodHoundResultFromReader(file, parseUndefinedNodes)
 	if err != nil {
 		return err
 	}

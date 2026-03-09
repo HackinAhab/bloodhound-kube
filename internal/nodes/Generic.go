@@ -2,10 +2,6 @@ package nodes
 
 import "strings"
 
-func init() {
-	Register("", BuildGenericNode)
-}
-
 type GenericNode struct {
 	GraphNodeBase
 }

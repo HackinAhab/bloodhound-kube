@@ -22,24 +22,11 @@ func (c *Client) uploadJobCompleteURL(jobID string) string {
 }
 
 func (c *Client) createUploadJob(ctx context.Context) (string, error) {
-	req, err := c.newRequest(ctx, http.MethodPost, c.uploadJobCreateURL(), nil)
+	resp, err := c.doRequest(ctx, http.MethodPost, c.uploadJobCreateURL(), "upload collections", nil, http.StatusCreated, http.StatusOK)
 	if err != nil {
-		return "", err
-	}
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		c.log.Error("Failed to create upload job", "error", err)
 		return "", errors.New("upload collections failed")
 	}
-
-	if resp.StatusCode != http.StatusCreated && resp.StatusCode != http.StatusOK {
-		err := responseError("upload collections", resp)
-		c.log.Error("Upload job creation failed", "status", resp.StatusCode, "error", err)
-		resp.Body.Close()
-		return "", errors.New("upload collections failed")
-	}
+	defer resp.Body.Close()
 
 	var payload struct {
 		Data struct {
@@ -50,10 +37,8 @@ func (c *Client) createUploadJob(ctx context.Context) (string, error) {
 	decoder.UseNumber()
 	if err := decoder.Decode(&payload); err != nil {
 		c.log.Error("Decode upload job response failed", "error", err)
-		resp.Body.Close()
 		return "", errors.New("upload collections failed")
 	}
-	resp.Body.Close()
 	jobID := payload.Data.ID.String()
 	if jobID == "" {
 		c.log.Error("Upload job response missing id")
@@ -64,22 +49,8 @@ func (c *Client) createUploadJob(ctx context.Context) (string, error) {
 }
 
 func (c *Client) uploadFileToJob(ctx context.Context, jobID string, data []byte) error {
-	req, err := c.newRequest(ctx, http.MethodPost, c.uploadFiletoJobURL(jobID), bytes.NewReader(data))
+	resp, err := c.doRequest(ctx, http.MethodPost, c.uploadFiletoJobURL(jobID), "upload collections", bytes.NewReader(data), http.StatusOK, http.StatusCreated, http.StatusAccepted, http.StatusNoContent)
 	if err != nil {
-		return err
-	}
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		c.log.Error("Upload collections request failed", "job_id", jobID, "error", err)
-		return errors.New("upload collections failed")
-	}
-
-	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
-		err := responseError("upload collections", resp)
-		c.log.Error("Upload collections failed", "job_id", jobID, "status", resp.StatusCode, "error", err)
-		resp.Body.Close()
 		return errors.New("upload collections failed")
 	}
 	resp.Body.Close()
@@ -88,24 +59,11 @@ func (c *Client) uploadFileToJob(ctx context.Context, jobID string, data []byte)
 }
 
 func (c *Client) completeUploadJob(ctx context.Context, jobID string) error {
-	req, err := c.newRequest(ctx, http.MethodPost, c.uploadJobCompleteURL(jobID), nil)
+	resp, err := c.doRequest(ctx, http.MethodPost, c.uploadJobCompleteURL(jobID), "upload collections", nil, http.StatusOK, http.StatusNoContent)
 	if err != nil {
-		return err
-	}
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		c.log.Error("Complete upload job request failed", "job_id", jobID, "error", err)
 		return errors.New("upload collections failed")
 	}
 	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent {
-		err := responseError("upload collections", resp)
-		c.log.Error("Complete upload job failed", "job_id", jobID, "status", resp.StatusCode, "error", err)
-		return errors.New("upload collections failed")
-	}
 
 	return nil
 }

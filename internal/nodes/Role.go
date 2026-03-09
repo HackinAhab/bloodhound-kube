@@ -8,7 +8,6 @@ import (
 type Role struct {
 	GraphNodeBase
 	PermsDisplay []string
-	RbacRules    []RbacRule
 }
 
 func BuildRoleNode(obj runtime.Object) (BuildResult, bool) {
@@ -35,28 +34,19 @@ func BuildRoleNode(obj runtime.Object) (BuildResult, bool) {
 		"perms":       perms,
 	}
 
+	base := NewGraphNodeBase("Role", namespace, name, labelsMap, annotationsMap)
+
 	core := CoreEntry{
 		Namespace: namespace,
 		Cluster:   false,
 		Data: Role{
-			GraphNodeBase: GraphNodeBase{
-				ID:             BuildID("Role", namespace, name),
-				Kinds:          []string{"Role"},
-				Name:           name,
-				Namespace:      namespace,
-				LabelsMap:      labelsMap,
-				AnnotationsMap: annotationsMap,
-			},
-			PermsDisplay: perms,
+			GraphNodeBase: base,
+			PermsDisplay:  perms,
 		},
 	}
 
 	return BuildResult{
-		Node: NodeResult{
-			ID:         BuildID("Role", namespace, name),
-			Kinds:      []string{"Role"},
-			Properties: properties,
-		},
+		Node: NewNodeResult(base, properties),
 		Core: []CoreEntry{core},
 	}, true
 }

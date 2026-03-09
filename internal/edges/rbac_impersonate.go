@@ -127,6 +127,7 @@ func saImpersonateCluster(ctx *EdgeContext) []model.BloodHoundEdge {
 			continue
 		}
 		for _, subject := range binding.Subjects {
+			// TODO: Add support for non-SA subjects such as Users and Groups.
 			if subject.Kind != "ServiceAccount" || subject.Namespace == "" {
 				continue
 			}

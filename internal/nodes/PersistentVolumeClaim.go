@@ -30,27 +30,18 @@ func BuildPVCNode(obj runtime.Object) (BuildResult, bool) {
 		"annotations": MapToSortedList(annotationsMap),
 	}
 
+	base := NewGraphNodeBase("PersistentVolumeClaim", namespace, name, labelsMap, annotationsMap)
+
 	core := CoreEntry{
 		Namespace: namespace,
 		Cluster:   false,
 		Data: PersistentVolumeClaim{
-			GraphNodeBase: GraphNodeBase{
-				ID:             BuildID("PersistentVolumeClaim", namespace, name),
-				Kinds:          []string{"PersistentVolumeClaim"},
-				Name:           name,
-				Namespace:      namespace,
-				LabelsMap:      labelsMap,
-				AnnotationsMap: annotationsMap,
-			},
+			GraphNodeBase: base,
 		},
 	}
 
 	return BuildResult{
-		Node: NodeResult{
-			ID:         BuildID("PersistentVolumeClaim", namespace, name),
-			Kinds:      []string{"PersistentVolumeClaim"},
-			Properties: properties,
-		},
+		Node: NewNodeResult(base, properties),
 		Core: []CoreEntry{core},
 	}, true
 }

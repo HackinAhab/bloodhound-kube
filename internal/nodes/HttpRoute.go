@@ -9,8 +9,7 @@ import (
 
 type HTTPRoute struct {
 	GraphNodeBase
-	BackendRefKeys []string
-	BackendRefs    []HTTPRouteBackendRef
+	BackendRefs []HTTPRouteBackendRef
 }
 
 type HTTPRouteBackendRef struct {
@@ -56,29 +55,19 @@ func buildHTTPRouteFromV1(route *gatewayv1.HTTPRoute) (BuildResult, bool) {
 		"backendRefKeys": backendRefKeys,
 	}
 
+	base := NewGraphNodeBase("HTTPRoute", namespace, name, labelsMap, annotationsMap)
+
 	core := CoreEntry{
 		Namespace: namespace,
 		Cluster:   false,
 		Data: HTTPRoute{
-			GraphNodeBase: GraphNodeBase{
-				ID:             BuildID("HTTPRoute", namespace, name),
-				Kinds:          []string{"HTTPRoute"},
-				Name:           name,
-				Namespace:      namespace,
-				LabelsMap:      labelsMap,
-				AnnotationsMap: annotationsMap,
-			},
-			BackendRefKeys: backendRefKeys,
-			BackendRefs:    backendRefs,
+			GraphNodeBase: base,
+			BackendRefs:   backendRefs,
 		},
 	}
 
 	return BuildResult{
-		Node: NodeResult{
-			ID:         BuildID("HTTPRoute", namespace, name),
-			Kinds:      []string{"HTTPRoute"},
-			Properties: properties,
-		},
+		Node: NewNodeResult(base, properties),
 		Core: []CoreEntry{core},
 	}, true
 }

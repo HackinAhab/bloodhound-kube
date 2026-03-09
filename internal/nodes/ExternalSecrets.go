@@ -12,11 +12,9 @@ type ClusterSecretStore struct {
 
 type ExternalSecret struct {
 	GraphNodeBase
-	StoreName     string
-	StoreKind     string
-	TargetName    string
-	DataKeys      []string
-	DataFromTypes []string
+	StoreName  string
+	StoreKind  string
+	TargetName string
 }
 
 func init() {
@@ -46,28 +44,19 @@ func BuildSecretStoreNode(resource map[string]any) (BuildResult, bool) {
 		"providerType": providerType,
 	}
 
+	base := NewGraphNodeBase("SecretStore", namespace, name, labelsMap, annotationsMap)
+
 	core := CoreEntry{
 		Namespace: namespace,
 		Cluster:   false,
 		Data: SecretStore{
-			GraphNodeBase: GraphNodeBase{
-				ID:             BuildID("SecretStore", namespace, name),
-				Kinds:          []string{"SecretStore"},
-				Name:           name,
-				Namespace:      namespace,
-				LabelsMap:      labelsMap,
-				AnnotationsMap: annotationsMap,
-			},
-			ProviderType: providerType,
+			GraphNodeBase: base,
+			ProviderType:  providerType,
 		},
 	}
 
 	return BuildResult{
-		Node: NodeResult{
-			ID:         BuildID("SecretStore", namespace, name),
-			Kinds:      []string{"SecretStore"},
-			Properties: properties,
-		},
+		Node: NewNodeResult(base, properties),
 		Core: []CoreEntry{core},
 	}, true
 }
@@ -92,27 +81,18 @@ func BuildClusterSecretStoreNode(resource map[string]any) (BuildResult, bool) {
 		"providerType": providerType,
 	}
 
+	base := NewGraphNodeBase("ClusterSecretStore", "", name, labelsMap, annotationsMap)
+
 	core := CoreEntry{
 		Cluster: true,
 		Data: ClusterSecretStore{
-			GraphNodeBase: GraphNodeBase{
-				ID:             BuildID("ClusterSecretStore", "", name),
-				Kinds:          []string{"ClusterSecretStore"},
-				Name:           name,
-				Namespace:      "",
-				LabelsMap:      labelsMap,
-				AnnotationsMap: annotationsMap,
-			},
-			ProviderType: providerType,
+			GraphNodeBase: base,
+			ProviderType:  providerType,
 		},
 	}
 
 	return BuildResult{
-		Node: NodeResult{
-			ID:         BuildID("ClusterSecretStore", "", name),
-			Kinds:      []string{"ClusterSecretStore"},
-			Properties: properties,
-		},
+		Node: NewNodeResult(base, properties),
 		Core: []CoreEntry{core},
 	}, true
 }
@@ -150,32 +130,21 @@ func BuildExternalSecretNode(resource map[string]any) (BuildResult, bool) {
 		"dataFromTypes":   dataFromTypes,
 	}
 
+	base := NewGraphNodeBase("ExternalSecret", namespace, name, labelsMap, annotationsMap)
+
 	core := CoreEntry{
 		Namespace: namespace,
 		Cluster:   false,
 		Data: ExternalSecret{
-			GraphNodeBase: GraphNodeBase{
-				ID:             BuildID("ExternalSecret", namespace, name),
-				Kinds:          []string{"ExternalSecret"},
-				Name:           name,
-				Namespace:      namespace,
-				LabelsMap:      labelsMap,
-				AnnotationsMap: annotationsMap,
-			},
+			GraphNodeBase: base,
 			StoreName:     storeName,
 			StoreKind:     storeKind,
 			TargetName:    GetString(target, "name"),
-			DataKeys:      dataKeys,
-			DataFromTypes: dataFromTypes,
 		},
 	}
 
 	return BuildResult{
-		Node: NodeResult{
-			ID:         BuildID("ExternalSecret", namespace, name),
-			Kinds:      []string{"ExternalSecret"},
-			Properties: properties,
-		},
+		Node: NewNodeResult(base, properties),
 		Core: []CoreEntry{core},
 	}, true
 }

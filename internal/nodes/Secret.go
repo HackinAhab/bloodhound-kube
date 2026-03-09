@@ -37,7 +37,7 @@ func BuildSecretNode(obj runtime.Object) (BuildResult, bool) {
 
 	data := secretDataToAnyMap(secret)
 	keys := MapKeysSorted(data)
-	entries := MapEntriesSorted(data)
+	entries := MapToSortedList(data)
 
 	secretType := string(secret.Type)
 
@@ -80,18 +80,13 @@ func BuildSecretNode(obj runtime.Object) (BuildResult, bool) {
 		}
 	}
 
+	base := NewGraphNodeBase("Secret", namespace, name, labelsMap, annotationsMap)
+
 	core := CoreEntry{
 		Namespace: namespace,
 		Cluster:   false,
 		Data: Secret{
-			GraphNodeBase: GraphNodeBase{
-				ID:             BuildID("Secret", namespace, name),
-				Kinds:          []string{"Secret"},
-				Name:           name,
-				Namespace:      namespace,
-				LabelsMap:      labelsMap,
-				AnnotationsMap: annotationsMap,
-			},
+			GraphNodeBase:      base,
 			SecretType:         secretType,
 			Data:               data,
 			ServiceAccountName: saName,
@@ -99,11 +94,7 @@ func BuildSecretNode(obj runtime.Object) (BuildResult, bool) {
 	}
 
 	return BuildResult{
-		Node: NodeResult{
-			ID:         BuildID("Secret", namespace, name),
-			Kinds:      []string{"Secret"},
-			Properties: properties,
-		},
+		Node: NewNodeResult(base, properties),
 		Core: []CoreEntry{core},
 	}, true
 }

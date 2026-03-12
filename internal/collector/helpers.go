@@ -262,17 +262,13 @@ func enrichSecretObject(obj map[string]any, redacted bool) {
 
 	redactedKeys := make([]string, 0)
 	for key := range dataRaw {
-		if isSensitiveKey(key) {
-			delete(dataRaw, key)
-			redactedKeys = append(redactedKeys, key)
-		}
+		dataRaw[key] = ""
+		redactedKeys = append(redactedKeys, key)
 	}
+	slices.Sort(redactedKeys)
 
 	if len(redactedKeys) > 0 {
 		obj["redacted_keys"] = redactedKeys
-	}
-	if len(dataRaw) == 0 {
-		delete(obj, "data")
 	}
 }
 

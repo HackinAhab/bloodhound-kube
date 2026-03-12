@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/pem"
 	"time"
+	"unicode/utf8"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -35,11 +36,12 @@ func BuildSecretNode(obj runtime.Object) (BuildResult, bool) {
 		saName = value
 	}
 
-	data := secretDataToAnyMap(secret)
+	secretType := string(secret.Type)
+	decodeOpaqueValues := secretType == "Opaque" || secretType == ""
+
+	data := secretDataToAnyMap(secret, decodeOpaqueValues)
 	keys := MapKeysSorted(data)
 	entries := MapToSortedList(data)
-
-	secretType := string(secret.Type)
 
 	if secretType == "helm.sh/release.v1" {
 		for i, entry := range entries {
@@ -99,12 +101,16 @@ func BuildSecretNode(obj runtime.Object) (BuildResult, bool) {
 	}, true
 }
 
-func secretDataToAnyMap(secret *corev1.Secret) map[string]any {
+func secretDataToAnyMap(secret *corev1.Secret, decodeOpaqueValues bool) map[string]any {
 	if secret == nil {
 		return map[string]any{}
 	}
 	data := make(map[string]any)
 	for key, value := range secret.Data {
+		if decodeOpaqueValues {
+			data[key] = secretValueForDisplay(value)
+			continue
+		}
 		data[key] = base64.StdEncoding.EncodeToString(value)
 	}
 	for key, value := range secret.StringData {
@@ -113,6 +119,16 @@ func secretDataToAnyMap(secret *corev1.Secret) map[string]any {
 		}
 	}
 	return data
+}
+
+func secretValueForDisplay(value []byte) string {
+	if len(value) == 0 {
+		return ""
+	}
+	if utf8.Valid(value) {
+		return string(value)
+	}
+	return base64.StdEncoding.EncodeToString(value)
 }
 
 func parseTLSCertificate(data map[string]any) (map[string]any, bool) {

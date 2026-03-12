@@ -43,7 +43,7 @@ var (
 // allResourceTypes will be populated after cluster detection
 var allResourceTypes []string
 
-const defaultCRDPromptThreshold = 50
+const defaultCRDPromptThreshold = 1
 
 func generateDefaultOutput() string {
 	timestamp := time.Now().Format("2006-01-02-150405")
@@ -437,7 +437,7 @@ func addCollectFlags(cmd *cobra.Command) {
 	cmd.Flags().StringVarP(&clusterType, "cluster-type", "T", "auto", "Cluster type: kubernetes, openshift, or auto (auto-detect)")
 	cmd.Flags().BoolVar(&resume, "resume", false, "Resume from previous interrupted collection")
 	cmd.Flags().StringVar(&checkpointFile, "checkpoint-file", "", "Path to checkpoint file (auto-generated if not specified)")
-	cmd.Flags().BoolVar(&redacted, "redacted", false, "Redact secrets and sensitive data during collection")
+	cmd.Flags().BoolVar(&redacted, "redacted", false, "Omit secret values during collection")
 	cmd.Flags().BoolVar(&discoveryList, "discovery-list", false, "List discovered API resources and exit")
 	cmd.Flags().BoolVar(&discoveryAuto, "discovery-auto", false, "Collect all discovered resources when resources are not specified")
 	cmd.Flags().BoolVar(&discoveryAccept, "discovery-auto-accept", false, "Automatically accept CRD discovery without prompting")

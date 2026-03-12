@@ -18,7 +18,7 @@
         {
             "name": "All Paths from Pods running as root",
             "description": "Retrieves all paths starting from nodes labeled 'Pod' that have the property 'runAsRoot' set to true.",
-            "query": "MATCH p=(s:Pod)-[]->()\nWHERE s.runAsRoot = TRUE\nRETURN p"
+            "query": "MATCH p=(s:Pod)-[]->()\nWHERE s.runAsNonRoot = FALSE AND s.runAsUser = 0\nRETURN p"
         },
         {
             "name": "All Paths to Nodes with External IPs",

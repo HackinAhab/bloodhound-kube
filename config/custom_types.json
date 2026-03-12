@@ -105,6 +105,13 @@
         "color": "#CF4E4E"
       }
     },
+    "Ingress": {
+      "icon": {
+        "type": "font-awesome",
+        "name": "route",
+        "color": "#CF4E4E"
+      }
+    },
     "Secret": {
       "icon": {
         "type": "font-awesome",

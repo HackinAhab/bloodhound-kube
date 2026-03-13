@@ -1,10 +1,10 @@
 package parser
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"io"
+	"strings"
 	"time"
 
 	"bloodhound-kube/internal/edges"
@@ -18,13 +18,9 @@ import (
 	"github.com/TheManticoreProject/gopengraph/properties"
 )
 
-// Main parsing function - Go-based edge rules
-func ConvertToBloodHoundResult(jsonlData []byte, parseUndefinedNodes bool) (*gopengraph.OpenGraph, error) {
-	return ConvertToBloodHoundResultFromReader(bytes.NewReader(jsonlData), parseUndefinedNodes)
-}
+const defaultClusterName = "default-cluster"
 
-// ConvertToBloodHoundResultFromReader parses JSONL data from a reader.
-func ConvertToBloodHoundResultFromReader(reader io.Reader, parseUndefinedNodes bool) (*gopengraph.OpenGraph, error) {
+func ConvertToBloodHoundResultFromReader(reader io.Reader, clusterName string, parseUndefinedNodes bool) (*gopengraph.OpenGraph, error) {
 	log := utils.DefaultLogger().Component("parser")
 
 	processStart := time.Now()
@@ -40,6 +36,8 @@ func ConvertToBloodHoundResultFromReader(reader io.Reader, parseUndefinedNodes b
 		return nil, err
 	}
 	log.Debug("Created edges", "edges", len(edges), "duration", time.Since(edgeStart))
+
+	applyClusterToGraph(nodes, edges, clusterName)
 
 	for i := range nodes {
 		nodes[i].Properties = SanitizeProperties(nodes[i].Properties)
@@ -74,6 +72,46 @@ func ConvertToBloodHoundResultFromReader(reader io.Reader, parseUndefinedNodes b
 	}
 
 	return graph, nil
+}
+
+func applyClusterToGraph(nodes []model.BloodHoundNode, edges []model.BloodHoundEdge, clusterName string) {
+	normalizedCluster := normalizeClusterName(clusterName)
+	idMap := make(map[string]string, len(nodes))
+
+	for i := range nodes {
+		originalID := nodes[i].ID
+		nodes[i].ID = clusterScopedID(normalizedCluster, originalID)
+		idMap[originalID] = nodes[i].ID
+		if nodes[i].Properties == nil {
+			nodes[i].Properties = map[string]any{}
+		}
+		nodes[i].Properties["cluster"] = normalizedCluster
+	}
+
+	for i := range edges {
+		if startID, ok := idMap[edges[i].Start.Value]; ok {
+			edges[i].Start.Value = startID
+		} else {
+			edges[i].Start.Value = clusterScopedID(normalizedCluster, edges[i].Start.Value)
+		}
+		if endID, ok := idMap[edges[i].End.Value]; ok {
+			edges[i].End.Value = endID
+		} else {
+			edges[i].End.Value = clusterScopedID(normalizedCluster, edges[i].End.Value)
+		}
+	}
+}
+
+func normalizeClusterName(clusterName string) string {
+	trimmed := strings.TrimSpace(clusterName)
+	if trimmed == "" {
+		return defaultClusterName
+	}
+	return trimmed
+}
+
+func clusterScopedID(clusterName, id string) string {
+	return clusterName + ":" + id
 }
 
 // createRelationships builds edges from typed core facts

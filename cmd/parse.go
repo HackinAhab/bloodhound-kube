@@ -38,7 +38,7 @@ func runParseFromFile(inputPath, outputPath, clusterName string, log utils.Logge
 	log.Debug("Using cluster name", "cluster", clusterName)
 
 	log.Info("Parsing JSONL data")
-	graph, err := parser.ConvertToBloodHoundResultFromReader(file, parseUndefinedNodes)
+	graph, err := parser.ConvertToBloodHoundResultFromReader(file, clusterName, parseUndefinedNodes)
 	if err != nil {
 		return err
 	}
@@ -116,7 +116,7 @@ Examples:
 func init() {
 	parseCmd.Flags().StringVarP(&inputFile, "input", "i", "", "Input JSONL file from collect command")
 	parseCmd.Flags().StringVarP(&outputFile, "output", "o", "", "Output JSON file (prints to stdout if not specified)")
-	parseCmd.Flags().StringP("cluster", "c", "unknown", "Kubernetes cluster name for metadata")
+	parseCmd.Flags().StringP("cluster", "c", "default-cluster", "Kubernetes cluster name for metadata")
 	parseCmd.Flags().StringVarP(&parseLogLevel, "log", "l", "info", "Log level (trace, debug, info, warn, error)")
 	parseCmd.Flags().BoolVar(&parseUndefinedNodes, "parse-undefined-nodes", false, "Enable generic node creation policy")
 

@@ -9,7 +9,7 @@ import (
 
 type Ingress struct {
 	GraphNodeBase
-	BackendServices []string
+	BackendRefs []HTTPRouteBackendRef
 }
 
 func BuildIngressNode(obj runtime.Object) (BuildResult, bool) {
@@ -26,14 +26,15 @@ func BuildIngressNode(obj runtime.Object) (BuildResult, bool) {
 	labelsMap := StringMapToAnyMap(ingress.Labels)
 	annotationsMap := StringMapToAnyMap(ingress.Annotations)
 
-	backendServices := extractIngressBackendServices(ingress.Spec)
+	backendRefs, backendRefKeys := extractIngressBackendRefs(ingress.Spec, namespace)
 	ingressURLs := extractIngressURLs(ingress.Spec)
 	properties := map[string]any{
-		"name":        name,
-		"namespace":   namespace,
-		"labels":      MapToSortedList(labelsMap),
-		"annotations": MapToSortedList(annotationsMap),
-		"urls":        ingressURLs,
+		"name":           name,
+		"namespace":      namespace,
+		"labels":         MapToSortedList(labelsMap),
+		"annotations":    MapToSortedList(annotationsMap),
+		"urls":           ingressURLs,
+		"backendRefKeys": backendRefKeys,
 	}
 
 	base := NewGraphNodeBase("Ingress", namespace, name, labelsMap, annotationsMap)
@@ -42,8 +43,8 @@ func BuildIngressNode(obj runtime.Object) (BuildResult, bool) {
 		Namespace: namespace,
 		Cluster:   false,
 		Data: Ingress{
-			GraphNodeBase:   base,
-			BackendServices: backendServices,
+			GraphNodeBase: base,
+			BackendRefs:   backendRefs,
 		},
 	}
 
@@ -53,8 +54,19 @@ func BuildIngressNode(obj runtime.Object) (BuildResult, bool) {
 	}, true
 }
 
-func extractIngressBackendServices(spec networkingv1.IngressSpec) []string {
-	services := map[string]struct{}{}
+func extractIngressBackendRefs(spec networkingv1.IngressSpec, defaultNamespace string) ([]HTTPRouteBackendRef, []string) {
+	keys := map[string]struct{}{}
+	refs := map[string]HTTPRouteBackendRef{}
+
+	if spec.DefaultBackend != nil && spec.DefaultBackend.Service != nil {
+		name := spec.DefaultBackend.Service.Name
+		if name != "" {
+			key := defaultNamespace + "/" + name
+			keys[key] = struct{}{}
+			refs[key] = HTTPRouteBackendRef{Namespace: defaultNamespace, Name: name}
+		}
+	}
+
 	for _, rule := range spec.Rules {
 		if rule.HTTP == nil {
 			continue
@@ -65,11 +77,14 @@ func extractIngressBackendServices(spec networkingv1.IngressSpec) []string {
 			}
 			name := path.Backend.Service.Name
 			if name != "" {
-				services[name] = struct{}{}
+				key := defaultNamespace + "/" + name
+				keys[key] = struct{}{}
+				refs[key] = HTTPRouteBackendRef{Namespace: defaultNamespace, Name: name}
 			}
 		}
 	}
-	return SortedSetKeys(services)
+
+	return backendRefsFromMap(refs, keys)
 }
 
 func extractIngressURLs(spec networkingv1.IngressSpec) []string {

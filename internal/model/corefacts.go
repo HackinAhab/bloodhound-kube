@@ -80,6 +80,10 @@ func (c *CoreFacts) Add(entry nodes.CoreEntry) {
 		space.Ingresses = append(space.Ingresses, v)
 	case nodes.HTTPRoute:
 		space.HTTPRoutes = append(space.HTTPRoutes, v)
+	case nodes.TCPRoute:
+		space.TCPRoutes = append(space.TCPRoutes, v)
+	case nodes.TLSRoute:
+		space.TLSRoutes = append(space.TLSRoutes, v)
 	case nodes.PersistentVolumeClaim:
 		space.PersistentVolumeClaims = append(space.PersistentVolumeClaims, v)
 	case nodes.Role:

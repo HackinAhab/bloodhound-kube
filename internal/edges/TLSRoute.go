@@ -2,17 +2,17 @@ package edges
 
 import "bloodhound-kube/internal/model"
 
-type ingressEdgesRule struct{}
+type tlsRouteEdgesRule struct{}
 
-func (r ingressEdgesRule) Name() string {
-	return "ingress"
+func (r tlsRouteEdgesRule) Name() string {
+	return "tlsroutes"
 }
 
 func init() {
-	RegisterEdgeRule(ingressEdgesRule{})
+	RegisterEdgeRule(tlsRouteEdgesRule{})
 }
 
-func (r ingressEdgesRule) Apply(ctx *EdgeContext) []model.BloodHoundEdge {
+func (r tlsRouteEdgesRule) Apply(ctx *EdgeContext) []model.BloodHoundEdge {
 	if ctx == nil || ctx.Core == nil {
 		return nil
 	}
@@ -21,9 +21,9 @@ func (r ingressEdgesRule) Apply(ctx *EdgeContext) []model.BloodHoundEdge {
 		if space == nil {
 			continue
 		}
-		for i := range space.Ingresses {
-			ingress := &space.Ingresses[i]
-			for _, backend := range ingress.BackendRefs {
+		for i := range space.TLSRoutes {
+			route := &space.TLSRoutes[i]
+			for _, backend := range route.BackendRefs {
 				backendNS := backend.Namespace
 				backendName := backend.Name
 				if backendName == "" {
@@ -34,12 +34,12 @@ func (r ingressEdgesRule) Apply(ctx *EdgeContext) []model.BloodHoundEdge {
 				}
 				if serviceIndex := ctx.Index.ServicesByNamespace[backendNS]; serviceIndex != nil {
 					if svc := serviceIndex[backendName]; svc != nil {
-						edges = append(edges, CreateEdge(ingress, svc, "RoutesTo"))
+						edges = append(edges, CreateEdge(route, svc, "RoutesTo"))
 					}
 				}
 			}
 			if ctx.Index.External != nil {
-				edges = append(edges, CreateEdge(ctx.Index.External, ingress, "ExternalRoutesTo"))
+				edges = append(edges, CreateEdge(ctx.Index.External, route, "ExternalRoutesTo"))
 			}
 		}
 	}

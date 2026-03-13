@@ -28,6 +28,8 @@ type EdgeIndex struct {
 	NetworkPoliciesByNamespace map[string]map[string]*nodes.NetworkPolicy
 	IngressesByNamespace       map[string]map[string]*nodes.Ingress
 	HTTPRoutesByNamespace      map[string]map[string]*nodes.HTTPRoute
+	TCPRoutesByNamespace       map[string]map[string]*nodes.TCPRoute
+	TLSRoutesByNamespace       map[string]map[string]*nodes.TLSRoute
 	PersistentVolumeClaimsByNS map[string]map[string]*nodes.PersistentVolumeClaim
 	RolesByNamespace           map[string]map[string]*nodes.Role
 	RoleBindingsByNamespace    map[string]map[string]*nodes.RoleBinding
@@ -58,6 +60,8 @@ func buildEdgeIndex(core *model.CoreFacts) EdgeIndex {
 		NetworkPoliciesByNamespace:   map[string]map[string]*nodes.NetworkPolicy{},
 		IngressesByNamespace:         map[string]map[string]*nodes.Ingress{},
 		HTTPRoutesByNamespace:        map[string]map[string]*nodes.HTTPRoute{},
+		TCPRoutesByNamespace:         map[string]map[string]*nodes.TCPRoute{},
+		TLSRoutesByNamespace:         map[string]map[string]*nodes.TLSRoute{},
 		PersistentVolumeClaimsByNS:   map[string]map[string]*nodes.PersistentVolumeClaim{},
 		RolesByNamespace:             map[string]map[string]*nodes.Role{},
 		RoleBindingsByNamespace:      map[string]map[string]*nodes.RoleBinding{},
@@ -174,6 +178,20 @@ func buildEdgeIndex(core *model.CoreFacts) EdgeIndex {
 			route := &space.HTTPRoutes[i]
 			if route.Name != "" {
 				index.HTTPRoutesByNamespace[ns][route.Name] = route
+			}
+		}
+		index.TCPRoutesByNamespace[ns] = map[string]*nodes.TCPRoute{}
+		for i := range space.TCPRoutes {
+			route := &space.TCPRoutes[i]
+			if route.Name != "" {
+				index.TCPRoutesByNamespace[ns][route.Name] = route
+			}
+		}
+		index.TLSRoutesByNamespace[ns] = map[string]*nodes.TLSRoute{}
+		for i := range space.TLSRoutes {
+			route := &space.TLSRoutes[i]
+			if route.Name != "" {
+				index.TLSRoutesByNamespace[ns][route.Name] = route
 			}
 		}
 		index.PersistentVolumeClaimsByNS[ns] = map[string]*nodes.PersistentVolumeClaim{}

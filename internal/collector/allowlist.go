@@ -30,6 +30,8 @@ var defaultAllowlist = []string{
 	"networking.k8s.io/v1/ingresses",
 	"networking.k8s.io/v1/networkpolicies",
 	"gateway.networking.k8s.io/v1",
+	"gateway.networking.k8s.io/v1alpha2/tcproutes",
+	"gateway.networking.k8s.io/v1alpha2/tlsroutes",
 	"apiextensions.k8s.io/v1/customresourcedefinitions",
 	"rbac.authorization.k8s.io/v1/roles",
 	"rbac.authorization.k8s.io/v1/clusterroles",

@@ -14,6 +14,8 @@ type Namespace struct {
 	NetworkPolicies        []nodes.NetworkPolicy
 	Ingresses              []nodes.Ingress
 	HTTPRoutes             []nodes.HTTPRoute
+	TCPRoutes              []nodes.TCPRoute
+	TLSRoutes              []nodes.TLSRoute
 	PersistentVolumeClaims []nodes.PersistentVolumeClaim
 	Roles                  []nodes.Role
 	RoleBindings           []nodes.RoleBinding

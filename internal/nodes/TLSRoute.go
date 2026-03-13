@@ -9,7 +9,8 @@ import (
 
 type TLSRoute struct {
 	GraphNodeBase
-	BackendRefs []HTTPRouteBackendRef
+	BackendRefs       []HTTPRouteBackendRef
+	ParentGatewayRefs []ParentGatewayRef
 }
 
 func BuildTLSRouteNode(obj runtime.Object) (BuildResult, bool) {
@@ -37,6 +38,7 @@ func buildTLSRouteFromV1(route *gatewayv1.TLSRoute) (BuildResult, bool) {
 
 	backendRefs, backendRefKeys := extractTLSRouteBackendRefs(route.Spec.Rules, namespace)
 	parentRefs := summarizeHTTPRouteParents(route.Spec.ParentRefs, namespace)
+	parentGatewayRefs := extractParentGatewayRefs(route.Spec.ParentRefs, namespace)
 	hostnames := httpRouteHostnames(route.Spec.Hostnames)
 
 	properties := map[string]any{
@@ -55,8 +57,9 @@ func buildTLSRouteFromV1(route *gatewayv1.TLSRoute) (BuildResult, bool) {
 		Namespace: namespace,
 		Cluster:   false,
 		Data: TLSRoute{
-			GraphNodeBase: base,
-			BackendRefs:   backendRefs,
+			GraphNodeBase:     base,
+			BackendRefs:       backendRefs,
+			ParentGatewayRefs: parentGatewayRefs,
 		},
 	}
 
@@ -80,6 +83,7 @@ func buildTLSRouteFromV1Alpha2(route *gatewayv1alpha2.TLSRoute) (BuildResult, bo
 
 	backendRefs, backendRefKeys := extractTLSRouteBackendRefsV1Alpha2(route.Spec.Rules, namespace)
 	parentRefs := summarizeHTTPRouteParents(route.Spec.ParentRefs, namespace)
+	parentGatewayRefs := extractParentGatewayRefs(route.Spec.ParentRefs, namespace)
 	hostnames := httpRouteHostnames(route.Spec.Hostnames)
 
 	properties := map[string]any{
@@ -98,8 +102,9 @@ func buildTLSRouteFromV1Alpha2(route *gatewayv1alpha2.TLSRoute) (BuildResult, bo
 		Namespace: namespace,
 		Cluster:   false,
 		Data: TLSRoute{
-			GraphNodeBase: base,
-			BackendRefs:   backendRefs,
+			GraphNodeBase:     base,
+			BackendRefs:       backendRefs,
+			ParentGatewayRefs: parentGatewayRefs,
 		},
 	}
 

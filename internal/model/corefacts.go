@@ -78,8 +78,12 @@ func (c *CoreFacts) Add(entry nodes.CoreEntry) {
 		space.NetworkPolicies = append(space.NetworkPolicies, v)
 	case nodes.Ingress:
 		space.Ingresses = append(space.Ingresses, v)
+	case nodes.Gateway:
+		space.Gateways = append(space.Gateways, v)
 	case nodes.HTTPRoute:
 		space.HTTPRoutes = append(space.HTTPRoutes, v)
+	case nodes.GRPCRoute:
+		space.GRPCRoutes = append(space.GRPCRoutes, v)
 	case nodes.TCPRoute:
 		space.TCPRoutes = append(space.TCPRoutes, v)
 	case nodes.TLSRoute:

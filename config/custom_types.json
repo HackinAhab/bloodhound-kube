@@ -105,6 +105,34 @@
         "color": "#CF4E4E"
       }
     },
+    "GRPCRoute": {
+      "icon": {
+        "type": "font-awesome",
+        "name": "route",
+        "color": "#CF4E4E"
+      }
+    },
+    "TCPRoute": {
+      "icon": {
+        "type": "font-awesome",
+        "name": "route",
+        "color": "#CF4E4E"
+      }
+    },
+    "TLSRoute": {
+      "icon": {
+        "type": "font-awesome",
+        "name": "route",
+        "color": "#CF4E4E"
+      }
+    },
+    "Gateway": {
+      "icon": {
+        "type": "font-awesome",
+        "name": "tower-cell",
+        "color": "#CF4E4E"
+      }
+    },
     "Ingress": {
       "icon": {
         "type": "font-awesome",

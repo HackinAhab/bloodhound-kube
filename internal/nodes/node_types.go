@@ -16,6 +16,12 @@ type GraphNodeBase struct {
 	AnnotationsMap map[string]any
 }
 
+// ParentGatewayRef represents a reference to a parent Gateway from Gateway API routes (HTTPRoute, GRPCRoute, TLSRoute, TCPRoute).
+type ParentGatewayRef struct {
+	Namespace string
+	Name      string
+}
+
 func (n GraphNodeBase) EdgeID() string {
 	return n.ID
 }

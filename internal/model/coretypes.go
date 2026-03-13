@@ -13,7 +13,9 @@ type Namespace struct {
 	StatefulSets           []nodes.StatefulSetCore
 	NetworkPolicies        []nodes.NetworkPolicy
 	Ingresses              []nodes.Ingress
+	Gateways               []nodes.Gateway
 	HTTPRoutes             []nodes.HTTPRoute
+	GRPCRoutes             []nodes.GRPCRoute
 	TCPRoutes              []nodes.TCPRoute
 	TLSRoutes              []nodes.TLSRoute
 	PersistentVolumeClaims []nodes.PersistentVolumeClaim

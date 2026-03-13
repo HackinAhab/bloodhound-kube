@@ -62,9 +62,13 @@ func init() {
 
 	RegisterTyped(schema.GroupVersion{Group: gatewayv1.GroupVersion.Group, Version: gatewayv1.GroupVersion.Version}.WithKind("HTTPRoute"), BuildHTTPRouteNode)
 	RegisterTyped(schema.GroupVersion{Group: gatewayv1beta1.GroupVersion.Group, Version: gatewayv1beta1.GroupVersion.Version}.WithKind("HTTPRoute"), BuildHTTPRouteNode)
+	RegisterTyped(schema.GroupVersion{Group: gatewayv1.GroupVersion.Group, Version: gatewayv1.GroupVersion.Version}.WithKind("GRPCRoute"), BuildGRPCRouteNode)
+	RegisterTyped(schema.GroupVersion{Group: gatewayv1alpha2.GroupVersion.Group, Version: gatewayv1alpha2.GroupVersion.Version}.WithKind("GRPCRoute"), BuildGRPCRouteNode)
 	RegisterTyped(schema.GroupVersion{Group: gatewayv1alpha2.GroupVersion.Group, Version: gatewayv1alpha2.GroupVersion.Version}.WithKind("TCPRoute"), BuildTCPRouteNode)
 	RegisterTyped(schema.GroupVersion{Group: gatewayv1.GroupVersion.Group, Version: gatewayv1.GroupVersion.Version}.WithKind("TLSRoute"), BuildTLSRouteNode)
 	RegisterTyped(schema.GroupVersion{Group: gatewayv1alpha2.GroupVersion.Group, Version: gatewayv1alpha2.GroupVersion.Version}.WithKind("TLSRoute"), BuildTLSRouteNode)
+	RegisterTyped(schema.GroupVersion{Group: gatewayv1.GroupVersion.Group, Version: gatewayv1.GroupVersion.Version}.WithKind("Gateway"), BuildGatewayNode)
+	RegisterTyped(schema.GroupVersion{Group: gatewayv1beta1.GroupVersion.Group, Version: gatewayv1beta1.GroupVersion.Version}.WithKind("Gateway"), BuildGatewayNode)
 
 	RegisterTyped(securityv1.SchemeGroupVersion.WithKind("SecurityContextConstraints"), BuildSecurityContextConstraintsNode)
 }

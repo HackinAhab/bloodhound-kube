@@ -9,7 +9,8 @@ import (
 
 type HTTPRoute struct {
 	GraphNodeBase
-	BackendRefs []HTTPRouteBackendRef
+	BackendRefs       []HTTPRouteBackendRef
+	ParentGatewayRefs []ParentGatewayRef
 }
 
 type HTTPRouteBackendRef struct {
@@ -43,6 +44,7 @@ func buildHTTPRouteFromV1(route *gatewayv1.HTTPRoute) (BuildResult, bool) {
 
 	backendRefs, backendRefKeys := extractHTTPRouteBackendRefs(route.Spec.Rules, namespace)
 	parentRefs := summarizeHTTPRouteParents(route.Spec.ParentRefs, namespace)
+	parentGatewayRefs := extractParentGatewayRefs(route.Spec.ParentRefs, namespace)
 	hostnames := httpRouteHostnames(route.Spec.Hostnames)
 
 	properties := map[string]any{
@@ -61,8 +63,9 @@ func buildHTTPRouteFromV1(route *gatewayv1.HTTPRoute) (BuildResult, bool) {
 		Namespace: namespace,
 		Cluster:   false,
 		Data: HTTPRoute{
-			GraphNodeBase: base,
-			BackendRefs:   backendRefs,
+			GraphNodeBase:     base,
+			BackendRefs:       backendRefs,
+			ParentGatewayRefs: parentGatewayRefs,
 		},
 	}
 
@@ -145,6 +148,51 @@ func summarizeHTTPRouteParents(parents []gatewayv1.ParentReference, defaultNames
 		entries = append(entries, kind+":"+name)
 	}
 	return entries
+}
+
+func extractParentGatewayRefs(parents []gatewayv1.ParentReference, defaultNamespace string) []ParentGatewayRef {
+	if len(parents) == 0 {
+		return []ParentGatewayRef{}
+	}
+	keys := map[string]struct{}{}
+	items := map[string]ParentGatewayRef{}
+	for _, parent := range parents {
+		if !isGatewayParentRef(parent) {
+			continue
+		}
+		name := string(parent.Name)
+		if name == "" {
+			continue
+		}
+		ns := defaultNamespace
+		if parent.Namespace != nil && *parent.Namespace != "" {
+			ns = string(*parent.Namespace)
+		}
+		key := ns + "/" + name
+		keys[key] = struct{}{}
+		items[key] = ParentGatewayRef{Namespace: ns, Name: name}
+	}
+	if len(keys) == 0 {
+		return []ParentGatewayRef{}
+	}
+	sortedKeys := SortedSetKeys(keys)
+	result := make([]ParentGatewayRef, 0, len(sortedKeys))
+	for _, key := range sortedKeys {
+		if ref, ok := items[key]; ok {
+			result = append(result, ref)
+		}
+	}
+	return result
+}
+
+func isGatewayParentRef(parent gatewayv1.ParentReference) bool {
+	if parent.Kind != nil && *parent.Kind != "" && string(*parent.Kind) != "Gateway" {
+		return false
+	}
+	if parent.Group != nil && *parent.Group != "" && string(*parent.Group) != gatewayv1.GroupName {
+		return false
+	}
+	return true
 }
 
 func httpRouteHostnames(hostnames []gatewayv1.Hostname) []string {

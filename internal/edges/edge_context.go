@@ -27,7 +27,9 @@ type EdgeIndex struct {
 	DeploymentsByNamespace     map[string]map[string]*nodes.Deployment
 	NetworkPoliciesByNamespace map[string]map[string]*nodes.NetworkPolicy
 	IngressesByNamespace       map[string]map[string]*nodes.Ingress
+	GatewaysByNamespace        map[string]map[string]*nodes.Gateway
 	HTTPRoutesByNamespace      map[string]map[string]*nodes.HTTPRoute
+	GRPCRoutesByNamespace      map[string]map[string]*nodes.GRPCRoute
 	TCPRoutesByNamespace       map[string]map[string]*nodes.TCPRoute
 	TLSRoutesByNamespace       map[string]map[string]*nodes.TLSRoute
 	PersistentVolumeClaimsByNS map[string]map[string]*nodes.PersistentVolumeClaim
@@ -59,7 +61,9 @@ func buildEdgeIndex(core *model.CoreFacts) EdgeIndex {
 		DeploymentsByNamespace:       map[string]map[string]*nodes.Deployment{},
 		NetworkPoliciesByNamespace:   map[string]map[string]*nodes.NetworkPolicy{},
 		IngressesByNamespace:         map[string]map[string]*nodes.Ingress{},
+		GatewaysByNamespace:          map[string]map[string]*nodes.Gateway{},
 		HTTPRoutesByNamespace:        map[string]map[string]*nodes.HTTPRoute{},
+		GRPCRoutesByNamespace:        map[string]map[string]*nodes.GRPCRoute{},
 		TCPRoutesByNamespace:         map[string]map[string]*nodes.TCPRoute{},
 		TLSRoutesByNamespace:         map[string]map[string]*nodes.TLSRoute{},
 		PersistentVolumeClaimsByNS:   map[string]map[string]*nodes.PersistentVolumeClaim{},
@@ -173,11 +177,25 @@ func buildEdgeIndex(core *model.CoreFacts) EdgeIndex {
 				index.IngressesByNamespace[ns][ing.Name] = ing
 			}
 		}
+		index.GatewaysByNamespace[ns] = map[string]*nodes.Gateway{}
+		for i := range space.Gateways {
+			gateway := &space.Gateways[i]
+			if gateway.Name != "" {
+				index.GatewaysByNamespace[ns][gateway.Name] = gateway
+			}
+		}
 		index.HTTPRoutesByNamespace[ns] = map[string]*nodes.HTTPRoute{}
 		for i := range space.HTTPRoutes {
 			route := &space.HTTPRoutes[i]
 			if route.Name != "" {
 				index.HTTPRoutesByNamespace[ns][route.Name] = route
+			}
+		}
+		index.GRPCRoutesByNamespace[ns] = map[string]*nodes.GRPCRoute{}
+		for i := range space.GRPCRoutes {
+			route := &space.GRPCRoutes[i]
+			if route.Name != "" {
+				index.GRPCRoutesByNamespace[ns][route.Name] = route
 			}
 		}
 		index.TCPRoutesByNamespace[ns] = map[string]*nodes.TCPRoute{}

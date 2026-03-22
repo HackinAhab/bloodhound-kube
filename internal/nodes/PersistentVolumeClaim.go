@@ -6,7 +6,7 @@ import (
 )
 
 func init() {
-	RegisterTyped(corev1.SchemeGroupVersion.WithKind("PersistentVolumeClaim"), BuildPVCNode)
+	RegisterTypedWithFetchMode(corev1.SchemeGroupVersion.WithKind("PersistentVolumeClaim"), BuildPVCNode, FetchModeHintMetadata)
 }
 
 type PersistentVolumeClaim struct {

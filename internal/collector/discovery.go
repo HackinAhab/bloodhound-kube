@@ -1,6 +1,7 @@
 package collector
 
 import (
+	"bloodhound-kube/internal/nodes"
 	"bloodhound-kube/internal/utils"
 	"context"
 	"errors"
@@ -166,22 +167,21 @@ func BuildCollectionsConfigFromDiscovery(resources []DiscoveryResource) (*Collec
 }
 
 func defaultFetchModeForResource(res DiscoveryResource) FetchMode {
+	if res.Kind != "" {
+		gvk := schema.GroupVersion{Group: res.Group, Version: res.Version}.WithKind(res.Kind)
+		if mode, ok := nodes.TypedFetchModeHint(gvk); ok {
+			switch mode {
+			case nodes.FetchModeHintMetadata:
+				return FetchModeMetadata
+			case nodes.FetchModeHintFull:
+				return FetchModeFull
+			}
+		}
+	}
+
 	if res.IsCRD {
 		return FetchModeMetadata
 	}
 
-	switch {
-	case res.Group == "" && res.Resource == "namespaces":
-		return FetchModeMetadata
-	case res.Group == "" && res.Resource == "nodes":
-		return FetchModeMetadata
-	case res.Group == "" && res.Resource == "persistentvolumeclaims":
-		return FetchModeMetadata
-	case res.Group == "security.openshift.io" && res.Resource == "securitycontextconstraints":
-		return FetchModeMetadata
-	case res.Group == "gateway.networking.k8s.io" && res.Resource == "gateways":
-		return FetchModeFull
-	default:
-		return FetchModeFull
-	}
+	return FetchModeFull
 }

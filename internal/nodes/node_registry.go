@@ -33,10 +33,18 @@ type Builder func(resource map[string]any) (BuildResult, bool)
 
 type TypedBuilder func(obj runtime.Object) (BuildResult, bool)
 
+type FetchModeHint string
+
+const (
+	FetchModeHintFull     FetchModeHint = "full"
+	FetchModeHintMetadata FetchModeHint = "metadata"
+)
+
 var builders = map[string]Builder{}
 var typedBuilders = map[string]TypedBuilder{}
 var builderSources = map[string]string{}
 var typedBuilderSources = map[string]string{}
+var typedBuilderFetchModeHints = map[string]FetchModeHint{}
 var registrationConflicts int
 
 func Register(kind string, builder Builder) {
@@ -51,6 +59,14 @@ func Register(kind string, builder Builder) {
 }
 
 func RegisterTyped(gvk schema.GroupVersionKind, builder TypedBuilder) {
+	registerTypedWithMode(gvk, builder, "")
+}
+
+func RegisterTypedWithFetchMode(gvk schema.GroupVersionKind, builder TypedBuilder, mode FetchModeHint) {
+	registerTypedWithMode(gvk, builder, mode)
+}
+
+func registerTypedWithMode(gvk schema.GroupVersionKind, builder TypedBuilder, mode FetchModeHint) {
 	key := GVKKey(gvk)
 	source := callerSource(1)
 	if existing, ok := typedBuilderSources[key]; ok {
@@ -60,6 +76,9 @@ func RegisterTyped(gvk schema.GroupVersionKind, builder TypedBuilder) {
 	}
 	typedBuilders[key] = builder
 	typedBuilderSources[key] = source
+	if mode != "" {
+		typedBuilderFetchModeHints[key] = mode
+	}
 }
 
 func Build(resource map[string]any) (BuildResult, bool) {
@@ -85,13 +104,23 @@ func GVKKey(gvk schema.GroupVersionKind) string {
 }
 
 func RegisterTypedFromMap(gvk schema.GroupVersionKind, builder Builder) {
-	RegisterTyped(gvk, func(obj runtime.Object) (BuildResult, bool) {
+	RegisterTypedWithFetchMode(gvk, func(obj runtime.Object) (BuildResult, bool) {
 		resource, err := runtime.DefaultUnstructuredConverter.ToUnstructured(obj)
 		if err != nil {
 			return BuildResult{}, false
 		}
 		return builder(resource)
-	})
+	}, "")
+}
+
+func RegisterTypedFromMapWithFetchMode(gvk schema.GroupVersionKind, builder Builder, mode FetchModeHint) {
+	RegisterTypedWithFetchMode(gvk, func(obj runtime.Object) (BuildResult, bool) {
+		resource, err := runtime.DefaultUnstructuredConverter.ToUnstructured(obj)
+		if err != nil {
+			return BuildResult{}, false
+		}
+		return builder(resource)
+	}, mode)
 }
 
 func RegistrationConflictCount() int {
@@ -108,6 +137,11 @@ func RegisteredKinds() []string {
 
 func RegisteredTypedGVKs() []string {
 	return sortedKeys(typedBuilders)
+}
+
+func TypedFetchModeHint(gvk schema.GroupVersionKind) (FetchModeHint, bool) {
+	mode, ok := typedBuilderFetchModeHints[GVKKey(gvk)]
+	return mode, ok
 }
 
 func sortedKeys[T any](items map[string]T) []string {

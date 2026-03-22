@@ -6,7 +6,7 @@ import (
 )
 
 func init() {
-	RegisterTyped(corev1.SchemeGroupVersion.WithKind("Node"), BuildNodeNode)
+	RegisterTypedWithFetchMode(corev1.SchemeGroupVersion.WithKind("Node"), BuildNodeNode, FetchModeHintMetadata)
 }
 
 type Node struct {

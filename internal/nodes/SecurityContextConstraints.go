@@ -6,7 +6,7 @@ import (
 )
 
 func init() {
-	RegisterTyped(securityv1.SchemeGroupVersion.WithKind("SecurityContextConstraints"), BuildSecurityContextConstraintsNode)
+	RegisterTypedWithFetchMode(securityv1.SchemeGroupVersion.WithKind("SecurityContextConstraints"), BuildSecurityContextConstraintsNode, FetchModeHintMetadata)
 }
 
 type SecurityContextConstraints struct {

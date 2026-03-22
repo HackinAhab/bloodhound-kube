@@ -4,7 +4,7 @@ import corev1 "k8s.io/api/core/v1"
 
 func init() {
 	Register("Namespace", BuildNamespaceNode)
-	RegisterTypedFromMap(corev1.SchemeGroupVersion.WithKind("Namespace"), BuildNamespaceNode)
+	RegisterTypedFromMapWithFetchMode(corev1.SchemeGroupVersion.WithKind("Namespace"), BuildNamespaceNode, FetchModeHintMetadata)
 }
 
 func BuildNamespaceNode(resource map[string]any) (BuildResult, bool) {

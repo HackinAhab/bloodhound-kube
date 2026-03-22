@@ -34,6 +34,7 @@ var (
 	resume             bool
 	checkpointFile     string
 	redacted           bool
+	fetchModeFull      bool
 	discoveryList      bool
 	discoveryAuto      bool
 	discoveryAccept    bool
@@ -158,6 +159,9 @@ func runCollect(cmd *cobra.Command, _ []string, log utils.Logger) (string, error
 		if err != nil {
 			return "", fmt.Errorf("failed to build collections from discovery: %w", err)
 		}
+		if fetchModeFull {
+			overrideCollectionsFetchMode(collectionsCfg, collector.FetchModeFull)
+		}
 		if err := collector.DefaultRegistry.InitializeFromConfig(c.GetClients(), log, collectionsCfg, dynamicClient); err != nil {
 			return "", fmt.Errorf("failed to initialize collection registry: %w", err)
 		}
@@ -222,6 +226,9 @@ func runCollect(cmd *cobra.Command, _ []string, log utils.Logger) (string, error
 		collectionsCfg, err := collector.BuildCollectionsConfigFromDiscovery(filteredResources)
 		if err != nil {
 			return "", fmt.Errorf("failed to build collections from discovery: %w", err)
+		}
+		if fetchModeFull {
+			overrideCollectionsFetchMode(collectionsCfg, collector.FetchModeFull)
 		}
 		if err := collector.DefaultRegistry.InitializeFromConfig(c.GetClients(), log, collectionsCfg, dynamicClient); err != nil {
 			return "", fmt.Errorf("failed to initialize collection registry: %w", err)
@@ -439,9 +446,19 @@ func addCollectFlags(cmd *cobra.Command) {
 	cmd.Flags().StringVar(&checkpointFile, "checkpoint-file", "", "Path to checkpoint file (auto-generated if not specified)")
 	cmd.Flags().BoolVar(&redacted, "redacted", false, "Omit secret values during collection")
 	cmd.Flags().BoolVar(&discoveryList, "discovery-list", false, "List discovered API resources and exit")
+	cmd.Flags().BoolVar(&fetchModeFull, "fetch-mode-full", false, "Force full object fetch mode for all collected resources")
 	cmd.Flags().BoolVar(&discoveryAuto, "discovery-auto", false, "Collect all discovered resources when resources are not specified")
 	cmd.Flags().BoolVar(&discoveryAccept, "discovery-auto-accept", false, "Automatically accept CRD discovery without prompting")
 	cmd.Flags().StringVar(&discoveryAllowlist, "discovery-allowlist", "", "Path to newline-delimited allowlist of API resources (group/version/resource or group/resource)")
+}
+
+func overrideCollectionsFetchMode(cfg *collector.CollectionsConfig, mode collector.FetchMode) {
+	if cfg == nil {
+		return
+	}
+	for i := range cfg.Collections {
+		cfg.Collections[i].FetchMode = mode
+	}
 }
 
 func printDiscoveryTable(resources []collector.DiscoveryResource) {

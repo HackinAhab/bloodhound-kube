@@ -7,6 +7,10 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
+func init() {
+	RegisterTyped(networkingv1.SchemeGroupVersion.WithKind("Ingress"), BuildIngressNode)
+}
+
 type Ingress struct {
 	GraphNodeBase
 	BackendRefs []HTTPRouteBackendRef

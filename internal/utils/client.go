@@ -12,6 +12,7 @@ import (
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/metadata"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/util/homedir"
@@ -36,6 +37,7 @@ type Clients struct {
 	Kubernetes    *kubernetes.Clientset
 	ApiExtensions *apiextensionsclientset.Clientset
 	Dynamic       dynamic.Interface
+	Metadata      metadata.Interface
 	ClusterType   ClusterType
 	ClusterInfo   *ClusterInfo
 }
@@ -92,6 +94,11 @@ func NewClient(cfg ClientConfig) (*Clients, error) {
 		return nil, fmt.Errorf("failed to create dynamic client: %w", err)
 	}
 
+	metadataClient, err := metadata.NewForConfig(config)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create metadata client: %w", err)
+	}
+
 	clusterInfo, detectedType, err := detectClusterType(clientset, cfg.ClusterType)
 	if err != nil {
 		return nil, fmt.Errorf("failed to detect cluster type: %w", err)
@@ -101,11 +108,13 @@ func NewClient(cfg ClientConfig) (*Clients, error) {
 		Kubernetes:    clientset,
 		ApiExtensions: apiExtensionsClient,
 		Dynamic:       dynamicClient,
+		Metadata:      metadataClient,
 		ClusterType:   detectedType,
 		ClusterInfo:   clusterInfo,
 	}, nil
 }
 
+// TODO: Consider making these client config parameters configurable
 func customClientConfig(config *rest.Config) {
 	config.Timeout = 30 * time.Second
 	config.QPS = 100.0
@@ -124,9 +133,7 @@ func expandTildeInPath(path string) string {
 func discoverKubeconfig() (*rest.Config, error) {
 	kubeConfigEnv := os.Getenv("KUBECONFIG")
 	if kubeConfigEnv != "" {
-		// KUBECONFIG may contain a list of paths separated by the OS path list separator.
-		// Takes the first non-empty entry for now.
-		// TODO: Interactive config selection? CLI option?
+		// TODO: Interactive config selection when more than 1 in KUBECONFIG path?
 		parts := filepath.SplitList(kubeConfigEnv)
 		var chosen string
 		for _, p := range parts {

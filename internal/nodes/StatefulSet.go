@@ -5,6 +5,10 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
+func init() {
+	RegisterTyped(appsv1.SchemeGroupVersion.WithKind("StatefulSet"), BuildStatefulSetNode)
+}
+
 type StatefulSetCore struct {
 	GraphNodeBase
 }

@@ -10,6 +10,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/metadata"
 )
 
 const defaultListPageSize = 500
@@ -20,6 +21,7 @@ type CollectorFactory struct {
 	logger        utils.Logger
 	config        *CollectionsConfig
 	dynamicClient dynamic.Interface
+	metadata      metadata.Interface
 }
 
 // NewCollectorFactory creates a new collector factory
@@ -32,11 +34,16 @@ func NewCollectorFactory(clients *utils.Clients, logger utils.Logger, collection
 		return nil, fmt.Errorf("dynamic client is required")
 	}
 
+	if clients.Metadata == nil {
+		return nil, fmt.Errorf("metadata client is required")
+	}
+
 	return &CollectorFactory{
 		clients:       clients,
 		logger:        logger,
 		config:        collectionsConfig,
 		dynamicClient: dynamicClient,
+		metadata:      clients.Metadata,
 	}, nil
 }
 
@@ -52,12 +59,15 @@ func (f *CollectorFactory) CreateCollector(collection ResourceCollection) (Resou
 	return &GenericCollector{
 		name:          collection.Name,
 		resourceType:  collection.ResourceType,
+		kind:          collection.Kind,
 		description:   collection.Description,
 		clusterScoped: collection.ClusterScoped,
 		apiVersion:    collection.APIVersion,
 		apiGroup:      collection.APIGroup,
 		plural:        collection.Plural,
+		fetchMode:     collection.FetchMode,
 		dynamicClient: f.dynamicClient,
+		metadata:      f.metadata,
 		logger:        f.logger,
 		rateLimit:     collection.RateLimit,
 	}, nil
@@ -130,12 +140,15 @@ func extractVersion(apiVersion string) string {
 type GenericCollector struct {
 	name          string
 	resourceType  string
+	kind          string
 	description   string
 	clusterScoped bool
 	apiVersion    string
 	apiGroup      string
 	plural        string
+	fetchMode     FetchMode
 	dynamicClient dynamic.Interface
+	metadata      metadata.Interface
 	logger        utils.Logger
 	rateLimit     int
 }
@@ -178,6 +191,11 @@ func (g *GenericCollector) Collect(ctx context.Context, c *Collector, namespace 
 		Resource: g.plural,
 	}
 
+	apiVersion := version
+	if g.apiGroup != "" {
+		apiVersion = g.apiGroup + "/" + version
+	}
+
 	var resources []map[string]any
 	continueToken := ""
 	page := 0
@@ -193,30 +211,54 @@ func (g *GenericCollector) Collect(ctx context.Context, c *Collector, namespace 
 		}
 
 		listStart := time.Now()
-		list, listErr := g.listDynamic(ctx, gvr, namespace, listOpts)
-		if listErr != nil {
-			if g.clusterScoped {
-				return nil, fmt.Errorf("failed to list %s: %w", g.plural, listErr)
+		if g.fetchMode == FetchModeMetadata {
+			list, listErr := g.listMetadata(ctx, gvr, namespace, listOpts)
+			if listErr != nil {
+				if g.clusterScoped {
+					return nil, fmt.Errorf("failed to list %s metadata: %w", g.plural, listErr)
+				}
+				return nil, fmt.Errorf("failed to list %s metadata in namespace %s: %w", g.plural, namespace, listErr)
 			}
-			return nil, fmt.Errorf("failed to list %s in namespace %s: %w", g.plural, namespace, listErr)
-		}
-		listDuration := time.Since(listStart)
-		page++
-		hasContinue := list.GetContinue() != ""
-		g.logger.Trace("Listed resources page", "type", g.resourceType, "namespace", namespace, "page", page, "count", len(list.Items), "duration", listDuration, "has_continue", hasContinue)
+			listDuration := time.Since(listStart)
+			page++
+			hasContinue := list.GetContinue() != ""
+			g.logger.Trace("Listed resources page", "type", g.resourceType, "namespace", namespace, "page", page, "count", len(list.Items), "duration", listDuration, "has_continue", hasContinue, "mode", "metadata")
 
-		processStart := time.Now()
-		if resources == nil {
-			resources = make([]map[string]any, 0, len(list.Items))
-		}
-		redacted := false
-		if c != nil {
-			redacted = c.IsRedacted()
-		}
-		resources = append(resources, g.buildDynamicResources(list, namespace, redacted)...)
-		g.logger.Trace("Processed resources page", "type", g.resourceType, "namespace", namespace, "page", page, "count", len(list.Items), "duration", time.Since(processStart))
+			processStart := time.Now()
+			if resources == nil {
+				resources = make([]map[string]any, 0, len(list.Items))
+			}
+			resources = append(resources, g.buildMetadataResources(list, apiVersion)...)
+			g.logger.Trace("Processed resources page", "type", g.resourceType, "namespace", namespace, "page", page, "count", len(list.Items), "duration", time.Since(processStart), "mode", "metadata")
 
-		continueToken = list.GetContinue()
+			continueToken = list.GetContinue()
+		} else {
+			list, listErr := g.listDynamic(ctx, gvr, namespace, listOpts)
+			if listErr != nil {
+				if g.clusterScoped {
+					return nil, fmt.Errorf("failed to list %s: %w", g.plural, listErr)
+				}
+				return nil, fmt.Errorf("failed to list %s in namespace %s: %w", g.plural, namespace, listErr)
+			}
+			listDuration := time.Since(listStart)
+			page++
+			hasContinue := list.GetContinue() != ""
+			g.logger.Trace("Listed resources page", "type", g.resourceType, "namespace", namespace, "page", page, "count", len(list.Items), "duration", listDuration, "has_continue", hasContinue, "mode", "full")
+
+			processStart := time.Now()
+			if resources == nil {
+				resources = make([]map[string]any, 0, len(list.Items))
+			}
+			redacted := false
+			if c != nil {
+				redacted = c.IsRedacted()
+			}
+			resources = append(resources, g.buildDynamicResources(list, namespace, redacted)...)
+			g.logger.Trace("Processed resources page", "type", g.resourceType, "namespace", namespace, "page", page, "count", len(list.Items), "duration", time.Since(processStart), "mode", "full")
+
+			continueToken = list.GetContinue()
+		}
+
 		if continueToken == "" {
 			break
 		}
@@ -238,6 +280,13 @@ func (g *GenericCollector) listDynamic(ctx context.Context, gvr schema.GroupVers
 	return g.dynamicClient.Resource(gvr).Namespace(namespace).List(ctx, listOpts)
 }
 
+func (g *GenericCollector) listMetadata(ctx context.Context, gvr schema.GroupVersionResource, namespace string, listOpts metav1.ListOptions) (*metav1.PartialObjectMetadataList, error) {
+	if g.clusterScoped {
+		return g.metadata.Resource(gvr).List(ctx, listOpts)
+	}
+	return g.metadata.Resource(gvr).Namespace(namespace).List(ctx, listOpts)
+}
+
 func (g *GenericCollector) buildDynamicResources(list *unstructured.UnstructuredList, namespace string, redacted bool) []map[string]any {
 	resources := make([]map[string]any, 0, len(list.Items))
 	for _, item := range list.Items {
@@ -248,4 +297,39 @@ func (g *GenericCollector) buildDynamicResources(list *unstructured.Unstructured
 		resources = append(resources, processed)
 	}
 	return resources
+}
+
+func (g *GenericCollector) buildMetadataResources(list *metav1.PartialObjectMetadataList, apiVersion string) []map[string]any {
+	resources := make([]map[string]any, 0, len(list.Items))
+	for _, item := range list.Items {
+		kind := g.kind
+		if kind == "" {
+			kind = item.Kind
+		}
+		resource := map[string]any{
+			"apiVersion": apiVersion,
+			"kind":       kind,
+			"metadata": map[string]any{
+				"name":            item.Name,
+				"namespace":       item.Namespace,
+				"uid":             string(item.UID),
+				"resourceVersion": item.ResourceVersion,
+				"labels":          mapStringToAny(item.Labels),
+				"annotations":     mapStringToAny(item.Annotations),
+			},
+		}
+		resources = append(resources, resource)
+	}
+	return resources
+}
+
+func mapStringToAny(input map[string]string) map[string]any {
+	if len(input) == 0 {
+		return map[string]any{}
+	}
+	output := make(map[string]any, len(input))
+	for key, value := range input {
+		output[key] = value
+	}
+	return output
 }

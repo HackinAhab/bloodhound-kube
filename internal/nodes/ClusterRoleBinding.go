@@ -5,6 +5,10 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
+func init() {
+	RegisterTyped(rbacv1.SchemeGroupVersion.WithKind("ClusterRoleBinding"), BuildClusterRoleBindingNode)
+}
+
 type ClusterRoleBinding struct {
 	GraphNodeBase
 	RoleName string

@@ -1,16 +1,15 @@
 package nodes
 
 import (
-	securityv1 "github.com/openshift/api/security/v1"
-	appsv1 "k8s.io/api/apps/v1"
-	corev1 "k8s.io/api/core/v1"
-	networkingv1 "k8s.io/api/networking/v1"
-	rbacv1 "k8s.io/api/rbac/v1"
+	"fmt"
+	"path/filepath"
+	goruntime "runtime"
+	"slices"
+
+	"bloodhound-kube/internal/utils"
+
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
-	gatewayv1alpha2 "sigs.k8s.io/gateway-api/apis/v1alpha2"
-	gatewayv1beta1 "sigs.k8s.io/gateway-api/apis/v1beta1"
 )
 
 type NodeResult struct {
@@ -36,49 +35,31 @@ type TypedBuilder func(obj runtime.Object) (BuildResult, bool)
 
 var builders = map[string]Builder{}
 var typedBuilders = map[string]TypedBuilder{}
-
-func init() {
-	RegisterTyped(corev1.SchemeGroupVersion.WithKind("ConfigMap"), BuildConfigMapNode)
-	registerTypedFromMap(corev1.SchemeGroupVersion.WithKind("Namespace"), BuildNamespaceNode)
-	RegisterTyped(corev1.SchemeGroupVersion.WithKind("Node"), BuildNodeNode)
-	RegisterTyped(corev1.SchemeGroupVersion.WithKind("PersistentVolume"), BuildPVNode)
-	RegisterTyped(corev1.SchemeGroupVersion.WithKind("PersistentVolumeClaim"), BuildPVCNode)
-	RegisterTyped(corev1.SchemeGroupVersion.WithKind("Pod"), BuildPodNode)
-	RegisterTyped(corev1.SchemeGroupVersion.WithKind("Secret"), BuildSecretNode)
-	RegisterTyped(corev1.SchemeGroupVersion.WithKind("Service"), BuildServiceNode)
-	RegisterTyped(corev1.SchemeGroupVersion.WithKind("ServiceAccount"), BuildServiceAccountNode)
-
-	RegisterTyped(appsv1.SchemeGroupVersion.WithKind("DaemonSet"), BuildDaemonSetNode)
-	RegisterTyped(appsv1.SchemeGroupVersion.WithKind("Deployment"), BuildDeploymentNode)
-	RegisterTyped(appsv1.SchemeGroupVersion.WithKind("StatefulSet"), BuildStatefulSetNode)
-
-	RegisterTyped(rbacv1.SchemeGroupVersion.WithKind("ClusterRole"), BuildClusterRoleNode)
-	RegisterTyped(rbacv1.SchemeGroupVersion.WithKind("ClusterRoleBinding"), BuildClusterRoleBindingNode)
-	RegisterTyped(rbacv1.SchemeGroupVersion.WithKind("Role"), BuildRoleNode)
-	RegisterTyped(rbacv1.SchemeGroupVersion.WithKind("RoleBinding"), BuildRoleBindingNode)
-
-	RegisterTyped(networkingv1.SchemeGroupVersion.WithKind("Ingress"), BuildIngressNode)
-	RegisterTyped(networkingv1.SchemeGroupVersion.WithKind("NetworkPolicy"), BuildNetworkPolicyNode)
-
-	RegisterTyped(schema.GroupVersion{Group: gatewayv1.GroupVersion.Group, Version: gatewayv1.GroupVersion.Version}.WithKind("HTTPRoute"), BuildHTTPRouteNode)
-	RegisterTyped(schema.GroupVersion{Group: gatewayv1beta1.GroupVersion.Group, Version: gatewayv1beta1.GroupVersion.Version}.WithKind("HTTPRoute"), BuildHTTPRouteNode)
-	RegisterTyped(schema.GroupVersion{Group: gatewayv1.GroupVersion.Group, Version: gatewayv1.GroupVersion.Version}.WithKind("GRPCRoute"), BuildGRPCRouteNode)
-	RegisterTyped(schema.GroupVersion{Group: gatewayv1alpha2.GroupVersion.Group, Version: gatewayv1alpha2.GroupVersion.Version}.WithKind("GRPCRoute"), BuildGRPCRouteNode)
-	RegisterTyped(schema.GroupVersion{Group: gatewayv1alpha2.GroupVersion.Group, Version: gatewayv1alpha2.GroupVersion.Version}.WithKind("TCPRoute"), BuildTCPRouteNode)
-	RegisterTyped(schema.GroupVersion{Group: gatewayv1.GroupVersion.Group, Version: gatewayv1.GroupVersion.Version}.WithKind("TLSRoute"), BuildTLSRouteNode)
-	RegisterTyped(schema.GroupVersion{Group: gatewayv1alpha2.GroupVersion.Group, Version: gatewayv1alpha2.GroupVersion.Version}.WithKind("TLSRoute"), BuildTLSRouteNode)
-	RegisterTyped(schema.GroupVersion{Group: gatewayv1.GroupVersion.Group, Version: gatewayv1.GroupVersion.Version}.WithKind("Gateway"), BuildGatewayNode)
-	RegisterTyped(schema.GroupVersion{Group: gatewayv1beta1.GroupVersion.Group, Version: gatewayv1beta1.GroupVersion.Version}.WithKind("Gateway"), BuildGatewayNode)
-
-	RegisterTyped(securityv1.SchemeGroupVersion.WithKind("SecurityContextConstraints"), BuildSecurityContextConstraintsNode)
-}
+var builderSources = map[string]string{}
+var typedBuilderSources = map[string]string{}
+var registrationConflicts int
 
 func Register(kind string, builder Builder) {
+	source := callerSource(1)
+	if existing, ok := builderSources[kind]; ok {
+		registrationConflicts++
+		registryLogger().Error("Duplicate node builder registration", "kind", kind, "existing", existing, "new", source)
+		return
+	}
 	builders[kind] = builder
+	builderSources[kind] = source
 }
 
 func RegisterTyped(gvk schema.GroupVersionKind, builder TypedBuilder) {
-	typedBuilders[GVKKey(gvk)] = builder
+	key := GVKKey(gvk)
+	source := callerSource(1)
+	if existing, ok := typedBuilderSources[key]; ok {
+		registrationConflicts++
+		registryLogger().Error("Duplicate typed node builder registration", "gvk", key, "existing", existing, "new", source)
+		return
+	}
+	typedBuilders[key] = builder
+	typedBuilderSources[key] = source
 }
 
 func Build(resource map[string]any) (BuildResult, bool) {
@@ -103,7 +84,7 @@ func GVKKey(gvk schema.GroupVersionKind) string {
 	return gvk.Group + "/" + gvk.Version + "/" + gvk.Kind
 }
 
-func registerTypedFromMap(gvk schema.GroupVersionKind, builder Builder) {
+func RegisterTypedFromMap(gvk schema.GroupVersionKind, builder Builder) {
 	RegisterTyped(gvk, func(obj runtime.Object) (BuildResult, bool) {
 		resource, err := runtime.DefaultUnstructuredConverter.ToUnstructured(obj)
 		if err != nil {
@@ -111,4 +92,46 @@ func registerTypedFromMap(gvk schema.GroupVersionKind, builder Builder) {
 		}
 		return builder(resource)
 	})
+}
+
+func RegistrationConflictCount() int {
+	return registrationConflicts
+}
+
+func LogRegistrationSummary() {
+	registryLogger().Info("Node registration summary", "builders", len(builders), "typed_builders", len(typedBuilders), "conflicts", registrationConflicts)
+}
+
+func RegisteredKinds() []string {
+	return sortedKeys(builders)
+}
+
+func RegisteredTypedGVKs() []string {
+	return sortedKeys(typedBuilders)
+}
+
+func sortedKeys[T any](items map[string]T) []string {
+	keys := make([]string, 0, len(items))
+	for key := range items {
+		keys = append(keys, key)
+	}
+	slices.Sort(keys)
+	return keys
+}
+
+func callerSource(skip int) string {
+	pc, file, line, ok := goruntime.Caller(skip + 1)
+	if !ok {
+		return "unknown"
+	}
+	fn := goruntime.FuncForPC(pc)
+	fnName := "unknown"
+	if fn != nil {
+		fnName = fn.Name()
+	}
+	return fmt.Sprintf("%s:%d (%s)", filepath.Base(file), line, fnName)
+}
+
+func registryLogger() utils.Logger {
+	return utils.DefaultLogger().Component("nodes.registry")
 }

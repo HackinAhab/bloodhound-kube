@@ -10,10 +10,15 @@ import (
 // NamespaceMode defines how namespaces should be filtered
 type NamespaceMode string
 
+type FetchMode string
+
 const (
 	NamespaceModeAll     NamespaceMode = "all"     // Collect from all namespaces
 	NamespaceModeInclude NamespaceMode = "include" // Only collect from listed namespaces
 	NamespaceModeExclude NamespaceMode = "exclude" // Collect from all except listed namespaces
+
+	FetchModeFull     FetchMode = "full"
+	FetchModeMetadata FetchMode = "metadata"
 )
 
 // NamespaceFilter defines namespace filtering configuration
@@ -75,6 +80,7 @@ type ResourceCollection struct {
 	Namespaced        bool
 	ClusterScoped     bool
 	Enabled           bool
+	FetchMode         FetchMode
 	SupportedClusters []utils.ClusterType
 	Custom            bool // Flag for CRDs
 	RateLimit         int  // Per-resource rate limit
@@ -154,6 +160,13 @@ func (rc *ResourceCollection) Validate() error {
 		return fmt.Errorf("plural is required")
 	}
 
+	switch rc.FetchMode {
+	case "", FetchModeFull, FetchModeMetadata:
+		// Valid modes
+	default:
+		return fmt.Errorf("invalid fetch_mode: %s (valid: full, metadata)", rc.FetchMode)
+	}
+
 	// Validate name format (lowercase, alphanumeric, hyphens)
 	if !isValidName(rc.Name) {
 		return fmt.Errorf("invalid name format: %s (must be lowercase alphanumeric with hyphens)", rc.Name)
@@ -204,6 +217,10 @@ func (rc *ResourceCollection) SetDefaults() {
 	// Set default rate limit from global settings if not specified
 	if rc.RateLimit == 0 {
 		rc.RateLimit = 10 // Default per-resource rate limit
+	}
+
+	if rc.FetchMode == "" {
+		rc.FetchMode = FetchModeFull
 	}
 
 	// If neither namespaced nor cluster_scoped is specified, default based on common patterns

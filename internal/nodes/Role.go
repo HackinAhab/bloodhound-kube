@@ -5,6 +5,10 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
+func init() {
+	RegisterTyped(rbacv1.SchemeGroupVersion.WithKind("Role"), BuildRoleNode)
+}
+
 type Role struct {
 	GraphNodeBase
 	PermsDisplay []string

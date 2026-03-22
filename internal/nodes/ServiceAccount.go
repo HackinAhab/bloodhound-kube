@@ -5,6 +5,10 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
+func init() {
+	RegisterTyped(corev1.SchemeGroupVersion.WithKind("ServiceAccount"), BuildServiceAccountNode)
+}
+
 type ServiceAccount struct {
 	GraphNodeBase
 	Secrets []string

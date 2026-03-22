@@ -147,6 +147,7 @@ func BuildCollectionsConfigFromDiscovery(resources []DiscoveryResource) (*Collec
 			Namespaced:        res.Namespaced,
 			ClusterScoped:     !res.Namespaced,
 			Enabled:           true,
+			FetchMode:         defaultFetchModeForResource(res),
 			SupportedClusters: []utils.ClusterType{utils.ClusterTypeKubernetes, utils.ClusterTypeOpenShift},
 			Custom:            res.IsCRD,
 		})
@@ -162,4 +163,25 @@ func BuildCollectionsConfigFromDiscovery(resources []DiscoveryResource) (*Collec
 	}
 
 	return cfg, nil
+}
+
+func defaultFetchModeForResource(res DiscoveryResource) FetchMode {
+	if res.IsCRD {
+		return FetchModeMetadata
+	}
+
+	switch {
+	case res.Group == "" && res.Resource == "namespaces":
+		return FetchModeMetadata
+	case res.Group == "" && res.Resource == "nodes":
+		return FetchModeMetadata
+	case res.Group == "" && res.Resource == "persistentvolumeclaims":
+		return FetchModeMetadata
+	case res.Group == "security.openshift.io" && res.Resource == "securitycontextconstraints":
+		return FetchModeMetadata
+	case res.Group == "gateway.networking.k8s.io" && res.Resource == "gateways":
+		return FetchModeFull
+	default:
+		return FetchModeFull
+	}
 }

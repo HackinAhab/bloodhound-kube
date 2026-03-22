@@ -2,10 +2,15 @@ package nodes
 
 import (
 	"fmt"
+	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
+
+func init() {
+	RegisterTyped(corev1.SchemeGroupVersion.WithKind("Pod"), BuildPodNode)
+}
 
 type VolumeMount struct {
 	Name      string
@@ -536,14 +541,27 @@ func summarizeVolumes(volumes []VolumeDetail) []string {
 	}
 	items := make([]string, 0, len(volumes))
 	for _, volume := range volumes {
-		items = append(items, fmt.Sprintf("%s: type=%v, secret=%v, configMap=%v, pvc=%v, hostPath=%v",
-			volume.Name,
-			volume.Type,
-			volume.SecretName,
-			volume.ConfigMapName,
-			volume.PVCName,
-			volume.HostPath,
-		))
+		parts := []string{fmt.Sprintf("type=%s", volume.Type)}
+		switch volume.Type {
+		case "secret":
+			if volume.SecretName != "" {
+				parts = append(parts, fmt.Sprintf("secret=%s", volume.SecretName))
+			}
+		case "configmap":
+			if volume.ConfigMapName != "" {
+				parts = append(parts, fmt.Sprintf("configMap=%s", volume.ConfigMapName))
+			}
+		case "persistentVolumeClaim":
+			if volume.PVCName != "" {
+				parts = append(parts, fmt.Sprintf("pvc=%s", volume.PVCName))
+			}
+		case "hostPath":
+			if volume.HostPath != "" {
+				parts = append(parts, fmt.Sprintf("hostPath=%s", volume.HostPath))
+			}
+		}
+
+		items = append(items, fmt.Sprintf("%s: %s", volume.Name, strings.Join(parts, ", ")))
 	}
 	return items
 }

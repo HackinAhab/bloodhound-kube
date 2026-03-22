@@ -5,6 +5,10 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
+func init() {
+	RegisterTyped(networkingv1.SchemeGroupVersion.WithKind("NetworkPolicy"), BuildNetworkPolicyNode)
+}
+
 type NetworkPolicy struct {
 	GraphNodeBase
 	PodSelectorLabels map[string]string

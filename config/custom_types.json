@@ -4,238 +4,238 @@
       "icon": {
         "type": "font-awesome",
         "name": "globe",
-        "color": "#4CAF50"
+        "color": "#0E7490"
       }
     },
     "AllPods": {
       "icon": {
         "type": "font-awesome",
-        "name": "globe",
-        "color": "#F29D0A"
+        "name": "cubes",
+        "color": "#06B6D4"
       }
     },
     "AllDeployments": {
       "icon": {
         "type": "font-awesome",
-        "name": "globe",
-        "color": "#F29D0A"
+        "name": "layer-group",
+        "color": "#38BDF8"
       }
     },
     "AllDaemonSets": {
       "icon": {
         "type": "font-awesome",
-        "name": "globe",
-        "color": "#F29D0A"
+        "name": "arrows-rotate",
+        "color": "#0EA5E9"
       }
     },
     "AllStatefulSets": {
       "icon": {
         "type": "font-awesome",
-        "name": "globe",
-        "color": "#F29D0A"
+        "name": "server",
+        "color": "#0284C7"
       }
     },
     "AllSecrets": {
       "icon": {
         "type": "font-awesome",
-        "name": "globe",
-        "color": "#F29D0A"
+        "name": "key",
+        "color": "#D97706"
       }
     },
     "AllNodes": {
       "icon": {
         "type": "font-awesome",
-        "name": "globe",
-        "color": "#F29D0A"
+        "name": "microchip",
+        "color": "#10B981"
       }
     },
     "AllServiceAccounts": {
       "icon": {
         "type": "font-awesome",
-        "name": "globe",
-        "color": "#F29D0A"
+        "name": "users",
+        "color": "#60A5FA"
       }
     },
     "K8s_Node": {
       "icon": {
         "type": "font-awesome",
         "name": "microchip",
-        "color": "#4CAF50"
+        "color": "#14B8A6"
       }
     },
     "Pod": {
       "icon": {
         "type": "font-awesome",
-        "name": "box-open",
-        "color": "#607D8B"
+        "name": "cube",
+        "color": "#0891B2"
       }
     },
     "Deployment": {
       "icon": {
         "type": "font-awesome",
-        "name": "boxes-stacked",
-        "color": "#FF9800"
+        "name": "diagram-project",
+        "color": "#0EA5E9"
       }
     },
     "DaemonSet": {
       "icon": {
         "type": "font-awesome",
-        "name": "boxes-stacked",
-        "color": "#FF9800"
+        "name": "arrows-rotate",
+        "color": "#0284C7"
       }
     },
     "StatefulSet": {
       "icon": {
         "type": "font-awesome",
-        "name": "boxes-stacked",
-        "color": "#FF9800"
+        "name": "server",
+        "color": "#0369A1"
       }
     },
     "Service": {
       "icon": {
         "type": "font-awesome",
-        "name": "sitemap",
-        "color": "#9C27B0"
+        "name": "share-nodes",
+        "color": "#0E7490"
       }
     },
     "HTTPRoute": {
       "icon": {
         "type": "font-awesome",
         "name": "route",
-        "color": "#CF4E4E"
+        "color": "#E11D48"
       }
     },
     "GRPCRoute": {
       "icon": {
         "type": "font-awesome",
-        "name": "route",
-        "color": "#CF4E4E"
+        "name": "code-branch",
+        "color": "#DB2777"
       }
     },
     "TCPRoute": {
       "icon": {
         "type": "font-awesome",
-        "name": "route",
-        "color": "#CF4E4E"
+        "name": "ethernet",
+        "color": "#F43F5E"
       }
     },
     "TLSRoute": {
       "icon": {
         "type": "font-awesome",
-        "name": "route",
-        "color": "#CF4E4E"
+        "name": "lock",
+        "color": "#BE185D"
       }
     },
     "Gateway": {
       "icon": {
         "type": "font-awesome",
-        "name": "tower-cell",
-        "color": "#CF4E4E"
+        "name": "archway",
+        "color": "#BE123C"
       }
     },
     "Ingress": {
       "icon": {
         "type": "font-awesome",
-        "name": "route",
-        "color": "#CF4E4E"
+        "name": "signs-post",
+        "color": "#E11D48"
       }
     },
     "Secret": {
       "icon": {
         "type": "font-awesome",
         "name": "key",
-        "color": "#FFE28E"
+        "color": "#EAB308"
       }
     },
     "ConfigMap": {
       "icon": {
         "type": "font-awesome",
-        "name": "key",
-        "color": "#FFE28E"
+        "name": "sliders",
+        "color": "#14B8A6"
       }
     },
     "ServiceAccount": {
       "icon": {
         "type": "font-awesome",
         "name": "user",
-        "color": "#FFE28E"
+        "color": "#60A5FA"
       }
     },
     "Role": {
       "icon": {
         "type": "font-awesome",
         "name": "id-badge",
-        "color": "#0306C8"
+        "color": "#3B82F6"
       }
     },
     "RoleBinding": {
       "icon": {
         "type": "font-awesome",
-        "name": "newspaper",
-        "color": "#FFE28E"
+        "name": "link",
+        "color": "#2563EB"
       }
     },
     "ClusterRole": {
       "icon": {
         "type": "font-awesome",
-        "name": "id-badge",
-        "color": "#0306C8"
+        "name": "user-shield",
+        "color": "#1D4ED8"
       }
     },
     "ClusterRoleBinding": {
       "icon": {
         "type": "font-awesome",
-        "name": "newspaper",
-        "color": "#FFE28E"
+        "name": "link",
+        "color": "#1E40AF"
       }
     },
     "PersistentVolume": {
       "icon": {
         "type": "font-awesome",
         "name": "database",
-        "color": "#FFF2E5"
+        "color": "#F59E0B"
       }
     },
     "PersistentVolumeClaim": {
       "icon": {
         "type": "font-awesome",
-        "name": "hdd",
-        "color": "#FFF2E5"
+        "name": "hard-drive",
+        "color": "#D97706"
       }
     },
     "NetworkPolicy": {
       "icon": {
         "type": "font-awesome",
-        "name": "book-atlas",
-        "color": "#FFE28E"
+        "name": "shield-halved",
+        "color": "#22C55E"
       }
     },
     "SecurityContextConstraint": {
       "icon": {
         "type": "font-awesome",
-        "name": "book-atlas",
-        "color": "#FFE28E"
+        "name": "user-shield",
+        "color": "#16A34A"
       }
     },
     "ExternalSecret": {
       "icon": {
         "type": "font-awesome",
         "name": "user-secret",
-        "color": "#FFE28E"
+        "color": "#D97706"
       }
     },
     "ClusterSecretStore": {
       "icon": {
         "type": "font-awesome",
-        "name": "user-shield",
-        "color": "#FF5722"
+        "name": "box-archive",
+        "color": "#EA580C"
       }
     },
     "SecretStore": {
       "icon": {
         "type": "font-awesome",
-        "name": "user-lock",
-        "color": "#FF5722"
+        "name": "box-archive",
+        "color": "#F97316"
       }
     }
   }

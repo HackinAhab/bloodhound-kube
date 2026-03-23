@@ -35,6 +35,20 @@
         "color": "#0284C7"
       }
     },
+    "AllCronJobs": {
+      "icon": {
+        "type": "font-awesome",
+        "name": "arrows-rotate",
+        "color": "#0EA5E9"
+      }
+    },
+    "AllJobs": {
+      "icon": {
+        "type": "font-awesome",
+        "name": "arrows-rotate",
+        "color": "#0EA5E9"
+      }
+    },
     "AllSecrets": {
       "icon": {
         "type": "font-awesome",

@@ -68,7 +68,9 @@ func workloadPatchNamespaced(ctx *EdgeContext, namespace string, space *model.Na
 		allDeployments, deploymentNames := accessForResource(perms, []string{"deployments", "apps/deployments"}, verbs)
 		allDaemonSets, daemonSetNames := accessForResource(perms, []string{"daemonsets", "apps/daemonsets"}, verbs)
 		allStatefulSets, statefulSetNames := accessForResource(perms, []string{"statefulsets", "apps/statefulsets"}, verbs)
-		if !allPods && len(podNames) == 0 && !allDeployments && len(deploymentNames) == 0 && !allDaemonSets && len(daemonSetNames) == 0 && !allStatefulSets && len(statefulSetNames) == 0 {
+		allJobs, jobNames := accessForResource(perms, []string{"jobs", "batch/jobs"}, verbs)
+		allCronJobs, cronJobNames := accessForResource(perms, []string{"cronjobs", "batch/cronjobs"}, verbs)
+		if !allPods && len(podNames) == 0 && !allDeployments && len(deploymentNames) == 0 && !allDaemonSets && len(daemonSetNames) == 0 && !allStatefulSets && len(statefulSetNames) == 0 && !allJobs && len(jobNames) == 0 && !allCronJobs && len(cronJobNames) == 0 {
 			continue
 		}
 
@@ -143,6 +145,32 @@ func workloadPatchNamespaced(ctx *EdgeContext, namespace string, space *model.Na
 					}
 				}
 			}
+
+			if allJobs || len(jobNames) > 0 {
+				for i := range space.Jobs {
+					job := &space.Jobs[i]
+					if allJobs {
+						edges = append(edges, CreateEdgeWithProperties(sa, job, "WorkloadPatch", edgePropertiesRBACWorkloadPatch))
+						continue
+					}
+					if _, ok := jobNames[job.Name]; ok {
+						edges = append(edges, CreateEdgeWithProperties(sa, job, "WorkloadPatch", edgePropertiesRBACWorkloadPatch))
+					}
+				}
+			}
+
+			if allCronJobs || len(cronJobNames) > 0 {
+				for i := range space.CronJobs {
+					cronJob := &space.CronJobs[i]
+					if allCronJobs {
+						edges = append(edges, CreateEdgeWithProperties(sa, cronJob, "WorkloadPatch", edgePropertiesRBACWorkloadPatch))
+						continue
+					}
+					if _, ok := cronJobNames[cronJob.Name]; ok {
+						edges = append(edges, CreateEdgeWithProperties(sa, cronJob, "WorkloadPatch", edgePropertiesRBACWorkloadPatch))
+					}
+				}
+			}
 		}
 	}
 	return edges
@@ -168,7 +196,9 @@ func workloadPatchCluster(ctx *EdgeContext) []model.BloodHoundEdge {
 		allDeployments, deploymentNames := accessForResource(clusterRole.PermsDisplay, []string{"deployments", "apps/deployments"}, verbs)
 		allDaemonSets, daemonSetNames := accessForResource(clusterRole.PermsDisplay, []string{"daemonsets", "apps/daemonsets"}, verbs)
 		allStatefulSets, statefulSetNames := accessForResource(clusterRole.PermsDisplay, []string{"statefulsets", "apps/statefulsets"}, verbs)
-		if !allPods && len(podNames) == 0 && !allDeployments && len(deploymentNames) == 0 && !allDaemonSets && len(daemonSetNames) == 0 && !allStatefulSets && len(statefulSetNames) == 0 {
+		allJobs, jobNames := accessForResource(clusterRole.PermsDisplay, []string{"jobs", "batch/jobs"}, verbs)
+		allCronJobs, cronJobNames := accessForResource(clusterRole.PermsDisplay, []string{"cronjobs", "batch/cronjobs"}, verbs)
+		if !allPods && len(podNames) == 0 && !allDeployments && len(deploymentNames) == 0 && !allDaemonSets && len(daemonSetNames) == 0 && !allStatefulSets && len(statefulSetNames) == 0 && !allJobs && len(jobNames) == 0 && !allCronJobs && len(cronJobNames) == 0 {
 			continue
 		}
 
@@ -255,6 +285,44 @@ func workloadPatchCluster(ctx *EdgeContext) []model.BloodHoundEdge {
 						statefulSet := &space.StatefulSets[i]
 						if _, ok := statefulSetNames[statefulSet.Name]; ok {
 							edges = append(edges, CreateEdgeWithProperties(sa, statefulSet, "WorkloadPatch", edgePropertiesRBACWorkloadPatch))
+						}
+					}
+				}
+			}
+
+			if allJobs {
+				if len(ctx.Core.Cluster.AllJobs) > 0 {
+					agg := &ctx.Core.Cluster.AllJobs[0]
+					edges = append(edges, CreateEdgeWithProperties(sa, agg, "WorkloadPatch", edgePropertiesRBACWorkloadPatch))
+				}
+			} else if len(jobNames) > 0 {
+				for _, space := range ctx.Core.Namespaces {
+					if space == nil {
+						continue
+					}
+					for i := range space.Jobs {
+						job := &space.Jobs[i]
+						if _, ok := jobNames[job.Name]; ok {
+							edges = append(edges, CreateEdgeWithProperties(sa, job, "WorkloadPatch", edgePropertiesRBACWorkloadPatch))
+						}
+					}
+				}
+			}
+
+			if allCronJobs {
+				if len(ctx.Core.Cluster.AllCronJobs) > 0 {
+					agg := &ctx.Core.Cluster.AllCronJobs[0]
+					edges = append(edges, CreateEdgeWithProperties(sa, agg, "WorkloadPatch", edgePropertiesRBACWorkloadPatch))
+				}
+			} else if len(cronJobNames) > 0 {
+				for _, space := range ctx.Core.Namespaces {
+					if space == nil {
+						continue
+					}
+					for i := range space.CronJobs {
+						cronJob := &space.CronJobs[i]
+						if _, ok := cronJobNames[cronJob.Name]; ok {
+							edges = append(edges, CreateEdgeWithProperties(sa, cronJob, "WorkloadPatch", edgePropertiesRBACWorkloadPatch))
 						}
 					}
 				}

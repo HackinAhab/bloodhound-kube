@@ -3,37 +3,37 @@
         {
             "name": "All Object Nodes and Edges",
             "description": "Retrieves all nodes and edges in the graph",
-            "query": "MATCH p=(s)-[]->(t)\n\nWHERE n.cluster = 'default-cluster'RETURN p\nLIMIT 1000"
+            "query": "MATCH p=(s)-[]->(t)\n\nWHERE n.cluster = 'default'RETURN p\nLIMIT 1000"
         },
         {
             "name": "All Object Nodes",
             "description": "Retrieves all nodes in the graph",
-            "query": "MATCH (n)\nWHERE n.cluster = 'default-cluster'\nRETURN n\nLIMIT 1000"
+            "query": "MATCH (n)\nWHERE n.cluster = 'default'\nRETURN n\nLIMIT 1000"
         },
         {
             "name": "All Paths From Secrets",
             "description": "Retrieves all paths starting from nodes labeled 'Secret",
-            "query": "MATCH p=(s:Secret)-[]->(t)\nWHERE n.cluster = 'default-cluster'\nRETURN p\nLIMIT 1000"
+            "query": "MATCH p=(s:Secret)-[]->(t)\nWHERE n.cluster = 'default'\nRETURN p\nLIMIT 1000"
         },
         {
             "name": "All Paths from Pods running as root",
             "description": "Retrieves all paths starting from nodes labeled 'Pod' that have the property 'runAsRoot' set to true.",
-            "query": "MATCH p=(s:Pod)-[]->()\nWHERE n.cluster = 'default-cluster'\nWHERE s.runAsNonRoot = FALSE AND s.runAsUser = 0\nRETURN p\nLIMIT 1000"
+            "query": "MATCH p=(s:Pod)-[]->()\nWHERE n.cluster = 'default'\nWHERE s.runAsNonRoot = FALSE AND s.runAsUser = 0\nRETURN p\nLIMIT 1000"
         },
         {
             "name": "All Paths to Nodes with External IPs",
             "description": "Retrieves all paths from HTTPRoute nodes to Nodes.",
-            "query": "MATCH p=(s:External)-[*1..3]->(t:K8s_Node)\nWHERE n.cluster = 'default-cluster'\nRETURN p\nLIMIT 1000"
+            "query": "MATCH p=(s:External)-[*1..3]->(t:K8s_Node)\nWHERE n.cluster = 'default'\nRETURN p\nLIMIT 1000"
         },
         {
             "name": "All Aggregate Nodes",
             "description": "Retrieves all paths from nodes that are aggregates of other nodes.",
-            "query": "MATCH p=(s)-[]->(t)\nWHERE n.cluster = 'default-cluster'\nWHERE t.name STARTS WITH 'ALL'\nRETURN p\nLIMIT 1000"
+            "query": "MATCH p=(s)-[]->(t)\nWHERE n.cluster = 'default'\nWHERE t.name STARTS WITH 'ALL'\nRETURN p\nLIMIT 1000"
         },
         {
             "name": "Pods Sharing Process Namespace",
             "description": "Retrieves all pods with shareProcessNamespace enabled.",
-            "query": "MATCH (p:Pod)\nWHERE n.cluster = 'default-cluster'\nWHERE p.shareProcessNamespace = TRUE\nRETURN p\nLIMIT 1000"
+            "query": "MATCH (p:Pod)\nWHERE n.cluster = 'default'\nWHERE p.shareProcessNamespace = TRUE\nRETURN p\nLIMIT 1000"
         }
     ]
 }

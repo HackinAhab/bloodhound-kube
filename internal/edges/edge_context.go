@@ -25,6 +25,10 @@ type EdgeIndex struct {
 	ConfigMapsByNamespace      map[string]map[string]*nodes.ConfigMap
 	ServicesByNamespace        map[string]map[string]*nodes.Service
 	DeploymentsByNamespace     map[string]map[string]*nodes.Deployment
+	DaemonSetsByNamespace      map[string]map[string]*nodes.DaemonSetCore
+	StatefulSetsByNamespace    map[string]map[string]*nodes.StatefulSetCore
+	JobsByNamespace            map[string]map[string]*nodes.Job
+	CronJobsByNamespace        map[string]map[string]*nodes.CronJob
 	NetworkPoliciesByNamespace map[string]map[string]*nodes.NetworkPolicy
 	IngressesByNamespace       map[string]map[string]*nodes.Ingress
 	GatewaysByNamespace        map[string]map[string]*nodes.Gateway
@@ -59,6 +63,10 @@ func buildEdgeIndex(core *model.CoreFacts) EdgeIndex {
 		ConfigMapsByNamespace:        map[string]map[string]*nodes.ConfigMap{},
 		ServicesByNamespace:          map[string]map[string]*nodes.Service{},
 		DeploymentsByNamespace:       map[string]map[string]*nodes.Deployment{},
+		DaemonSetsByNamespace:        map[string]map[string]*nodes.DaemonSetCore{},
+		StatefulSetsByNamespace:      map[string]map[string]*nodes.StatefulSetCore{},
+		JobsByNamespace:              map[string]map[string]*nodes.Job{},
+		CronJobsByNamespace:          map[string]map[string]*nodes.CronJob{},
 		NetworkPoliciesByNamespace:   map[string]map[string]*nodes.NetworkPolicy{},
 		IngressesByNamespace:         map[string]map[string]*nodes.Ingress{},
 		GatewaysByNamespace:          map[string]map[string]*nodes.Gateway{},
@@ -161,6 +169,34 @@ func buildEdgeIndex(core *model.CoreFacts) EdgeIndex {
 			deploy := &space.Deployments[i]
 			if deploy.Name != "" {
 				index.DeploymentsByNamespace[ns][deploy.Name] = deploy
+			}
+		}
+		index.DaemonSetsByNamespace[ns] = map[string]*nodes.DaemonSetCore{}
+		for i := range space.DaemonSets {
+			daemonSet := &space.DaemonSets[i]
+			if daemonSet.Name != "" {
+				index.DaemonSetsByNamespace[ns][daemonSet.Name] = daemonSet
+			}
+		}
+		index.StatefulSetsByNamespace[ns] = map[string]*nodes.StatefulSetCore{}
+		for i := range space.StatefulSets {
+			statefulSet := &space.StatefulSets[i]
+			if statefulSet.Name != "" {
+				index.StatefulSetsByNamespace[ns][statefulSet.Name] = statefulSet
+			}
+		}
+		index.JobsByNamespace[ns] = map[string]*nodes.Job{}
+		for i := range space.Jobs {
+			job := &space.Jobs[i]
+			if job.Name != "" {
+				index.JobsByNamespace[ns][job.Name] = job
+			}
+		}
+		index.CronJobsByNamespace[ns] = map[string]*nodes.CronJob{}
+		for i := range space.CronJobs {
+			cronJob := &space.CronJobs[i]
+			if cronJob.Name != "" {
+				index.CronJobsByNamespace[ns][cronJob.Name] = cronJob
 			}
 		}
 		index.NetworkPoliciesByNamespace[ns] = map[string]*nodes.NetworkPolicy{}

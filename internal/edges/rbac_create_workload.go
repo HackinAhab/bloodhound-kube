@@ -30,6 +30,10 @@ func workloadCreateNamespaced(ctx *EdgeContext, namespace string) []model.BloodH
 		"apps/daemonsets",
 		"statefulsets",
 		"apps/statefulsets",
+		"jobs",
+		"batch/jobs",
+		"cronjobs",
+		"batch/cronjobs",
 	}
 	verbs := []string{"create"}
 
@@ -103,6 +107,10 @@ func workloadCreateCluster(ctx *EdgeContext) []model.BloodHoundEdge {
 		"apps/daemonsets",
 		"statefulsets",
 		"apps/statefulsets",
+		"jobs",
+		"batch/jobs",
+		"cronjobs",
+		"batch/cronjobs",
 	}
 	verbs := []string{"create"}
 

@@ -48,6 +48,10 @@ func (c *CoreFacts) Add(entry nodes.CoreEntry) {
 			c.Cluster.AllDaemonSets = append(c.Cluster.AllDaemonSets, v)
 		case nodes.AllStatefulSets:
 			c.Cluster.AllStatefulSets = append(c.Cluster.AllStatefulSets, v)
+		case nodes.AllJobs:
+			c.Cluster.AllJobs = append(c.Cluster.AllJobs, v)
+		case nodes.AllCronJobs:
+			c.Cluster.AllCronJobs = append(c.Cluster.AllCronJobs, v)
 		}
 		return
 	}
@@ -74,6 +78,10 @@ func (c *CoreFacts) Add(entry nodes.CoreEntry) {
 		space.DaemonSets = append(space.DaemonSets, v)
 	case nodes.StatefulSetCore:
 		space.StatefulSets = append(space.StatefulSets, v)
+	case nodes.Job:
+		space.Jobs = append(space.Jobs, v)
+	case nodes.CronJob:
+		space.CronJobs = append(space.CronJobs, v)
 	case nodes.NetworkPolicy:
 		space.NetworkPolicies = append(space.NetworkPolicies, v)
 	case nodes.Ingress:

@@ -11,6 +11,8 @@ func init() {
 
 type StatefulSetCore struct {
 	GraphNodeBase
+	SelectorLabels map[string]string
+	ServiceAccount string
 }
 
 func BuildStatefulSetNode(obj runtime.Object) (BuildResult, bool) {
@@ -29,37 +31,38 @@ func BuildStatefulSetNode(obj runtime.Object) (BuildResult, bool) {
 
 	selectorMap := StringMapToAnyMap(set.Spec.Selector.MatchLabels)
 	serviceName := set.Spec.ServiceName
+	serviceAccount := set.Spec.Template.Spec.ServiceAccountName
+
+	replicas := 0
+	if set.Spec.Replicas != nil {
+		replicas = int(*set.Spec.Replicas)
+	}
 
 	properties := map[string]any{
-		"name":        name,
-		"namespace":   namespace,
-		"labels":      MapToSortedList(labelsMap),
-		"annotations": MapToSortedList(annotationsMap),
-		"selector":    MapToSortedList(selectorMap),
-		"serviceName": serviceName,
+		"name":           name,
+		"namespace":      namespace,
+		"labels":         MapToSortedList(labelsMap),
+		"annotations":    MapToSortedList(annotationsMap),
+		"replicas":       replicas,
+		"selector":       MapToSortedList(selectorMap),
+		"serviceAccount": serviceAccount,
+		"serviceName":    serviceName,
 	}
+
+	base := NewGraphNodeBase("StatefulSet", namespace, name, labelsMap, annotationsMap)
 
 	core := CoreEntry{
 		Namespace: namespace,
 		Cluster:   false,
 		Data: StatefulSetCore{
-			GraphNodeBase: GraphNodeBase{
-				ID:             BuildID("StatefulSet", namespace, name),
-				Kinds:          []string{"StatefulSet"},
-				Name:           name,
-				Namespace:      namespace,
-				LabelsMap:      labelsMap,
-				AnnotationsMap: annotationsMap,
-			},
+			GraphNodeBase:  base,
+			SelectorLabels: set.Spec.Selector.MatchLabels,
+			ServiceAccount: serviceAccount,
 		},
 	}
 
 	return BuildResult{
-		Node: NodeResult{
-			ID:         BuildID("StatefulSet", namespace, name),
-			Kinds:      []string{"StatefulSet"},
-			Properties: properties,
-		},
+		Node: NewNodeResult(base, properties),
 		Core: []CoreEntry{core},
 	}, true
 }

@@ -18,7 +18,7 @@ import (
 	"github.com/TheManticoreProject/gopengraph/properties"
 )
 
-const defaultClusterName = "default-cluster"
+const defaultClusterName = "default"
 
 func ConvertToBloodHoundResultFromReader(reader io.Reader, clusterName string, parseUndefinedNodes bool) (*gopengraph.OpenGraph, error) {
 	log := utils.DefaultLogger().Component("parser")
@@ -188,6 +188,8 @@ func addAggregateNodes(nodeList *[]model.BloodHoundNode, coreFacts *model.CoreFa
 	appendBuildResult(nodeList, coreFacts, nodes.BuildAllDeployments())
 	appendBuildResult(nodeList, coreFacts, nodes.BuildAllDaemonSets())
 	appendBuildResult(nodeList, coreFacts, nodes.BuildAllStatefulSets())
+	appendBuildResult(nodeList, coreFacts, nodes.BuildAllJobs())
+	appendBuildResult(nodeList, coreFacts, nodes.BuildAllCronJobs())
 }
 
 func appendBuildResult(nodeList *[]model.BloodHoundNode, coreFacts *model.CoreFacts, result nodes.BuildResult) {

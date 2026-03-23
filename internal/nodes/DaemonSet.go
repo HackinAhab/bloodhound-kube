@@ -11,6 +11,8 @@ func init() {
 
 type DaemonSetCore struct {
 	GraphNodeBase
+	SelectorLabels map[string]string
+	ServiceAccount string
 }
 
 func BuildDaemonSetNode(obj runtime.Object) (BuildResult, bool) {
@@ -28,36 +30,31 @@ func BuildDaemonSetNode(obj runtime.Object) (BuildResult, bool) {
 	annotationsMap := StringMapToAnyMap(set.Annotations)
 
 	selectorMap := StringMapToAnyMap(set.Spec.Selector.MatchLabels)
+	serviceAccount := set.Spec.Template.Spec.ServiceAccountName
 
 	properties := map[string]any{
-		"name":        name,
-		"namespace":   namespace,
-		"labels":      MapToSortedList(labelsMap),
-		"annotations": MapToSortedList(annotationsMap),
-		"selector":    MapToSortedList(selectorMap),
+		"name":           name,
+		"namespace":      namespace,
+		"labels":         MapToSortedList(labelsMap),
+		"annotations":    MapToSortedList(annotationsMap),
+		"selector":       MapToSortedList(selectorMap),
+		"serviceAccount": serviceAccount,
 	}
+
+	base := NewGraphNodeBase("DaemonSet", namespace, name, labelsMap, annotationsMap)
 
 	core := CoreEntry{
 		Namespace: namespace,
 		Cluster:   false,
 		Data: DaemonSetCore{
-			GraphNodeBase: GraphNodeBase{
-				ID:             BuildID("DaemonSet", namespace, name),
-				Kinds:          []string{"DaemonSet"},
-				Name:           name,
-				Namespace:      namespace,
-				LabelsMap:      labelsMap,
-				AnnotationsMap: annotationsMap,
-			},
+			GraphNodeBase:  base,
+			SelectorLabels: set.Spec.Selector.MatchLabels,
+			ServiceAccount: serviceAccount,
 		},
 	}
 
 	return BuildResult{
-		Node: NodeResult{
-			ID:         BuildID("DaemonSet", namespace, name),
-			Kinds:      []string{"DaemonSet"},
-			Properties: properties,
-		},
+		Node: NewNodeResult(base, properties),
 		Core: []CoreEntry{core},
 	}, true
 }

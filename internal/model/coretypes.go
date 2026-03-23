@@ -11,6 +11,8 @@ type Namespace struct {
 	Deployments            []nodes.Deployment
 	DaemonSets             []nodes.DaemonSetCore
 	StatefulSets           []nodes.StatefulSetCore
+	Jobs                   []nodes.Job
+	CronJobs               []nodes.CronJob
 	NetworkPolicies        []nodes.NetworkPolicy
 	Ingresses              []nodes.Ingress
 	Gateways               []nodes.Gateway
@@ -40,4 +42,6 @@ type Cluster struct {
 	AllDeployments             []nodes.AllDeployments
 	AllDaemonSets              []nodes.AllDaemonSets
 	AllStatefulSets            []nodes.AllStatefulSets
+	AllJobs                    []nodes.AllJobs
+	AllCronJobs                []nodes.AllCronJobs
 }

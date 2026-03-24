@@ -38,9 +38,6 @@ func (r tcpRouteEdgesRule) Apply(ctx *EdgeContext) []model.BloodHoundEdge {
 					}
 				}
 			}
-			if ctx.Index.External != nil {
-				edges = append(edges, CreateEdge(ctx.Index.External, route, "ExternalRoutesTo"))
-			}
 		}
 	}
 	return edges

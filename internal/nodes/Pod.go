@@ -127,23 +127,17 @@ func BuildPodNode(obj runtime.Object) (BuildResult, bool) {
 	initContainerSummaries := summarizeContainers(privateInitContainers, true)
 	volumeSummaries := summarizeVolumes(privateVolumes)
 
-	runAsUser := 0
+	runAsUser := inferPodRunAsUser(pod.Spec.Containers, podSec)
 	runAsGroup := 0
 	fsGroup := 0
 	var supplementalGroups []int64
-	var runAsNonRoot any = false
+	runAsNonRoot := inferPodRunAsNonRoot(pod.Spec.Containers, podSec)
 	if podSec != nil {
-		if podSec.RunAsUser != nil {
-			runAsUser = int(*podSec.RunAsUser)
-		}
 		if podSec.RunAsGroup != nil {
 			runAsGroup = int(*podSec.RunAsGroup)
 		}
 		if podSec.FSGroup != nil {
 			fsGroup = int(*podSec.FSGroup)
-		}
-		if podSec.RunAsNonRoot != nil {
-			runAsNonRoot = *podSec.RunAsNonRoot
 		}
 		supplementalGroups = podSec.SupplementalGroups
 	}
@@ -591,4 +585,96 @@ func boolWithFallback(containerSec *corev1.SecurityContext, podSec *corev1.PodSe
 		return *podSec.RunAsNonRoot
 	}
 	return false
+}
+
+func inferPodRunAsUser(containers []corev1.Container, podSec *corev1.PodSecurityContext) any {
+	if podSec != nil && podSec.RunAsUser != nil {
+		return int(*podSec.RunAsUser)
+	}
+
+	if len(containers) == 0 {
+		return "unset"
+	}
+
+	hasUnset := false
+	anyZero := false
+	var firstValue int64
+	hasFirstValue := false
+	allSame := true
+	setCount := 0
+
+	for _, container := range containers {
+		value := effectiveContainerRunAsUser(container, podSec)
+		if value == nil {
+			hasUnset = true
+			continue
+		}
+		setCount++
+		if *value == 0 {
+			anyZero = true
+		}
+		if !hasFirstValue {
+			firstValue = *value
+			hasFirstValue = true
+			continue
+		}
+		if *value != firstValue {
+			allSame = false
+		}
+	}
+
+	if anyZero {
+		return 0
+	}
+	if setCount == 0 || hasUnset || !allSame {
+		return "unset"
+	}
+	return int(firstValue)
+}
+
+func inferPodRunAsNonRoot(containers []corev1.Container, podSec *corev1.PodSecurityContext) any {
+	if podSec != nil && podSec.RunAsNonRoot != nil {
+		return *podSec.RunAsNonRoot
+	}
+
+	if len(containers) == 0 {
+		return "unset"
+	}
+
+	setCount := 0
+	for _, container := range containers {
+		value := effectiveContainerRunAsNonRoot(container, podSec)
+		if value == nil {
+			continue
+		}
+		setCount++
+		if !*value {
+			return false
+		}
+	}
+
+	if setCount == len(containers) {
+		return true
+	}
+	return "unset"
+}
+
+func effectiveContainerRunAsUser(container corev1.Container, podSec *corev1.PodSecurityContext) *int64 {
+	if container.SecurityContext != nil && container.SecurityContext.RunAsUser != nil {
+		return container.SecurityContext.RunAsUser
+	}
+	if podSec != nil {
+		return podSec.RunAsUser
+	}
+	return nil
+}
+
+func effectiveContainerRunAsNonRoot(container corev1.Container, podSec *corev1.PodSecurityContext) *bool {
+	if container.SecurityContext != nil && container.SecurityContext.RunAsNonRoot != nil {
+		return container.SecurityContext.RunAsNonRoot
+	}
+	if podSec != nil {
+		return podSec.RunAsNonRoot
+	}
+	return nil
 }

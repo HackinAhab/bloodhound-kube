@@ -27,6 +27,8 @@ cd bloodhound-kube
 go build -o bloodhound-kube
 ./bloodhound-kube collect --help
 ```
+
+### Standard Build (Development)
 ```bash
 go build -o bloodhound-kube
 ```
@@ -35,6 +37,20 @@ With `just`:
 ```bash
 just build
 ```
+
+### Embedded Build (Production/Distribution)
+Build with embedded config files for standalone distribution:
+```bash
+go build -tags embedded -o bloodhound-kube
+```
+
+With `just`:
+```bash
+just build-embedded          # Single binary
+just build-all-embedded      # Cross-platform binaries
+```
+
+The embedded build includes `config/custom_queries.json` and `config/custom_types.json` directly in the binary, allowing standalone distribution without external config files.
 
 ## Usage
 
@@ -119,14 +135,35 @@ The `upload` command is used to upload the icons, colors, and custom cypher quer
 
 BloodHound API access uses HMAC credentials via token ID + token key created in the BloodHound UI.
 
+#### Standard Usage (External Files)
 ```bash
-bloodhound-kube upload --model-file config/custom_types.json --queries config/custom_queries.json --token-id $BLOODHOUND_TOKEN_ID --token-key $BLOODHOUND_TOKEN_KEY
+bloodhound-kube upload --model-file config/custom_types.json --queries-file config/custom_queries.json --token-id $BLOODHOUND_TOKEN_ID --token-key $BLOODHOUND_TOKEN_KEY
 ```
+
+#### Embedded Build Usage
+When using a binary built with `-tags embedded`:
+
+```bash
+# Upload data only (no config changes)
+bloodhound-kube upload --upload-file data.json --token-id $BLOODHOUND_TOKEN_ID --token-key $BLOODHOUND_TOKEN_KEY
+
+# Upload embedded configs only
+bloodhound-kube upload --queries-file='' --model-file='' --token-id $BLOODHOUND_TOKEN_ID --token-key $BLOODHOUND_TOKEN_KEY
+
+# Upload custom configs (merges with embedded if available)
+bloodhound-kube upload --queries-file=my-queries.json --model-file=my-types.json --token-id $BLOODHOUND_TOKEN_ID --token-key $BLOODHOUND_TOKEN_KEY
+
+# Upload both configs and data
+bloodhound-kube upload --queries-file='' --model-file='' --upload-file data.json --token-id $BLOODHOUND_TOKEN_ID --token-key $BLOODHOUND_TOKEN_KEY
+```
+
+**Config File Merging**: When both embedded and user-provided config files exist:
+- **Queries**: Merged by `name` field. User queries override embedded queries with the same name.
+- **Custom Types**: Merged by node type name. User types override embedded types with the same name.
+- User-provided queries/types appear first in the merged output.
+
 Additionally, parsed collections can be uploaded directly to BloodHound with the `--upload-file` flag.
 In the latest versions of BloodHound, the custom types and queries can be uploaded directly through the UI, so this command is optional if you prefer to do it that way.
-```bash
-bloodhound-kube upload --queries-file config/custom_queries.json --model-file config/custom_types.json --url http://localhost:9000 --token-id $BLOODHOUND_TOKEN_ID --token-key $BLOODHOUND_TOKEN_KEY --upload-file tmp/data.json
-```
 
 ### Report command
 The `report` command is used to generate a quick summary report of the collected data with common misconfigurations and potential attack paths. This is not meant to be comprehensive, but can be a useful starting point for analysis or to quickly identify common issues. This has received minimal testing and attention, so expect bugs and edge cases where it may not work as intended. It was included to bake in some existing scripts, but may recieve more development in the future.

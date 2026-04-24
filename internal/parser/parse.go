@@ -183,6 +183,7 @@ func addAggregateNodes(nodeList *[]model.BloodHoundNode, coreFacts *model.CoreFa
 	}
 	appendBuildResult(nodeList, coreFacts, nodes.BuildAllPods())
 	appendBuildResult(nodeList, coreFacts, nodes.BuildAllSecrets())
+	appendBuildResult(nodeList, coreFacts, nodes.BuildAllConfigMaps())
 	appendBuildResult(nodeList, coreFacts, nodes.BuildAllServiceAccounts())
 	appendBuildResult(nodeList, coreFacts, nodes.BuildAllNodes())
 	appendBuildResult(nodeList, coreFacts, nodes.BuildAllDeployments())

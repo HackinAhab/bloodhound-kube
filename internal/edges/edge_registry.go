@@ -3,6 +3,13 @@ package edges
 import (
 	"sort"
 
+	"bloodhound-kube/internal/edges/framework"
+	"bloodhound-kube/internal/edges/rules/addons"
+	"bloodhound-kube/internal/edges/rules/mounts"
+	"bloodhound-kube/internal/edges/rules/networking"
+	"bloodhound-kube/internal/edges/rules/rbac"
+	"bloodhound-kube/internal/edges/rules/security"
+	"bloodhound-kube/internal/edges/rules/workload"
 	"bloodhound-kube/internal/model"
 )
 
@@ -18,9 +25,26 @@ func RegisterEdgeRule(rule EdgeRule) {
 }
 
 func BuildEdges(core *model.CoreFacts) []model.BloodHoundEdge {
-	ctx := NewEdgeContext(core)
 	edges := make([]model.BloodHoundEdge, 0, 256)
+
+	legacyCtx := NewEdgeContext(core)
 	for _, rule := range edgeRules {
+		results := rule.Apply(legacyCtx)
+		if len(results) == 0 {
+			continue
+		}
+		edges = append(edges, results...)
+	}
+
+	reg := framework.NewRegistry()
+	rbac.Register(reg)
+	networking.Register(reg)
+	workload.Register(reg)
+	security.Register(reg)
+	mounts.Register(reg)
+	addons.Register(reg)
+	ctx := framework.NewContext(core)
+	for _, rule := range reg.Rules() {
 		results := rule.Apply(ctx)
 		if len(results) == 0 {
 			continue

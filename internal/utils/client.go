@@ -114,7 +114,7 @@ func NewClient(cfg ClientConfig) (*Clients, error) {
 	}, nil
 }
 
-// TODO: Consider making these client config parameters configurable
+// TODO: Make these client config parameters configurable
 func customClientConfig(config *rest.Config) {
 	config.Timeout = 30 * time.Second
 	config.QPS = 100.0
@@ -133,7 +133,7 @@ func expandTildeInPath(path string) string {
 func discoverKubeconfig() (*rest.Config, error) {
 	kubeConfigEnv := os.Getenv("KUBECONFIG")
 	if kubeConfigEnv != "" {
-		// TODO: Interactive config selection when more than 1 in KUBECONFIG path?
+		// TODO: Interactive config selection if multiple paths are provided in KUBECONFIG.
 		parts := filepath.SplitList(kubeConfigEnv)
 		var chosen string
 		for _, p := range parts {

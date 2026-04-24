@@ -3,7 +3,7 @@
         {
             "name": "All Object Nodes and Edges",
             "description": "Retrieves all nodes and edges in the graph",
-            "query": "MATCH p=(s)-[]->(t)\n\nWHERE s.cluster = 'default'RETURN p\nLIMIT 1000"
+            "query": "MATCH p=(s)-[]->(t)\nWHERE s.cluster = 'default'\nRETURN p\nLIMIT 1000"
         },
         {
             "name": "All Object Nodes",
@@ -33,7 +33,7 @@
         {
             "name": "All Aggregate Nodes",
             "description": "Retrieves all paths from nodes that are aggregates of other nodes.",
-            "query": "MATCH p=(s)-[]->(t)\nWHERE s.cluster = 'default'\nWHERE t.name STARTS WITH 'ALL'\nRETURN p\nLIMIT 1000"
+            "query": "MATCH p=(s)-[]->(t)\nWHERE s.cluster = 'default' AND t.name STARTS WITH 'ALL'\nRETURN p\nLIMIT 1000"
         },
         {
             "name": "Paths to AllSecrets",
@@ -43,7 +43,7 @@
         {
             "name": "Paths to AllPods",
             "description": "Retrieves all paths to the AllPods aggregate node.",
-            "query": "MATCH p=(s)-[]->(t:AllPods)\nWHERE s.cluster = 'default'\nWHERE t.name STARTS WITH 'ALL'\nRETURN p\nLIMIT 1000"
+            "query": "MATCH p=(s)-[]->(t:AllPods)\nWHERE s.cluster = 'default' AND t.name STARTS WITH 'ALL'\nRETURN p\nLIMIT 1000"
         },
         {
             "name": "Pods Sharing Process Namespace",

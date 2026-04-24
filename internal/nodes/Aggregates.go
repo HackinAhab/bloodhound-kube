@@ -8,6 +8,10 @@ type AllSecrets struct {
 	GraphNodeBase
 }
 
+type AllConfigMaps struct {
+	GraphNodeBase
+}
+
 type AllNodes struct {
 	GraphNodeBase
 }
@@ -45,6 +49,12 @@ func BuildAllPods() BuildResult {
 func BuildAllSecrets() BuildResult {
 	return buildAggregate("AllSecrets", func(base GraphNodeBase) any {
 		return AllSecrets{GraphNodeBase: base}
+	})
+}
+
+func BuildAllConfigMaps() BuildResult {
+	return buildAggregate("AllConfigMaps", func(base GraphNodeBase) any {
+		return AllConfigMaps{GraphNodeBase: base}
 	})
 }
 

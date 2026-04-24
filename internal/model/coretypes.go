@@ -38,6 +38,7 @@ type Cluster struct {
 	External                   []nodes.External
 	AllPods                    []nodes.AllPods
 	AllSecrets                 []nodes.AllSecrets
+	AllConfigMaps              []nodes.AllConfigMaps
 	AllServiceAccounts         []nodes.AllServiceAccounts
 	AllDeployments             []nodes.AllDeployments
 	AllDaemonSets              []nodes.AllDaemonSets

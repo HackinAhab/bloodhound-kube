@@ -40,6 +40,8 @@ func (c *CoreFacts) Add(entry nodes.CoreEntry) {
 			c.Cluster.AllPods = append(c.Cluster.AllPods, v)
 		case nodes.AllSecrets:
 			c.Cluster.AllSecrets = append(c.Cluster.AllSecrets, v)
+		case nodes.AllConfigMaps:
+			c.Cluster.AllConfigMaps = append(c.Cluster.AllConfigMaps, v)
 		case nodes.AllServiceAccounts:
 			c.Cluster.AllServiceAccounts = append(c.Cluster.AllServiceAccounts, v)
 		case nodes.AllDeployments:

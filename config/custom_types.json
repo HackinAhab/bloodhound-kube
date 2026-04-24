@@ -56,6 +56,13 @@
         "color": "#D97706"
       }
     },
+    "AllConfigMaps": {
+      "icon": {
+        "type": "font-awesome",
+        "name": "sliders",
+        "color": "#14B8A6"
+      }
+    },
     "AllNodes": {
       "icon": {
         "type": "font-awesome",

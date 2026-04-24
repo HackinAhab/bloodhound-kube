@@ -35,6 +35,22 @@ func CreateEdgeWithProperties(start, end nodes.EdgeNode, kind string, props map[
 	}
 }
 
+// Create edges for a chain of nodes given a list of nodes and edge kind.
+//
+// For example, given nodes [A, B, C] and kind "uses", it will create edges A->B:uses and B->C:uses
+//
+// Returns nil if there are less than 2 nodes.
+func CreateEdgeChain(nodes []nodes.EdgeNode, kind string, props map[string]any) []model.BloodHoundEdge {
+	if len(nodes) < 2 {
+		return nil
+	}
+	var edges []model.BloodHoundEdge
+	for i := 0; i < len(nodes)-1; i++ {
+		edges = append(edges, CreateEdgeWithProperties(nodes[i], nodes[i+1], kind, props))
+	}
+	return edges
+}
+
 func NormalizeCapability(capability string) string {
 	if strings.HasPrefix(capability, "CAP_") {
 		return capability

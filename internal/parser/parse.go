@@ -10,6 +10,7 @@ import (
 	"bloodhound-kube/internal/edges"
 	"bloodhound-kube/internal/model"
 	"bloodhound-kube/internal/nodes"
+	"bloodhound-kube/internal/nodes/platform"
 	"bloodhound-kube/internal/utils"
 
 	"github.com/TheManticoreProject/gopengraph"
@@ -166,13 +167,13 @@ func createNodesAndCoreFactsFromReader(reader io.Reader, parseUndefinedNodes boo
 
 	addAggregateNodes(&nodeList, coreFacts)
 
-	external := nodes.ExternalNode()
+	external := platform.ExternalNode()
 	nodeList = append(nodeList, model.BloodHoundNode{
 		ID:         external.ID,
 		Kinds:      external.Kinds,
 		Properties: external.Properties,
 	})
-	coreFacts.Add(nodes.CoreEntry{Cluster: true, Data: nodes.ExternalCoreEntry()})
+	coreFacts.Add(nodes.CoreEntry{Cluster: true, Data: platform.ExternalCoreEntry()})
 
 	return nodeList, coreFacts, parsedResources, nil
 }
@@ -181,16 +182,16 @@ func addAggregateNodes(nodeList *[]model.BloodHoundNode, coreFacts *model.CoreFa
 	if nodeList == nil || coreFacts == nil {
 		return
 	}
-	appendBuildResult(nodeList, coreFacts, nodes.BuildAllPods())
-	appendBuildResult(nodeList, coreFacts, nodes.BuildAllSecrets())
-	appendBuildResult(nodeList, coreFacts, nodes.BuildAllConfigMaps())
-	appendBuildResult(nodeList, coreFacts, nodes.BuildAllServiceAccounts())
-	appendBuildResult(nodeList, coreFacts, nodes.BuildAllNodes())
-	appendBuildResult(nodeList, coreFacts, nodes.BuildAllDeployments())
-	appendBuildResult(nodeList, coreFacts, nodes.BuildAllDaemonSets())
-	appendBuildResult(nodeList, coreFacts, nodes.BuildAllStatefulSets())
-	appendBuildResult(nodeList, coreFacts, nodes.BuildAllJobs())
-	appendBuildResult(nodeList, coreFacts, nodes.BuildAllCronJobs())
+	appendBuildResult(nodeList, coreFacts, platform.BuildAllPods())
+	appendBuildResult(nodeList, coreFacts, platform.BuildAllSecrets())
+	appendBuildResult(nodeList, coreFacts, platform.BuildAllConfigMaps())
+	appendBuildResult(nodeList, coreFacts, platform.BuildAllServiceAccounts())
+	appendBuildResult(nodeList, coreFacts, platform.BuildAllNodes())
+	appendBuildResult(nodeList, coreFacts, platform.BuildAllDeployments())
+	appendBuildResult(nodeList, coreFacts, platform.BuildAllDaemonSets())
+	appendBuildResult(nodeList, coreFacts, platform.BuildAllStatefulSets())
+	appendBuildResult(nodeList, coreFacts, platform.BuildAllJobs())
+	appendBuildResult(nodeList, coreFacts, platform.BuildAllCronJobs())
 }
 
 func appendBuildResult(nodeList *[]model.BloodHoundNode, coreFacts *model.CoreFacts, result nodes.BuildResult) {
@@ -229,7 +230,7 @@ func buildNodeFromMap(resource map[string]any, parseUndefinedNodes bool) (nodes.
 	}
 	result, ok := nodes.Build(resource)
 	if !ok && parseUndefinedNodes {
-		result, ok = nodes.BuildGenericNode(resource)
+		result, ok = platform.BuildGenericNode(resource)
 	}
 	return result, ok, nil
 }

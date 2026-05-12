@@ -1,48 +1,55 @@
 package model
 
-import "bloodhound-kube/internal/nodes"
+import (
+	"bloodhound-kube/internal/nodes/addons"
+	"bloodhound-kube/internal/nodes/mounts"
+	"bloodhound-kube/internal/nodes/networking"
+	"bloodhound-kube/internal/nodes/platform"
+	"bloodhound-kube/internal/nodes/rbac"
+	"bloodhound-kube/internal/nodes/workload"
+)
 
 type Namespace struct {
-	Pods                   []nodes.Pod
-	ServiceAccounts        []nodes.ServiceAccount
-	Secrets                []nodes.Secret
-	ConfigMaps             []nodes.ConfigMap
-	Services               []nodes.Service
-	Deployments            []nodes.Deployment
-	DaemonSets             []nodes.DaemonSetCore
-	StatefulSets           []nodes.StatefulSetCore
-	Jobs                   []nodes.Job
-	CronJobs               []nodes.CronJob
-	NetworkPolicies        []nodes.NetworkPolicy
-	Ingresses              []nodes.Ingress
-	Gateways               []nodes.Gateway
-	HTTPRoutes             []nodes.HTTPRoute
-	GRPCRoutes             []nodes.GRPCRoute
-	TCPRoutes              []nodes.TCPRoute
-	TLSRoutes              []nodes.TLSRoute
-	PersistentVolumeClaims []nodes.PersistentVolumeClaim
-	Roles                  []nodes.Role
-	RoleBindings           []nodes.RoleBinding
-	ExternalSecrets        []nodes.ExternalSecret
-	SecretStores           []nodes.SecretStore
+	Pods                   []workload.Pod
+	ServiceAccounts        []rbac.ServiceAccount
+	Secrets                []workload.Secret
+	ConfigMaps             []workload.ConfigMap
+	Services               []networking.Service
+	Deployments            []workload.Deployment
+	DaemonSets             []workload.DaemonSetCore
+	StatefulSets           []workload.StatefulSetCore
+	Jobs                   []workload.Job
+	CronJobs               []workload.CronJob
+	NetworkPolicies        []networking.NetworkPolicy
+	Ingresses              []networking.Ingress
+	Gateways               []networking.Gateway
+	HTTPRoutes             []networking.HTTPRoute
+	GRPCRoutes             []networking.GRPCRoute
+	TCPRoutes              []networking.TCPRoute
+	TLSRoutes              []networking.TLSRoute
+	PersistentVolumeClaims []mounts.PersistentVolumeClaim
+	Roles                  []rbac.Role
+	RoleBindings           []rbac.RoleBinding
+	ExternalSecrets        []addons.ExternalSecret
+	SecretStores           []addons.SecretStore
 }
 
 type Cluster struct {
-	Nodes                      []nodes.Node
-	AllNodes                   []nodes.AllNodes
-	ClusterRoles               []nodes.ClusterRole
-	ClusterRoleBindings        []nodes.ClusterRoleBinding
-	PersistentVolumes          []nodes.PersistentVolume
-	ClusterSecretStores        []nodes.ClusterSecretStore
-	SecurityContextConstraints []nodes.SecurityContextConstraints
-	External                   []nodes.External
-	AllPods                    []nodes.AllPods
-	AllSecrets                 []nodes.AllSecrets
-	AllConfigMaps              []nodes.AllConfigMaps
-	AllServiceAccounts         []nodes.AllServiceAccounts
-	AllDeployments             []nodes.AllDeployments
-	AllDaemonSets              []nodes.AllDaemonSets
-	AllStatefulSets            []nodes.AllStatefulSets
-	AllJobs                    []nodes.AllJobs
-	AllCronJobs                []nodes.AllCronJobs
+	Nodes                      []platform.Node
+	AllNodes                   []platform.AllNodes
+	ClusterRoles               []rbac.ClusterRole
+	ClusterRoleBindings        []rbac.ClusterRoleBinding
+	PersistentVolumes          []mounts.PersistentVolume
+	ClusterSecretStores        []addons.ClusterSecretStore
+	SecurityContextConstraints []addons.SecurityContextConstraints
+	External                   []platform.External
+	AllPods                    []platform.AllPods
+	AllSecrets                 []platform.AllSecrets
+	AllConfigMaps              []platform.AllConfigMaps
+	AllServiceAccounts         []platform.AllServiceAccounts
+	AllDeployments             []platform.AllDeployments
+	AllDaemonSets              []platform.AllDaemonSets
+	AllStatefulSets            []platform.AllStatefulSets
+	AllJobs                    []platform.AllJobs
+	AllCronJobs                []platform.AllCronJobs
 }

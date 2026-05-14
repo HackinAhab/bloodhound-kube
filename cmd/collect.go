@@ -33,6 +33,7 @@ var (
 	parsedOutput        string
 	parseCluster        string
 	parseUndefinedNodes bool
+	clustersConfig      string
 )
 
 var collectCmd = &cobra.Command{
@@ -79,6 +80,7 @@ Use --no-parse to write JSONL only.`,
 			ParsedOutputPath:    parsedOutput,
 			ClusterName:         parseCluster,
 			ParseUndefinedNodes: parseUndefinedNodes,
+			ClustersConfigPath:  clustersConfig,
 		}, log)
 		return err
 	},
@@ -118,4 +120,5 @@ func addCollectFlags(cmd *cobra.Command) {
 	cmd.Flags().StringVar(&parsedOutput, "parsed-output", "", "Output path for BloodHound JSON (defaults to JSONL filename with .json extension)")
 	cmd.Flags().StringVar(&parseCluster, "cluster", "default", "Kubernetes cluster name for BloodHound metadata")
 	cmd.Flags().BoolVar(&parseUndefinedNodes, "parse-undefined-nodes", false, "Enable generic node creation policy")
+	cmd.Flags().StringVarP(&clustersConfig, "clusters-config", "C", "", "YAML config file for multi-cluster collection")
 }

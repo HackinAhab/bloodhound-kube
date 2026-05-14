@@ -71,6 +71,15 @@ Common examples:
 # Default kubeconfig + current context namespace
 ./bloodhound-kube collect
 
+# Default scope is core (built-in allowlist)
+./bloodhound-kube collect --scope core
+
+# Collect all discovered resources
+./bloodhound-kube collect --scope all --accept-crds
+
+# Collect built-in core set plus allowlisted resources
+./bloodhound-kube collect --scope allowlist --discovery-allowlist ./allowlist.txt
+
 # Custom kubeconfig
 ./bloodhound-kube collect --kubeconfig /path/to/config
 
@@ -83,7 +92,6 @@ Common examples:
 
 # Discovery options
 ./bloodhound-kube collect --discovery-list
-./bloodhound-kube collect --discovery-auto --discovery-auto-accept
 
 # Output control
 ./bloodhound-kube collect --output /tmp/my-collection.jsonl
@@ -93,12 +101,56 @@ Common examples:
 
 # Redact secret values
 ./bloodhound-kube collect --redacted
+
+# Multi-cluster collection from a YAML config file
+./bloodhound-kube collect --clusters-config clusters.yaml
+./bloodhound-kube collect -C clusters.yaml --no-parse
 ```
 
+### Multi-cluster collection
+
+Pass `--clusters-config` (or `-C`) to collect from multiple clusters in a single run. Each cluster's output lands in a separate JSONL file (and `.json` if parse is enabled). On partial failure the tool continues, reports per-cluster status, and exits non-zero.
+
+```bash
+./bloodhound-kube collect -C clusters.yaml
+```
+
+The config file format:
+
+```yaml
+# clusters.yaml
+defaults:
+  scope: core
+  concurrency: 10
+  paginateLimit: 100
+  outputDir: ./output
+
+clusters:
+  - name: prod-us-east
+    kubeconfig: ~/.kube/prod
+    clusterType: kubernetes
+
+  - name: staging
+    server: https://k8s-staging.example.com
+    token: ${STAGING_TOKEN}       # ${VAR} references are expanded from env
+    redacted: true
+    outputFile: staging.jsonl     # explicit output path overrides outputDir
+```
+
+See [`clusters.example.yaml`](./clusters.example.yaml) for a fully annotated reference.
+
+**Per-cluster fields** override the corresponding `defaults` value. Boolean fields (`allNamespaces`, `redacted`, `acceptCRDs`) use three-state semantics: explicit `true`/`false` overrides the default; omitted inherits it.
+
+`--no-parse`, `--resume`, `--checkpoint-file`, and `--fetch-mode-full` apply globally to all clusters.
+
 ### Discovery and allowlists
-- Default behavior runs discovery and collects resources from the built-in allowlist.
-- `--discovery-auto` collects all discovered resources; `--discovery-auto-accept` skips confirmation prompts for large numbers of CRDs.
-- `--discovery-allowlist` appends entries to the built-in allowlist. Each line can be:
+- `--scope` controls collection behavior:
+  - `core` (default): collect the curated default set
+  - `all`: collect all discovered resources
+  - `allowlist`: collect curated default set plus entries from `--discovery-allowlist`
+- Migration note: legacy `--discovery-auto` was removed; use `--scope all`.
+- `--accept-crds` skips confirmation prompts for large numbers of CRDs.
+- `--discovery-allowlist` is used by `--scope allowlist`. Each line can be:
   - `group/version/resource`
   - `group/version`
   - `group/resource`
@@ -174,11 +226,19 @@ bloodhound-kube report -i /tmp/my-collection.jsonl
 ```
 
 ## Design choices
-Relationships are implemented as Go edge rules for clarity, performance, and easier extension. Rules are registered explicitly in `internal/edges/edge_registry.go` and grouped by domain under `internal/edges/rules/*`. Node definitions remain in Go for the same reasons.
+Relationships are implemented as Go edge rules for clarity, performance, and easier extension. Rules are registered explicitly in `internal/edges/edge_registry.go` and grouped by domain under `internal/edges/*`. Node definitions remain in Go for the same reasons.
 
-The tool uses the Kubernetes API to automatically find and collect resources based on what is present in the cluster, which can be useful for large or unfamiliar environments. It can be set to collect all resources, many of which will not be relevant for your use case. By default a set of core components is defined, and CRDs are discovered and require confirmation before collection to avoid collecting large numbers of irrelevant resources. To selectively collect releveant CRDs, an allow-list can be provided to automatically collect matching resources in **addition** to the default set without confirmation. This area could likely use some improvement to make it more intuitive, and allow overrding the default allow-list.
+Architecture reference: see `docs/architecture-v2.md` for collect/parse/edge execution flow and extension points.
+
+The tool uses the Kubernetes API to discover resources present in the cluster. Collection scope is explicit: `core` (default curated set), `all` (all discovered resources), or `allowlist` (curated set plus file entries). CRD-backed resources still require confirmation unless `--accept-crds` is used.
 
 Data collected is output as a raw kubernetes resource dump in JSONL format, which *should* be easy to parse with `jq --slurp`.
+
+## Contributor notes
+- Put command wiring and flags in `cmd/*` only.
+- Put orchestration and request policy in `internal/cli/*`.
+- Put discovery/planning/execution logic in `internal/collector/*`.
+- Put node transforms in `internal/nodes/*` and relationships in `internal/edges/*`.
 
 ## Future improvements
 - Add more commonly deployed CRDs to the edge rules to improve visibility in clusters using popular tools like ArgoCD, cert-manager, etc.

@@ -115,7 +115,6 @@ func clusterScopedID(clusterName, id string) string {
 	return clusterName + ":" + id
 }
 
-// createRelationships builds edges from typed core facts
 func createRelationships(coreFacts *model.CoreFacts) ([]model.BloodHoundEdge, error) {
 	if coreFacts == nil {
 		return nil, errors.New("create relationships failed")

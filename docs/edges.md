@@ -36,7 +36,7 @@ I found KubeHound's relationship naming scheme to be intuitive and have adopted 
 - SAReadConfigMap
 
 ## Adding new relationship rules
-Add rules under a domain package in `internal/edges/rules/*` and register them explicitly from that package's `Register` function. The top-level `BuildEdges` wiring in `internal/edges/edge_registry.go` calls each domain register function.
+Add rules under a domain package in `internal/edges/*` and register them explicitly from that package's `Register` function. The top-level `BuildEdges` wiring in `internal/edges/edge_registry.go` calls each domain register function.
 
 Example domain registration:
 

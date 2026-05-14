@@ -1,171 +1,102 @@
 package nodes
 
 import (
-	"fmt"
-	"path/filepath"
-	goruntime "runtime"
-	"slices"
+	"sync"
 
-	"bloodhound-kube/internal/utils"
+	"bloodhound-kube/internal/nodes/addons"
+	"bloodhound-kube/internal/nodes/framework"
+	"bloodhound-kube/internal/nodes/mounts"
+	"bloodhound-kube/internal/nodes/networking"
+	"bloodhound-kube/internal/nodes/platform"
+	"bloodhound-kube/internal/nodes/rbac"
+	"bloodhound-kube/internal/nodes/workload"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
-type NodeResult struct {
-	ID         string
-	Kinds      []string
-	Properties map[string]any
-}
-
-type CoreEntry struct {
-	Namespace string
-	Cluster   bool
-	Data      any
-}
-
-type BuildResult struct {
-	Node NodeResult
-	Core []CoreEntry
-}
-
-type Builder func(resource map[string]any) (BuildResult, bool)
-
-type TypedBuilder func(obj runtime.Object) (BuildResult, bool)
-
-type FetchModeHint string
+type NodeResult = framework.NodeResult
+type CoreEntry = framework.CoreEntry
+type BuildResult = framework.BuildResult
+type Builder = framework.Builder
+type TypedBuilder = framework.TypedBuilder
+type FetchModeHint = framework.FetchModeHint
 
 const (
-	FetchModeHintFull     FetchModeHint = "full"
-	FetchModeHintMetadata FetchModeHint = "metadata"
+	FetchModeHintFull     = framework.FetchModeHintFull
+	FetchModeHintMetadata = framework.FetchModeHintMetadata
 )
 
-var builders = map[string]Builder{}
-var typedBuilders = map[string]TypedBuilder{}
-var builderSources = map[string]string{}
-var typedBuilderSources = map[string]string{}
-var typedBuilderFetchModeHints = map[string]FetchModeHint{}
-var registrationConflicts int
+var registerOnce sync.Once
+
+func ensureRegistered() {
+	registerOnce.Do(func() {
+		reg := framework.NewRegistry()
+		rbac.Register(reg)
+		networking.Register(reg)
+		workload.Register(reg)
+		mounts.Register(reg)
+		addons.Register(reg)
+		platform.Register(reg)
+
+		framework.LogRegistrationSummary()
+	})
+}
 
 func Register(kind string, builder Builder) {
-	source := callerSource(1)
-	if existing, ok := builderSources[kind]; ok {
-		registrationConflicts++
-		registryLogger().Error("Duplicate node builder registration", "kind", kind, "existing", existing, "new", source)
-		return
-	}
-	builders[kind] = builder
-	builderSources[kind] = source
+	framework.RegisterKind(kind, builder)
 }
 
 func RegisterTyped(gvk schema.GroupVersionKind, builder TypedBuilder) {
-	registerTypedWithMode(gvk, builder, "")
+	framework.RegisterTyped(gvk, builder)
 }
 
 func RegisterTypedWithFetchMode(gvk schema.GroupVersionKind, builder TypedBuilder, mode FetchModeHint) {
-	registerTypedWithMode(gvk, builder, mode)
-}
-
-func registerTypedWithMode(gvk schema.GroupVersionKind, builder TypedBuilder, mode FetchModeHint) {
-	key := GVKKey(gvk)
-	source := callerSource(1)
-	if existing, ok := typedBuilderSources[key]; ok {
-		registrationConflicts++
-		registryLogger().Error("Duplicate typed node builder registration", "gvk", key, "existing", existing, "new", source)
-		return
-	}
-	typedBuilders[key] = builder
-	typedBuilderSources[key] = source
-	if mode != "" {
-		typedBuilderFetchModeHints[key] = mode
-	}
-}
-
-func Build(resource map[string]any) (BuildResult, bool) {
-	kind, _ := resource["kind"].(string)
-	if builder, ok := builders[kind]; ok {
-		return builder(resource)
-	}
-	return BuildResult{}, false
-}
-
-func BuildTyped(gvk schema.GroupVersionKind, obj runtime.Object) (BuildResult, bool) {
-	if builder, ok := typedBuilders[GVKKey(gvk)]; ok {
-		return builder(obj)
-	}
-	return BuildResult{}, false
-}
-
-func GVKKey(gvk schema.GroupVersionKind) string {
-	if gvk.Group == "" {
-		return gvk.Version + "/" + gvk.Kind
-	}
-	return gvk.Group + "/" + gvk.Version + "/" + gvk.Kind
+	framework.RegisterTypedWithFetchMode(gvk, builder, mode)
 }
 
 func RegisterTypedFromMap(gvk schema.GroupVersionKind, builder Builder) {
-	RegisterTypedWithFetchMode(gvk, func(obj runtime.Object) (BuildResult, bool) {
-		resource, err := runtime.DefaultUnstructuredConverter.ToUnstructured(obj)
-		if err != nil {
-			return BuildResult{}, false
-		}
-		return builder(resource)
-	}, "")
+	framework.RegisterTypedFromMap(gvk, builder)
 }
 
 func RegisterTypedFromMapWithFetchMode(gvk schema.GroupVersionKind, builder Builder, mode FetchModeHint) {
-	RegisterTypedWithFetchMode(gvk, func(obj runtime.Object) (BuildResult, bool) {
-		resource, err := runtime.DefaultUnstructuredConverter.ToUnstructured(obj)
-		if err != nil {
-			return BuildResult{}, false
-		}
-		return builder(resource)
-	}, mode)
+	framework.RegisterTypedFromMapWithFetchMode(gvk, builder, mode)
+}
+
+func Build(resource map[string]any) (BuildResult, bool) {
+	ensureRegistered()
+	return framework.Build(resource)
+}
+
+func BuildTyped(gvk schema.GroupVersionKind, obj runtime.Object) (BuildResult, bool) {
+	ensureRegistered()
+	return framework.BuildTyped(gvk, obj)
+}
+
+func GVKKey(gvk schema.GroupVersionKind) string {
+	return framework.GVKKey(gvk)
 }
 
 func RegistrationConflictCount() int {
-	return registrationConflicts
+	ensureRegistered()
+	return framework.RegistrationConflictCount()
 }
 
 func LogRegistrationSummary() {
-	registryLogger().Info("Node registration summary", "builders", len(builders), "typed_builders", len(typedBuilders), "conflicts", registrationConflicts)
+	ensureRegistered()
 }
 
 func RegisteredKinds() []string {
-	return sortedKeys(builders)
+	ensureRegistered()
+	return framework.RegisteredKinds()
 }
 
 func RegisteredTypedGVKs() []string {
-	return sortedKeys(typedBuilders)
+	ensureRegistered()
+	return framework.RegisteredTypedGVKs()
 }
 
 func TypedFetchModeHint(gvk schema.GroupVersionKind) (FetchModeHint, bool) {
-	mode, ok := typedBuilderFetchModeHints[GVKKey(gvk)]
-	return mode, ok
-}
-
-func sortedKeys[T any](items map[string]T) []string {
-	keys := make([]string, 0, len(items))
-	for key := range items {
-		keys = append(keys, key)
-	}
-	slices.Sort(keys)
-	return keys
-}
-
-func callerSource(skip int) string {
-	pc, file, line, ok := goruntime.Caller(skip + 1)
-	if !ok {
-		return "unknown"
-	}
-	fn := goruntime.FuncForPC(pc)
-	fnName := "unknown"
-	if fn != nil {
-		fnName = fn.Name()
-	}
-	return fmt.Sprintf("%s:%d (%s)", filepath.Base(file), line, fnName)
-}
-
-func registryLogger() utils.Logger {
-	return utils.DefaultLogger().Component("nodes.registry")
+	ensureRegistered()
+	return framework.TypedFetchModeHint(gvk)
 }

@@ -3,7 +3,7 @@ package framework
 import (
 	"strings"
 
-	"bloodhound-kube/internal/nodes"
+	"bloodhound-kube/internal/nodes/workload"
 )
 
 func LabelsMatchOnly(labels map[string]any, selector map[string]string) bool {
@@ -31,7 +31,7 @@ func NormalizeCapability(capability string) string {
 	return "CAP_" + capability
 }
 
-func HasCapability(pod nodes.Pod, capability string) bool {
+func HasCapability(pod workload.Pod, capability string) bool {
 	if capability == "" {
 		return false
 	}

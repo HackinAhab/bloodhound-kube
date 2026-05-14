@@ -1,10 +1,7 @@
 package cmd
 
 import (
-	"fmt"
-	"os"
-
-	"bloodhound-kube/internal/parser"
+	"bloodhound-kube/internal/cli"
 	"bloodhound-kube/internal/utils"
 
 	"github.com/spf13/cobra"
@@ -16,66 +13,6 @@ var (
 	parseLogLevel       string
 	parseUndefinedNodes bool
 )
-
-func runParseFromFile(inputPath, outputPath, clusterName string, log utils.Logger, parseUndefinedNodes bool) error {
-	if inputPath == "" {
-		log.Error("Input file is required")
-		return fmt.Errorf("input file is required")
-	}
-
-	log.Info("Reading input file", "file", inputPath)
-	file, err := os.Open(inputPath)
-	if err != nil {
-		log.Error("Failed to open input file", "file", inputPath, "error", err)
-		return fmt.Errorf("failed to open input file: %w", err)
-	}
-	defer file.Close()
-
-	if info, err := file.Stat(); err == nil {
-		log.Debug("Successfully opened input file", "size", info.Size())
-	}
-
-	log.Debug("Using cluster name", "cluster", clusterName)
-
-	log.Info("Parsing JSONL data")
-	graph, err := parser.ConvertToBloodHoundResultFromReader(file, clusterName, parseUndefinedNodes)
-	if err != nil {
-		return err
-	}
-	log.Debug("Processing completed successfully")
-
-	// Output as JSON
-	log.Info("Marshaling result to JSON")
-	jsonData, err := graph.ExportJSON(true)
-	if err != nil {
-		log.Error("Failed to marshal JSON", "error", err)
-		return fmt.Errorf("failed to marshal JSON: %w", err)
-	}
-	log.Debug("JSON marshaling completed", "size", len(jsonData))
-
-	if outputPath != "" {
-		log.Info("Writing output to file", "file", outputPath)
-		if err := os.WriteFile(outputPath, []byte(jsonData), 0644); err != nil {
-			log.Error("Failed to write output file", "file", outputPath, "error", err)
-			return fmt.Errorf("failed to write output file: %w", err)
-		}
-		fmt.Printf("BloodHound Kubernetes data written to: %s\n", outputPath)
-
-		nodeCount := 0
-		edgeCount := 0
-		if graph != nil {
-			nodeCount = graph.GetNodeCount()
-			edgeCount = graph.GetEdgeCount()
-		}
-		fmt.Printf("Processed %d nodes and %d edges from cluster: %s\n",
-			nodeCount, edgeCount, clusterName)
-		return nil
-	}
-
-	log.Debug("Writing output to stdout")
-	fmt.Print(jsonData)
-	return nil
-}
 
 var parseCmd = &cobra.Command{
 	Use:   "parse",
@@ -109,7 +46,13 @@ Examples:
 			clusterName = cluster
 		}
 
-		return runParseFromFile(inputFile, outputFile, clusterName, log, parseUndefinedNodes)
+		_, err = cli.ParseService{}.Run(cli.ParseRequest{
+			InputPath:           inputFile,
+			OutputPath:          outputFile,
+			ClusterName:         clusterName,
+			ParseUndefinedNodes: parseUndefinedNodes,
+		}, log)
+		return err
 	},
 }
 

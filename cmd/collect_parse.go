@@ -1,9 +1,11 @@
 package cmd
 
 import (
+	"context"
 	"path/filepath"
 	"strings"
 
+	"bloodhound-kube/internal/cli"
 	"bloodhound-kube/internal/utils"
 
 	"github.com/spf13/cobra"
@@ -61,10 +63,31 @@ Examples:
 		log := utils.New(effectiveLogLevel, globalNoColor)
 		utils.SetDefaultLogger(log)
 
-		jsonlPath, err := runCollect(cmd, args, log)
+		collectResp, err := cli.CollectService{}.Run(context.Background(), cli.CollectRequest{
+			Namespaces:           namespaces,
+			AllNamespaces:        allNamespaces,
+			Output:               output,
+			ResourceTypes:        resourceTypes,
+			Concurrency:          concurrency,
+			PaginateLimit:        paginateLimit,
+			Kubeconfig:           kubeconfig,
+			Server:               server,
+			Token:                token,
+			ClusterType:          clusterType,
+			Resume:               resume,
+			CheckpointFile:       checkpointFile,
+			Redacted:             redacted,
+			FetchModeFull:        fetchModeFull,
+			DiscoveryList:        discoveryList,
+			DiscoveryAccept:      discoveryAccept,
+			DiscoveryAllowlist:   discoveryAllowlist,
+			Scope:                collectScope,
+			NamespaceFlagSet:     cmd.Flags().Changed("namespace"),
+		}, log)
 		if err != nil {
 			return err
 		}
+		jsonlPath := collectResp.OutputPath
 		if jsonlPath == "" {
 			return nil
 		}
@@ -75,7 +98,13 @@ Examples:
 		}
 
 		outputPath := resolveParsedOutputPath(jsonlPath, parsedOutput)
-		return runParseFromFile(jsonlPath, outputPath, clusterName, log, parseUndefinedNodes)
+		_, err = cli.ParseService{}.Run(cli.ParseRequest{
+			InputPath:           jsonlPath,
+			OutputPath:          outputPath,
+			ClusterName:         clusterName,
+			ParseUndefinedNodes: parseUndefinedNodes,
+		}, log)
+		return err
 	},
 }
 

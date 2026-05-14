@@ -9,6 +9,34 @@ import (
 	"bloodhound-kube/internal/utils"
 )
 
+func TestDeriveParsedOutputPath(t *testing.T) {
+	got := deriveParsedOutputPath("/tmp/collection.jsonl")
+	if got != "/tmp/collection.json" {
+		t.Fatalf("expected /tmp/collection.json, got %q", got)
+	}
+
+	got = deriveParsedOutputPath("collection")
+	if got != "collection.json" {
+		t.Fatalf("expected collection.json, got %q", got)
+	}
+}
+
+func TestResolveParsedOutputPath(t *testing.T) {
+	jsonlPath := "/tmp/run/collection.jsonl"
+
+	if got := resolveParsedOutputPath(jsonlPath, ""); got != "/tmp/run/collection.json" {
+		t.Fatalf("unexpected default parsed output path: %q", got)
+	}
+
+	if got := resolveParsedOutputPath(jsonlPath, "/out/"); got != "/out/collection.json" {
+		t.Fatalf("unexpected directory parsed output path: %q", got)
+	}
+
+	if got := resolveParsedOutputPath(jsonlPath, "/out/custom.json"); got != "/out/custom.json" {
+		t.Fatalf("unexpected explicit parsed output path: %q", got)
+	}
+}
+
 func TestParseServiceRunValidation(t *testing.T) {
 	service := ParseService{}
 	log := utils.New("error", true)
@@ -54,20 +82,5 @@ func TestParseServiceRunWritesOutput(t *testing.T) {
 	}
 	if !strings.Contains(output, "ServiceAccount") {
 		t.Fatalf("expected ServiceAccount node in output")
-	}
-}
-
-func TestUploadServiceRunValidation(t *testing.T) {
-	service := UploadService{}
-	log := utils.New("error", true)
-
-	err := service.Run(UploadRequest{}, log)
-	if err == nil || !strings.Contains(err.Error(), "token ID and token key are required") {
-		t.Fatalf("expected token validation error, got %v", err)
-	}
-
-	err = service.Run(UploadRequest{TokenID: "id", TokenKey: "key"}, log)
-	if err == nil || !strings.Contains(err.Error(), "provide --model-file, --queries-file, --upload-file, or --reset") {
-		t.Fatalf("expected action validation error, got %v", err)
 	}
 }

@@ -226,4 +226,14 @@ func TestParseOutputPath(t *testing.T) {
 	if dir != "." || file != "custom.jsonl" {
 		t.Fatalf("expected ./custom.jsonl, got dir=%q file=%q", dir, file)
 	}
+
+	dir, file = parseOutputPath("./tmp/pipeline")
+	if dir != "tmp" || file != "pipeline.jsonl" {
+		t.Fatalf("expected tmp/pipeline.jsonl, got dir=%q file=%q", dir, file)
+	}
+
+	dir, file = parseOutputPath("pipeline")
+	if dir != "." || file != "pipeline.jsonl" {
+		t.Fatalf("expected ./pipeline.jsonl, got dir=%q file=%q", dir, file)
+	}
 }

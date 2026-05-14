@@ -10,31 +10,37 @@ import (
 )
 
 var (
-	namespaces         string
-	allNamespaces      bool
-	logLevel           string
-	output             string
-	resourceTypes      []string
-	concurrency        int
-	paginateLimit      int
-	kubeconfig         string
-	server             string
-	token              string
-	clusterType        string
-	resume             bool
-	checkpointFile     string
-	redacted           bool
-	fetchModeFull      bool
-	discoveryList      bool
-	discoveryAccept    bool
-	discoveryAllowlist string
-	collectScope       string
+	namespaces          string
+	allNamespaces       bool
+	logLevel            string
+	output              string
+	resourceTypes       []string
+	concurrency         int
+	paginateLimit       int
+	kubeconfig          string
+	server              string
+	token               string
+	clusterType         string
+	resume              bool
+	checkpointFile      string
+	redacted            bool
+	fetchModeFull       bool
+	discoveryList       bool
+	discoveryAccept     bool
+	discoveryAllowlist  string
+	collectScope        string
+	noParse             bool
+	parsedOutput        string
+	parseCluster        string
+	parseUndefinedNodes bool
 )
 
 var collectCmd = &cobra.Command{
 	Use:   "collect",
-	Short: "Collect Kubernetes resources",
-	Long:  `Collect Kubernetes resources from the cluster and stream as JSONL`,
+	Short: "Collect resources and output BloodHound JSON",
+	Long: `Collect Kubernetes resources from the cluster, write to JSONL, and parse to BloodHound-compatible JSON.
+
+Use --no-parse to write JSONL only.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		effectiveLogLevel := logLevel
 		if !cmd.Flags().Changed("log") && globalLogLevel != "" {
@@ -47,27 +53,32 @@ var collectCmd = &cobra.Command{
 		defer closeFn()
 		utils.SetDefaultLogger(log)
 
-		service := cli.CollectService{}
-		_, err = service.Run(context.Background(), cli.CollectRequest{
-			Namespaces:           namespaces,
-			AllNamespaces:        allNamespaces,
-			Output:               output,
-			ResourceTypes:        resourceTypes,
-			Concurrency:          concurrency,
-			PaginateLimit:        paginateLimit,
-			Kubeconfig:           kubeconfig,
-			Server:               server,
-			Token:                token,
-			ClusterType:          clusterType,
-			Resume:               resume,
-			CheckpointFile:       checkpointFile,
-			Redacted:             redacted,
-			FetchModeFull:        fetchModeFull,
-			DiscoveryList:        discoveryList,
-			DiscoveryAccept:      discoveryAccept,
-			DiscoveryAllowlist:   discoveryAllowlist,
-			Scope:                collectScope,
-			NamespaceFlagSet:     cmd.Flags().Changed("namespace"),
+		_, err = cli.PipelineService{}.Run(context.Background(), cli.PipelineRequest{
+			Collect: cli.CollectRequest{
+				Namespaces:         namespaces,
+				AllNamespaces:      allNamespaces,
+				Output:             output,
+				ResourceTypes:      resourceTypes,
+				Concurrency:        concurrency,
+				PaginateLimit:      paginateLimit,
+				Kubeconfig:         kubeconfig,
+				Server:             server,
+				Token:              token,
+				ClusterType:        clusterType,
+				Resume:             resume,
+				CheckpointFile:     checkpointFile,
+				Redacted:           redacted,
+				FetchModeFull:      fetchModeFull,
+				DiscoveryList:      discoveryList,
+				DiscoveryAccept:    discoveryAccept,
+				DiscoveryAllowlist: discoveryAllowlist,
+				Scope:              collectScope,
+				NamespaceFlagSet:   cmd.Flags().Changed("namespace"),
+			},
+			ParseEnabled:        !noParse,
+			ParsedOutputPath:    parsedOutput,
+			ClusterName:         parseCluster,
+			ParseUndefinedNodes: parseUndefinedNodes,
 		}, log)
 		return err
 	},
@@ -103,4 +114,8 @@ func addCollectFlags(cmd *cobra.Command) {
 	cmd.Flags().StringVar(&collectScope, "scope", "core", "Collection scope: core, all, or allowlist (default: core)")
 	cmd.Flags().BoolVar(&discoveryAccept, "accept-crds", false, "Automatically accept CRD discovery without prompting")
 	cmd.Flags().StringVar(&discoveryAllowlist, "discovery-allowlist", "", "Path to newline-delimited allowlist of API resources (used by --scope allowlist)")
+	cmd.Flags().BoolVar(&noParse, "no-parse", false, "Skip BloodHound JSON output (JSONL only)")
+	cmd.Flags().StringVar(&parsedOutput, "parsed-output", "", "Output path for BloodHound JSON (defaults to JSONL filename with .json extension)")
+	cmd.Flags().StringVar(&parseCluster, "cluster", "default", "Kubernetes cluster name for BloodHound metadata")
+	cmd.Flags().BoolVar(&parseUndefinedNodes, "parse-undefined-nodes", false, "Enable generic node creation policy")
 }

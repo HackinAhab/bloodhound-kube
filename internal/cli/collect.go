@@ -364,6 +364,9 @@ func parseOutputPath(output string) (dir, filename string) {
 	}
 	dir = filepath.Dir(output)
 	filename = filepath.Base(output)
+	if filepath.Ext(filename) == "" {
+		filename += ".jsonl"
+	}
 	if dir == "." && !strings.Contains(output, "/") {
 		dir = "."
 	}

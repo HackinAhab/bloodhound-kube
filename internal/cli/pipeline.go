@@ -18,6 +18,7 @@ type PipelineRequest struct {
 	ParsedOutputPath    string
 	ClusterName         string
 	ParseUndefinedNodes bool
+	ClustersConfigPath  string
 }
 
 type PipelineResponse struct {
@@ -31,6 +32,13 @@ type PipelineResponse struct {
 type PipelineService struct{}
 
 func (s PipelineService) Run(ctx context.Context, req PipelineRequest, log utils.Logger) (PipelineResponse, error) {
+	if req.ClustersConfigPath != "" {
+		return runMultiPipeline(ctx, req, log)
+	}
+	return runSinglePipeline(ctx, req, log)
+}
+
+func runSinglePipeline(ctx context.Context, req PipelineRequest, log utils.Logger) (PipelineResponse, error) {
 	start := time.Now()
 
 	collectResp, err := CollectService{}.Run(ctx, req.Collect, log)

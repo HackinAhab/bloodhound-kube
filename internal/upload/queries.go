@@ -22,19 +22,16 @@ func (c *Client) UploadQueriesFromFile(ctx context.Context, queriesFile string) 
 	c.log.Info("Uploading queries", "file", queriesFile)
 	data, err := os.ReadFile(queriesFile)
 	if err != nil {
-		c.log.Error("Read queries file failed", "file", queriesFile, "error", err)
-		return 0, errors.New("upload queries failed")
+		return 0, fmt.Errorf("read queries file %s: %w", queriesFile, err)
 	}
 
 	var config QueriesConfig
 	if err := json.Unmarshal(data, &config); err != nil {
-		c.log.Error("Invalid queries JSON", "file", queriesFile, "error", err)
-		return 0, errors.New("upload queries failed")
+		return 0, fmt.Errorf("invalid queries JSON in %s: %w", queriesFile, err)
 	}
 
 	if len(config.Queries) == 0 {
-		c.log.Error("Queries file contains no queries", "file", queriesFile)
-		return 0, errors.New("upload queries failed")
+		return 0, fmt.Errorf("queries file %s contains no queries", queriesFile)
 	}
 
 	c.log.Info("Uploading queries from file", "count", len(config.Queries))
@@ -42,8 +39,7 @@ func (c *Client) UploadQueriesFromFile(ctx context.Context, queriesFile string) 
 	for i, query := range config.Queries {
 		payload, err := json.Marshal(query)
 		if err != nil {
-			c.log.Error("Marshal query failed", "index", i+1, "error", err)
-			return i, errors.New("upload queries failed")
+			return i, fmt.Errorf("marshal query %d: %w", i+1, err)
 		}
 		c.log.Debug("Uploading query", "index", i+1)
 		if err := c.uploadQuery(ctx, payload); err != nil {
@@ -59,7 +55,7 @@ func (c *Client) UploadQueriesFromFile(ctx context.Context, queriesFile string) 
 func (c *Client) uploadQuery(ctx context.Context, payload []byte) error {
 	resp, err := c.doRequest(ctx, http.MethodPost, c.savedQueriesImportURL(), "upload query", bytes.NewReader(payload), http.StatusOK, http.StatusCreated)
 	if err != nil {
-		return errors.New("upload queries failed")
+		return err
 	}
 	defer resp.Body.Close()
 
@@ -68,15 +64,14 @@ func (c *Client) uploadQuery(ctx context.Context, payload []byte) error {
 
 func (c *Client) deleteQuery(ctx context.Context, queryID string) error {
 	if queryID == "" {
-		c.log.Error("Query ID is required")
-		return errors.New("delete query failed")
+		return errors.New("query ID is required")
 	}
 
 	c.log.Debug("Deleting query", "query_id", queryID)
 	url := c.savedQueriesURL() + "/" + queryID
 	resp, err := c.doRequest(ctx, http.MethodDelete, url, "delete query", nil, http.StatusNoContent)
 	if err != nil {
-		return errors.New("delete query failed")
+		return err
 	}
 	defer resp.Body.Close()
 
@@ -89,7 +84,7 @@ func (c *Client) getQueries(ctx context.Context) ([]map[string]any, error) {
 	c.log.Debug("Fetching saved queries")
 	resp, err := c.doRequest(ctx, http.MethodGet, c.savedQueriesURL(), "get queries", nil, http.StatusOK)
 	if err != nil {
-		return nil, errors.New("get queries failed")
+		return nil, err
 	}
 	defer resp.Body.Close()
 
@@ -99,13 +94,11 @@ func (c *Client) getQueries(ctx context.Context) ([]map[string]any, error) {
 	decoder := json.NewDecoder(resp.Body)
 	decoder.UseNumber()
 	if err := decoder.Decode(&payload); err != nil {
-		c.log.Error("Decode queries response failed", "error", err)
-		return nil, errors.New("get queries failed")
+		return nil, fmt.Errorf("decode queries response: %w", err)
 	}
 
 	if payload.Data == nil {
-		c.log.Error("Queries response missing data")
-		return nil, errors.New("get queries failed")
+		return nil, errors.New("queries response missing data")
 	}
 
 	c.log.Debug("Fetched saved queries", "count", len(payload.Data))
@@ -116,30 +109,25 @@ func (c *Client) ResetQueries(ctx context.Context) error {
 	c.log.Info("Resetting saved queries")
 	queries, err := c.getQueries(ctx)
 	if err != nil {
-		c.log.Error("Fetch existing queries failed", "error", err)
-		return errors.New("reset queries failed")
+		return fmt.Errorf("fetch existing queries: %w", err)
 	}
 
 	for i, query := range queries {
 		idValue, ok := query["id"]
 		if !ok || idValue == nil {
-			c.log.Error("Query missing valid ID", "index", i+1)
-			return errors.New("reset queries failed")
+			return fmt.Errorf("query %d missing id", i+1)
 		}
 		idNumber, ok := idValue.(json.Number)
 		if !ok {
-			c.log.Error("Query missing numeric ID", "index", i+1)
-			return errors.New("reset queries failed")
+			return fmt.Errorf("query %d has non-numeric id", i+1)
 		}
 		id, err := idNumber.Int64()
 		if err != nil {
-			c.log.Error("Query has invalid ID", "index", i+1, "error", err)
-			return errors.New("reset queries failed")
+			return fmt.Errorf("query %d invalid id: %w", i+1, err)
 		}
 		idString := fmt.Sprintf("%d", id)
 		if err := c.deleteQuery(ctx, idString); err != nil {
-			c.log.Error("Delete query failed", "query_id", idString, "error", err)
-			return errors.New("reset queries failed")
+			return err
 		}
 	}
 

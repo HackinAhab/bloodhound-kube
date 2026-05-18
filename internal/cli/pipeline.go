@@ -1,8 +1,11 @@
 package cli
 
 import (
+	"archive/zip"
 	"context"
+	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -19,6 +22,7 @@ type PipelineRequest struct {
 	ClusterName         string
 	ParseUndefinedNodes bool
 	ClustersConfigPath  string
+	ZipOutput           bool
 }
 
 type PipelineResponse struct {
@@ -66,6 +70,15 @@ func runSinglePipeline(ctx context.Context, req PipelineRequest, log utils.Logge
 		return PipelineResponse{JSONLPath: jsonlPath, Duration: time.Since(start)}, err
 	}
 
+	if req.ZipOutput {
+		zipPath, err := zipParsedOutput(parsedPath)
+		if err != nil {
+			log.Error("Failed to zip parsed output", "path", parsedPath, "error", err)
+			return PipelineResponse{JSONLPath: jsonlPath, Duration: time.Since(start)}, fmt.Errorf("zip output: %w", err)
+		}
+		parsedPath = zipPath
+	}
+
 	return PipelineResponse{
 		JSONLPath:  jsonlPath,
 		ParsedPath: parsedPath,
@@ -73,6 +86,52 @@ func runSinglePipeline(ctx context.Context, req PipelineRequest, log utils.Logge
 		EdgeCount:  parseResp.EdgeCount,
 		Duration:   time.Since(start),
 	}, nil
+}
+
+func zipParsedOutput(jsonPath string) (string, error) {
+	zipPath := strings.TrimSuffix(jsonPath, ".json") + ".zip"
+	if !strings.HasSuffix(jsonPath, ".json") {
+		zipPath = jsonPath + ".zip"
+	}
+
+	jsonFile, err := os.Open(jsonPath)
+	if err != nil {
+		return "", fmt.Errorf("open json for zip: %w", err)
+	}
+	defer jsonFile.Close()
+
+	zipFile, err := os.Create(zipPath)
+	if err != nil {
+		return "", fmt.Errorf("create zip file: %w", err)
+	}
+
+	zw := zip.NewWriter(zipFile)
+	entry, err := zw.Create(filepath.Base(jsonPath))
+	if err != nil {
+		zw.Close()
+		zipFile.Close()
+		os.Remove(zipPath)
+		return "", fmt.Errorf("create zip entry: %w", err)
+	}
+	if _, err = io.Copy(entry, jsonFile); err != nil {
+		zw.Close()
+		zipFile.Close()
+		os.Remove(zipPath)
+		return "", fmt.Errorf("write zip entry: %w", err)
+	}
+
+	closeErr := zw.Close()
+	fileErr := zipFile.Close()
+	if closeErr != nil || fileErr != nil {
+		os.Remove(zipPath)
+		return "", fmt.Errorf("finalize zip: %w", errors.Join(closeErr, fileErr))
+	}
+
+	if err := os.Remove(jsonPath); err != nil {
+		return "", fmt.Errorf("remove json after zip: %w", err)
+	}
+
+	return zipPath, nil
 }
 
 func deriveParsedOutputPath(jsonlPath string) string {

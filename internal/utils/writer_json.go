@@ -3,6 +3,7 @@ package utils
 import (
 	"bufio"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -57,8 +58,6 @@ func newAsyncWriter(outputPath, filename string, log Logger, appendMode bool) (*
 }
 
 func (w *AsyncWriter) WriteJSON(data any) error {
-	w.logger.Debug("Writing JSON data to file")
-
 	encoder := json.NewEncoder(w.writer)
 	encoder.SetIndent("", "  ")
 
@@ -70,8 +69,6 @@ func (w *AsyncWriter) WriteJSON(data any) error {
 }
 
 func (w *AsyncWriter) WriteJSONLBatch(data []any) error {
-	w.logger.Debug("Writing JSONL batch to file", "count", len(data))
-
 	encoder := json.NewEncoder(w.writer)
 	for _, item := range data {
 		if err := encoder.Encode(item); err != nil {
@@ -87,8 +84,6 @@ func (w *AsyncWriter) WriteJSONLBatch(data []any) error {
 }
 
 func (w *AsyncWriter) WriteJSONL(data any) error {
-	w.logger.Debug("Writing JSONL data to file")
-
 	encoder := json.NewEncoder(w.writer)
 	if err := encoder.Encode(data); err != nil {
 		return fmt.Errorf("failed to encode JSONL: %w", err)
@@ -105,15 +100,16 @@ func (w *AsyncWriter) Flush() error {
 func (w *AsyncWriter) Close() error {
 	w.logger.Debug("Closing async writer")
 
+	var flushErr error
 	if err := w.writer.Flush(); err != nil {
-		w.logger.Error("Failed to flush buffer", "error", err)
+		flushErr = fmt.Errorf("flush: %w", err)
 	}
 
 	if err := w.file.Close(); err != nil {
-		return fmt.Errorf("failed to close file: %w", err)
+		return errors.Join(flushErr, fmt.Errorf("close: %w", err))
 	}
 
-	return nil
+	return flushErr
 }
 
 func GenerateJSONLFilename(namespace string) string {

@@ -60,14 +60,12 @@ func NewClient(cfg Config) (*Client, error) {
 	}
 
 	if cfg.TokenID == "" || cfg.TokenKey == "" {
-		logger.Error("Token ID and token key are required")
-		return nil, errors.New("upload client initialization failed")
+		return nil, errors.New("token ID and token key are required")
 	}
 
 	auth, err := sdk.NewSecurityProviderHMACCredentials(cfg.TokenKey, cfg.TokenID)
 	if err != nil {
-		logger.Error("Failed to initialize HMAC credentials", "error", err)
-		return nil, errors.New("upload client initialization failed")
+		return nil, fmt.Errorf("initialize HMAC credentials: %w", err)
 	}
 
 	timeout := cfg.Timeout
@@ -77,8 +75,7 @@ func NewClient(cfg Config) (*Client, error) {
 
 	transport, ok := http.DefaultTransport.(*http.Transport)
 	if !ok {
-		logger.Error("Unexpected default transport type")
-		return nil, errors.New("upload client initialization failed")
+		return nil, errors.New("unexpected default transport type")
 	}
 
 	cloned := transport.Clone()
@@ -98,16 +95,13 @@ func NewClient(cfg Config) (*Client, error) {
 func (c *Client) newRequest(ctx context.Context, method, url string, body io.Reader) (*http.Request, error) {
 	req, err := http.NewRequestWithContext(ctx, method, url, body)
 	if err != nil {
-		c.log.Error("Create request failed", "method", method, "url", url, "error", err)
-		return nil, errors.New("upload request failed")
+		return nil, fmt.Errorf("create request: %w", err)
 	}
 	if c.auth == nil {
-		c.log.Error("HMAC credentials not configured")
-		return nil, errors.New("upload request failed")
+		return nil, errors.New("HMAC credentials not configured")
 	}
 	if err := c.auth.Intercept(ctx, req); err != nil {
-		c.log.Error("Authenticate request failed", "method", method, "url", url, "error", err)
-		return nil, errors.New("upload request failed")
+		return nil, fmt.Errorf("authenticate request: %w", err)
 	}
 	return req, nil
 }
@@ -159,14 +153,14 @@ func (c *Client) doRequest(ctx context.Context, method, url, action string, body
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		c.log.Error(action+" request failed", "method", method, "url", url, "error", err)
-		return nil, fmt.Errorf("%s failed", action)
+		return nil, fmt.Errorf("%s: %w", action, err)
 	}
 
 	if !statusAllowed(resp.StatusCode, expectedStatus) {
 		err := responseError(action, resp)
 		c.log.Error(action+" failed", "method", method, "url", url, "status", resp.StatusCode, "error", err)
 		resp.Body.Close()
-		return nil, fmt.Errorf("%s failed", action)
+		return nil, err
 	}
 
 	return resp, nil
@@ -177,7 +171,7 @@ func (c *Client) ResetDatabase(ctx context.Context) error {
 	payload := `{"deleteCollectedGraphData": true,"deleteFileIngestHistory": true,"deleteDataQualityHistory": true,"deleteAssetGroupSelectors": []}`
 	resp, err := c.doRequest(ctx, http.MethodPost, c.baseURL+"/api/v2/clear-database", "reset database", strings.NewReader(payload), http.StatusNoContent)
 	if err != nil {
-		return errors.New("reset database failed")
+		return err
 	}
 	defer resp.Body.Close()
 

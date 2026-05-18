@@ -141,6 +141,7 @@ func buildClusterPipelineRequest(entry multicluster.ClusterEntry, outer Pipeline
 		ParseUndefinedNodes: outer.ParseUndefinedNodes,
 		ClusterName:         entry.Name,
 		ParsedOutputPath:    parsedPath,
+		ZipOutput:           outer.ZipOutput,
 	}, nil
 }
 

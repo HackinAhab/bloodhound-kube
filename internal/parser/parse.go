@@ -54,8 +54,7 @@ func ConvertToBloodHoundResultFromReader(reader io.Reader, clusterName string, p
 		props := properties.NewPropertiesFromMap(n.Properties)
 		openNode, err := node.NewNode(n.ID, n.Kinds, props)
 		if err != nil {
-			log.Error("Create node failed", "id", n.ID, "error", err)
-			return nil, errors.New("parse failed")
+			return nil, fmt.Errorf("create node %s: %w", n.ID, err)
 		}
 
 		graph.AddNode(openNode)
@@ -65,8 +64,7 @@ func ConvertToBloodHoundResultFromReader(reader io.Reader, clusterName string, p
 		props := properties.NewPropertiesFromMap(e.Properties)
 		openEdge, err := edge.NewEdge(e.Start.Value, e.End.Value, e.Kind, props)
 		if err != nil {
-			log.Error("Create edge failed", "kind", e.Kind, "error", err)
-			return nil, errors.New("parse failed")
+			return nil, fmt.Errorf("create edge %s: %w", e.Kind, err)
 		}
 
 		graph.AddEdge(openEdge)

@@ -210,10 +210,15 @@ func ceVarLogSymlinkCheck(pod *workload.Pod) (string, bool) {
 	if pod == nil {
 		return "", false
 	}
+	hasQualifyingContainer := false
 	for _, container := range pod.Containers {
-		if container.RunAsNonRoot || !container.Privileged {
-			return "", false
+		if container.Privileged && !container.RunAsNonRoot {
+			hasQualifyingContainer = true
+			break
 		}
+	}
+	if !hasQualifyingContainer {
+		return "", false
 	}
 	for _, volume := range pod.Volumes {
 		hostPath := volume.HostPath

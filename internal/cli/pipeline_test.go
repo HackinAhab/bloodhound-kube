@@ -41,7 +41,7 @@ func TestParseServiceRunValidation(t *testing.T) {
 	service := ParseService{}
 	log := utils.New("error", true)
 
-	_, err := service.Run(ParseRequest{}, log)
+	_, err := service.Run(ParseRequest{}, nil, log)
 	if err == nil || !strings.Contains(err.Error(), "input file is required") {
 		t.Fatalf("expected input file validation error, got %v", err)
 	}
@@ -64,7 +64,7 @@ func TestParseServiceRunWritesOutput(t *testing.T) {
 		t.Fatalf("failed to write input: %v", err)
 	}
 
-	resp, err := service.Run(ParseRequest{InputPath: inputPath, OutputPath: outputPath, ClusterName: "prod"}, log)
+	resp, err := service.Run(ParseRequest{InputPath: inputPath, OutputPath: outputPath, ClusterName: "prod"}, nil, log)
 	if err != nil {
 		t.Fatalf("parse run failed: %v", err)
 	}

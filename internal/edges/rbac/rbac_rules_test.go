@@ -185,6 +185,148 @@ func TestRBACReadSecretsClusterAggregate(t *testing.T) {
 		t.Fatalf("missing cluster-reader->AllSecrets edge")
 	}
 }
+func TestRBACReadSecretsNamespacedAggregate(t *testing.T) {
+	core := newCore()
+	ns := ensureNamespace(core, "ns1")
+	ns.ServiceAccounts = append(ns.ServiceAccounts,
+		rbac.ServiceAccount{GraphNodeBase: base("ServiceAccount", "ns1", "ns-reader")},
+	)
+	ns.Secrets = append(ns.Secrets,
+		workload.Secret{GraphNodeBase: base("Secret", "ns1", "alpha")},
+		workload.Secret{GraphNodeBase: base("Secret", "ns1", "beta")},
+		workload.Secret{GraphNodeBase: base("Secret", "ns1", "gamma")},
+	)
+	ns.AllSecrets = append(ns.AllSecrets,
+		platform.AllSecrets{GraphNodeBase: base("AllSecrets", "ns1", "AllSecrets")},
+	)
+	ns.Roles = append(ns.Roles,
+		rbac.Role{
+			GraphNodeBase: base("Role", "ns1", "secret-wildcard"),
+			PermsDisplay:  []string{"secrets: get, list, watch"},
+		},
+	)
+	ns.RoleBindings = append(ns.RoleBindings,
+		rbac.RoleBinding{
+			GraphNodeBase: base("RoleBinding", "ns1", "rb-wildcard"),
+			RoleKind:      "Role",
+			RoleName:      "secret-wildcard",
+			Subjects:      []nodefw.Subject{{Kind: "ServiceAccount", Name: "ns-reader"}},
+		},
+	)
+
+	ctx := framework.NewContext(core)
+	edges := rbacReadSecretsEdgesRule{}.Apply(ctx)
+	if len(edges) != 1 {
+		t.Fatalf("expected 1 namespaced aggregate SAReadSecret edge, got %d", len(edges))
+	}
+
+	saID := nodefw.BuildID("ServiceAccount", "ns1", "ns-reader")
+	aggID := nodefw.BuildID("AllSecrets", "ns1", "AllSecrets")
+	if !hasEdge(edges, saID, aggID, "SAReadSecret") {
+		t.Fatalf("missing ns-reader -> AllSecrets:ns1 SAReadSecret edge")
+	}
+	for _, name := range []string{"alpha", "beta", "gamma"} {
+		secretID := nodefw.BuildID("Secret", "ns1", name)
+		if hasEdge(edges, saID, secretID, "SAReadSecret") {
+			t.Fatalf("unexpected per-secret SAReadSecret edge to %s when aggregate should be used", secretID)
+		}
+	}
+}
+
+func TestRBACReadConfigMapsNamespacedAggregate(t *testing.T) {
+	core := newCore()
+	ns := ensureNamespace(core, "ns1")
+	ns.ServiceAccounts = append(ns.ServiceAccounts,
+		rbac.ServiceAccount{GraphNodeBase: base("ServiceAccount", "ns1", "cm-reader")},
+	)
+	ns.ConfigMaps = append(ns.ConfigMaps,
+		workload.ConfigMap{GraphNodeBase: base("ConfigMap", "ns1", "alpha")},
+		workload.ConfigMap{GraphNodeBase: base("ConfigMap", "ns1", "beta")},
+	)
+	ns.AllConfigMaps = append(ns.AllConfigMaps,
+		platform.AllConfigMaps{GraphNodeBase: base("AllConfigMaps", "ns1", "AllConfigMaps")},
+	)
+	ns.Roles = append(ns.Roles,
+		rbac.Role{
+			GraphNodeBase: base("Role", "ns1", "cm-wildcard"),
+			PermsDisplay:  []string{"configmaps: get, list, watch"},
+		},
+	)
+	ns.RoleBindings = append(ns.RoleBindings,
+		rbac.RoleBinding{
+			GraphNodeBase: base("RoleBinding", "ns1", "rb-cm-wildcard"),
+			RoleKind:      "Role",
+			RoleName:      "cm-wildcard",
+			Subjects:      []nodefw.Subject{{Kind: "ServiceAccount", Name: "cm-reader"}},
+		},
+	)
+
+	ctx := framework.NewContext(core)
+	edges := rbacReadConfigMapsEdgesRule{}.Apply(ctx)
+	if len(edges) != 1 {
+		t.Fatalf("expected 1 namespaced aggregate ReadConfigMap edge, got %d", len(edges))
+	}
+
+	saID := nodefw.BuildID("ServiceAccount", "ns1", "cm-reader")
+	aggID := nodefw.BuildID("AllConfigMaps", "ns1", "AllConfigMaps")
+	if !hasEdge(edges, saID, aggID, "ReadConfigMap") {
+		t.Fatalf("missing cm-reader -> AllConfigMaps:ns1 ReadConfigMap edge")
+	}
+	for _, name := range []string{"alpha", "beta"} {
+		cmID := nodefw.BuildID("ConfigMap", "ns1", name)
+		if hasEdge(edges, saID, cmID, "ReadConfigMap") {
+			t.Fatalf("unexpected per-configmap ReadConfigMap edge to %s when aggregate should be used", cmID)
+		}
+	}
+}
+
+// TestRBACReadConfigMapsNamespacedNamed is the named-perms regression for
+// the ConfigMap path: granting access to `configmaps/foo` must emit an edge
+// to the named ConfigMap, not to the aggregate.
+func TestRBACReadConfigMapsNamespacedNamed(t *testing.T) {
+	core := newCore()
+	ns := ensureNamespace(core, "ns1")
+	ns.ServiceAccounts = append(ns.ServiceAccounts,
+		rbac.ServiceAccount{GraphNodeBase: base("ServiceAccount", "ns1", "scoped-reader")},
+	)
+	ns.ConfigMaps = append(ns.ConfigMaps,
+		workload.ConfigMap{GraphNodeBase: base("ConfigMap", "ns1", "target")},
+		workload.ConfigMap{GraphNodeBase: base("ConfigMap", "ns1", "other")},
+	)
+	ns.AllConfigMaps = append(ns.AllConfigMaps,
+		platform.AllConfigMaps{GraphNodeBase: base("AllConfigMaps", "ns1", "AllConfigMaps")},
+	)
+	ns.Roles = append(ns.Roles,
+		rbac.Role{
+			GraphNodeBase: base("Role", "ns1", "scoped-cm"),
+			PermsDisplay:  []string{"configmaps/target: get"},
+		},
+	)
+	ns.RoleBindings = append(ns.RoleBindings,
+		rbac.RoleBinding{
+			GraphNodeBase: base("RoleBinding", "ns1", "rb-scoped-cm"),
+			RoleKind:      "Role",
+			RoleName:      "scoped-cm",
+			Subjects:      []nodefw.Subject{{Kind: "ServiceAccount", Name: "scoped-reader"}},
+		},
+	)
+
+	ctx := framework.NewContext(core)
+	edges := rbacReadConfigMapsEdgesRule{}.Apply(ctx)
+	if len(edges) != 1 {
+		t.Fatalf("expected 1 named ReadConfigMap edge, got %d", len(edges))
+	}
+	saID := nodefw.BuildID("ServiceAccount", "ns1", "scoped-reader")
+	if !hasEdge(edges, saID, nodefw.BuildID("ConfigMap", "ns1", "target"), "ReadConfigMap") {
+		t.Fatalf("missing scoped-reader -> target ReadConfigMap edge")
+	}
+	if hasEdge(edges, saID, nodefw.BuildID("AllConfigMaps", "ns1", "AllConfigMaps"), "ReadConfigMap") {
+		t.Fatalf("unexpected ReadConfigMap edge to aggregate when only named perm is granted")
+	}
+	if hasEdge(edges, saID, nodefw.BuildID("ConfigMap", "ns1", "other"), "ReadConfigMap") {
+		t.Fatalf("unexpected ReadConfigMap edge to non-targeted ConfigMap")
+	}
+}
 
 func TestRBACNodeProxyRule(t *testing.T) {
 	core := newCore()

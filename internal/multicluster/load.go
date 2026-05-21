@@ -50,13 +50,13 @@ func expandToken(clusterName, token string) (string, error) {
 }
 
 // Validate checks structural correctness of the raw config before defaults are
-// applied. Post-merge constraints (namespace mutex, allowlist path existence)
-// are caught naturally by CollectService.Run for each cluster.
+// applied.
 func Validate(cfg *Config) error {
 	if len(cfg.Clusters) == 0 {
 		return fmt.Errorf("clusters config must define at least one cluster")
 	}
 	seen := make(map[string]bool)
+	seenOutputFile := make(map[string]bool)
 	for _, e := range cfg.Clusters {
 		if e.Name == "" {
 			return fmt.Errorf("all cluster entries must have a name")
@@ -74,7 +74,41 @@ func Validate(cfg *Config) error {
 		if e.AllNamespaces != nil && *e.AllNamespaces && e.Namespace != "" {
 			return fmt.Errorf("cluster %q: allNamespaces and namespace are mutually exclusive", e.Name)
 		}
+		if e.OutputFile != "" {
+			if seenOutputFile[e.OutputFile] {
+				return fmt.Errorf("cluster %q: duplicate outputFile %q — each cluster must write to a unique path", e.Name, e.OutputFile)
+			}
+			seenOutputFile[e.OutputFile] = true
+		}
 	}
+
+	// Reject interactive CRD discovery in multi-cluster mode.
+	// Require acceptCRDs: true or a discoveryAllowlist so the run is fully
+	// automated.
+	if len(cfg.Clusters) > 1 {
+		for _, e := range cfg.Clusters {
+			effectiveAcceptCRDs := (e.AcceptCRDs != nil && *e.AcceptCRDs) || cfg.Defaults.AcceptCRDs
+			effectiveAllowlist := e.DiscoveryAllowlist
+			if effectiveAllowlist == "" {
+				effectiveAllowlist = cfg.Defaults.DiscoveryAllowlist
+			}
+			if !effectiveAcceptCRDs && effectiveAllowlist == "" {
+				effectiveScope := strings.TrimSpace(strings.ToLower(e.Scope))
+				if effectiveScope == "" {
+					effectiveScope = strings.TrimSpace(strings.ToLower(cfg.Defaults.Scope))
+				}
+				if effectiveScope == "all" || effectiveScope == "" {
+					return fmt.Errorf(
+						"cluster %q: interactive CRD discovery is not supported in multi-cluster mode; "+
+							"set acceptCRDs: true (or in defaults) to accept all CRDs, or provide a "+
+							"discoveryAllowlist to control which resources are collected",
+						e.Name,
+					)
+				}
+			}
+		}
+	}
+
 	return nil
 }
 

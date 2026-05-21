@@ -51,12 +51,16 @@ func saReadSecretNamespaced(ctx *framework.Context, namespace string, space *mod
 			if sa == nil {
 				continue
 			}
+			if all {
+				if len(space.AllSecrets) > 0 {
+					agg := &space.AllSecrets[0]
+					edges = append(edges, framework.CreateEdgeWithProperties(sa, agg, "SAReadSecret", edgePropertiesRBACReadSecrets))
+				}
+				continue
+			}
+			// Named-only path: emit edges to specifically-named secrets only.
 			for i := range space.Secrets {
 				secret := &space.Secrets[i]
-				if all {
-					edges = append(edges, framework.CreateEdgeWithProperties(sa, secret, "SAReadSecret", edgePropertiesRBACReadSecrets))
-					continue
-				}
 				if _, ok := names[secret.Name]; ok {
 					edges = append(edges, framework.CreateEdgeWithProperties(sa, secret, "SAReadSecret", edgePropertiesRBACReadSecrets))
 				}
@@ -160,12 +164,16 @@ func saReadConfigMapNamespaced(ctx *framework.Context, namespace string, space *
 			if sa == nil {
 				continue
 			}
+			if all {
+				if len(space.AllConfigMaps) > 0 {
+					agg := &space.AllConfigMaps[0]
+					edges = append(edges, framework.CreateEdgeWithProperties(sa, agg, "ReadConfigMap", edgePropertiesRBACReadConfigMaps))
+				}
+				continue
+			}
+			// Named-only path: emit edges to specifically-named configmaps only.
 			for i := range space.ConfigMaps {
 				configMap := &space.ConfigMaps[i]
-				if all {
-					edges = append(edges, framework.CreateEdgeWithProperties(sa, configMap, "ReadConfigMap", edgePropertiesRBACReadConfigMaps))
-					continue
-				}
 				if _, ok := names[configMap.Name]; ok {
 					edges = append(edges, framework.CreateEdgeWithProperties(sa, configMap, "ReadConfigMap", edgePropertiesRBACReadConfigMaps))
 				}

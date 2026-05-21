@@ -100,6 +100,86 @@ func TestValidate(t *testing.T) {
 				{Name: "c1", Server: "https://k8s", Token: "tok"},
 			}},
 		},
+		// Duplicate outputFile: two clusters sharing an explicit output path
+		// would overwrite each other.
+		{
+			name: "duplicate outputFile",
+			cfg: Config{Clusters: []ClusterEntry{
+				{Name: "c1", OutputFile: "/out/shared.jsonl"},
+				{Name: "c2", OutputFile: "/out/shared.jsonl"},
+			}},
+			wantErr: "duplicate outputFile",
+		},
+		// Unique explicit outputFile values are allowed.
+		{
+			name: "unique outputFiles are valid",
+			cfg: Config{Clusters: []ClusterEntry{
+				{Name: "c1", OutputFile: "/out/c1.jsonl", Scope: "core"},
+				{Name: "c2", OutputFile: "/out/c2.jsonl", Scope: "core"},
+			}},
+		},
+		// Multi-cluster with scope=all and no acceptCRDs is rejected because
+		// interactive CRD prompts can't be used concurrently.
+		{
+			name: "multi-cluster scope=all without acceptCRDs rejected",
+			cfg: Config{Clusters: []ClusterEntry{
+				{Name: "c1", Scope: "all"},
+				{Name: "c2", Scope: "all"},
+			}},
+			wantErr: "interactive CRD discovery is not supported in multi-cluster mode",
+		},
+		// Multi-cluster with empty scope (defaults to core, safe) is ok.
+		{
+			name: "multi-cluster empty scope (defaults to core) is ok",
+			cfg: Config{Clusters: []ClusterEntry{
+				{Name: "c1", Scope: "core"},
+				{Name: "c2", Scope: "core"},
+			}},
+		},
+		// Multi-cluster with scope=all is ok when acceptCRDs is true in defaults.
+		{
+			name: "multi-cluster scope=all with default acceptCRDs=true is ok",
+			cfg: Config{
+				Defaults: ClusterDefaults{AcceptCRDs: true},
+				Clusters: []ClusterEntry{
+					{Name: "c1", Scope: "all"},
+					{Name: "c2", Scope: "all"},
+				},
+			},
+		},
+		// Multi-cluster with scope=all is ok when per-cluster acceptCRDs is true.
+		{
+			name: "multi-cluster scope=all with per-cluster acceptCRDs=true is ok",
+			cfg: Config{Clusters: []ClusterEntry{
+				{Name: "c1", Scope: "all", AcceptCRDs: boolPtr(true)},
+				{Name: "c2", Scope: "all", AcceptCRDs: boolPtr(true)},
+			}},
+		},
+		// Multi-cluster with empty scope and no acceptCRDs is rejected (empty
+		// scope is treated as potentially interactive).
+		{
+			name: "multi-cluster empty scope without acceptCRDs rejected",
+			cfg: Config{Clusters: []ClusterEntry{
+				{Name: "c1"},
+				{Name: "c2"},
+			}},
+			wantErr: "interactive CRD discovery is not supported in multi-cluster mode",
+		},
+		// Multi-cluster with a discoveryAllowlist is safe even without acceptCRDs.
+		{
+			name: "multi-cluster with discoveryAllowlist is ok without acceptCRDs",
+			cfg: Config{Clusters: []ClusterEntry{
+				{Name: "c1", DiscoveryAllowlist: "./allowlist.txt"},
+				{Name: "c2", DiscoveryAllowlist: "./allowlist.txt"},
+			}},
+		},
+		// Single cluster is always ok regardless of scope/acceptCRDs.
+		{
+			name: "single cluster scope=all without acceptCRDs is ok",
+			cfg: Config{Clusters: []ClusterEntry{
+				{Name: "c1", Scope: "all"},
+			}},
+		},
 	}
 
 	for _, tt := range tests {
@@ -319,5 +399,129 @@ func writeTempYAML(t *testing.T, content string) string {
 		t.Fatalf("failed to write temp yaml: %v", err)
 	}
 	return path
+}
+
+// TestApplyDefaults_ClusterConcurrency verifies that ClusterConcurrency is
+// accessible on the Config.Defaults after loading — it is a run-level knob
+// and not merged per-cluster.
+func TestApplyDefaults_ClusterConcurrency(t *testing.T) {
+	path := writeTempYAML(t, `
+defaults:
+  clusterConcurrency: 4
+clusters:
+  - name: dev
+`)
+	cfg, err := LoadConfig(path)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if cfg.Defaults.ClusterConcurrency != 4 {
+		t.Errorf("expected ClusterConcurrency 4, got %d", cfg.Defaults.ClusterConcurrency)
+	}
+}
+
+// TestValidate_DuplicateOutputFile is a focused test for the duplicate
+// outputFile check added as part of the concurrent multi-cluster feature.
+func TestValidate_DuplicateOutputFile(t *testing.T) {
+	cfg := &Config{
+		Clusters: []ClusterEntry{
+			{Name: "c1", OutputFile: "/shared/out.jsonl", Scope: "core"},
+			{Name: "c2", OutputFile: "/shared/out.jsonl", Scope: "core"},
+		},
+	}
+	err := Validate(cfg)
+	if err == nil {
+		t.Fatal("expected error for duplicate outputFile, got nil")
+	}
+	if !strings.Contains(err.Error(), "duplicate outputFile") {
+		t.Errorf("unexpected error: %v", err)
+	}
+}
+
+// TestValidate_InteractiveCRDs verifies the CRD validation cases in detail.
+func TestValidate_InteractiveCRDs(t *testing.T) {
+	truePtrs := func() *bool { b := true; return &b }
+	tests := []struct {
+		name    string
+		cfg     Config
+		wantErr bool
+	}{
+		{
+			name: "two clusters with scope=all and no controls — rejected",
+			cfg: Config{Clusters: []ClusterEntry{
+				{Name: "a", Scope: "all"},
+				{Name: "b", Scope: "all"},
+			}},
+			wantErr: true,
+		},
+		{
+			name: "two clusters with default scope (empty) — rejected",
+			cfg: Config{Clusters: []ClusterEntry{
+				{Name: "a"},
+				{Name: "b"},
+			}},
+			wantErr: true,
+		},
+		{
+			name: "two clusters scope=all with default acceptCRDs — ok",
+			cfg: Config{
+				Defaults: ClusterDefaults{AcceptCRDs: true},
+				Clusters: []ClusterEntry{
+					{Name: "a", Scope: "all"},
+					{Name: "b", Scope: "all"},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "two clusters scope=all with per-cluster acceptCRDs — ok",
+			cfg: Config{Clusters: []ClusterEntry{
+				{Name: "a", Scope: "all", AcceptCRDs: truePtrs()},
+				{Name: "b", Scope: "all", AcceptCRDs: truePtrs()},
+			}},
+			wantErr: false,
+		},
+		{
+			name: "two clusters with default discoveryAllowlist — ok",
+			cfg: Config{
+				Defaults: ClusterDefaults{DiscoveryAllowlist: "./allowlist.txt"},
+				Clusters: []ClusterEntry{
+					{Name: "a"},
+					{Name: "b"},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "two clusters with scope=core — ok (safe scope)",
+			cfg: Config{Clusters: []ClusterEntry{
+				{Name: "a", Scope: "core"},
+				{Name: "b", Scope: "core"},
+			}},
+			wantErr: false,
+		},
+		{
+			name: "single cluster with scope=all — ok (no multi-cluster restriction)",
+			cfg: Config{Clusters: []ClusterEntry{
+				{Name: "a", Scope: "all"},
+			}},
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := Validate(&tt.cfg)
+			if tt.wantErr && err == nil {
+				t.Error("expected validation error, got nil")
+			}
+			if !tt.wantErr && err != nil {
+				t.Errorf("unexpected error: %v", err)
+			}
+			if tt.wantErr && err != nil && !strings.Contains(err.Error(), "interactive CRD discovery") {
+				t.Errorf("expected CRD-related error, got: %v", err)
+			}
+		})
+	}
 }
 

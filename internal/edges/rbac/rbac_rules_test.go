@@ -328,3 +328,240 @@ func TestRBACCreateAndWorkloadCreateRules(t *testing.T) {
 		t.Fatalf("missing WorkloadCreate edge to node-2")
 	}
 }
+
+// --- ReadLogs ----------------------------------------------------------------
+
+func TestRBACReadLogsNamespacedWildcard(t *testing.T) {
+	core := newCore()
+	nsA := ensureNamespace(core, "ns-a")
+	nsB := ensureNamespace(core, "ns-b")
+
+	nsA.ServiceAccounts = append(nsA.ServiceAccounts,
+		rbac.ServiceAccount{GraphNodeBase: base("ServiceAccount", "ns-a", "log-reader")},
+	)
+	nsA.Pods = append(nsA.Pods,
+		workload.Pod{GraphNodeBase: base("Pod", "ns-a", "pod-1")},
+		workload.Pod{GraphNodeBase: base("Pod", "ns-a", "pod-2")},
+	)
+	nsB.Pods = append(nsB.Pods,
+		workload.Pod{GraphNodeBase: base("Pod", "ns-b", "pod-other")},
+	)
+	nsA.Roles = append(nsA.Roles,
+		rbac.Role{
+			GraphNodeBase: base("Role", "ns-a", "logs-role"),
+			PermsDisplay:  []string{"pods/log: get, list, watch"},
+		},
+	)
+	nsA.RoleBindings = append(nsA.RoleBindings,
+		rbac.RoleBinding{
+			GraphNodeBase: base("RoleBinding", "ns-a", "rb-logs"),
+			RoleKind:      "Role",
+			RoleName:      "logs-role",
+			Subjects:      []nodefw.Subject{{Kind: "ServiceAccount", Name: "log-reader"}},
+		},
+	)
+
+	ctx := framework.NewContext(core)
+	edges := rbacReadLogsEdgesRule{}.Apply(ctx)
+	if len(edges) != 2 {
+		t.Fatalf("expected 2 ReadLogs edges (one per pod in ns-a), got %d", len(edges))
+	}
+
+	saID := nodefw.BuildID("ServiceAccount", "ns-a", "log-reader")
+	if !hasEdge(edges, saID, nodefw.BuildID("Pod", "ns-a", "pod-1"), "ReadLogs") {
+		t.Fatalf("missing ReadLogs edge to ns-a/pod-1")
+	}
+	if !hasEdge(edges, saID, nodefw.BuildID("Pod", "ns-a", "pod-2"), "ReadLogs") {
+		t.Fatalf("missing ReadLogs edge to ns-a/pod-2")
+	}
+	if hasEdge(edges, saID, nodefw.BuildID("Pod", "ns-b", "pod-other"), "ReadLogs") {
+		t.Fatalf("unexpected cross-namespace ReadLogs edge to ns-b/pod-other")
+	}
+}
+
+func TestRBACReadLogsNamespacedNamedPod(t *testing.T) {
+	core := newCore()
+	ns := ensureNamespace(core, "ns1")
+	ns.ServiceAccounts = append(ns.ServiceAccounts,
+		rbac.ServiceAccount{GraphNodeBase: base("ServiceAccount", "ns1", "scoped-reader")},
+	)
+	ns.Pods = append(ns.Pods,
+		workload.Pod{GraphNodeBase: base("Pod", "ns1", "specific-pod")},
+		workload.Pod{GraphNodeBase: base("Pod", "ns1", "other-pod")},
+	)
+	ns.Roles = append(ns.Roles,
+		rbac.Role{
+			GraphNodeBase: base("Role", "ns1", "scoped-logs-role"),
+			PermsDisplay:  []string{"pods/log/specific-pod: get"},
+		},
+	)
+	ns.RoleBindings = append(ns.RoleBindings,
+		rbac.RoleBinding{
+			GraphNodeBase: base("RoleBinding", "ns1", "rb-scoped-logs"),
+			RoleKind:      "Role",
+			RoleName:      "scoped-logs-role",
+			Subjects:      []nodefw.Subject{{Kind: "ServiceAccount", Name: "scoped-reader"}},
+		},
+	)
+
+	ctx := framework.NewContext(core)
+	edges := rbacReadLogsEdgesRule{}.Apply(ctx)
+	if len(edges) != 1 {
+		t.Fatalf("expected 1 named-pod ReadLogs edge, got %d", len(edges))
+	}
+	saID := nodefw.BuildID("ServiceAccount", "ns1", "scoped-reader")
+	if !hasEdge(edges, saID, nodefw.BuildID("Pod", "ns1", "specific-pod"), "ReadLogs") {
+		t.Fatalf("missing ReadLogs edge to ns1/specific-pod")
+	}
+	if hasEdge(edges, saID, nodefw.BuildID("Pod", "ns1", "other-pod"), "ReadLogs") {
+		t.Fatalf("unexpected ReadLogs edge to ns1/other-pod")
+	}
+}
+
+func TestRBACReadLogsClusterAggregate(t *testing.T) {
+	core := newCore()
+	ns := ensureNamespace(core, "ns1")
+	ns.ServiceAccounts = append(ns.ServiceAccounts,
+		rbac.ServiceAccount{GraphNodeBase: base("ServiceAccount", "ns1", "cluster-log-reader")},
+	)
+	ns.Pods = append(ns.Pods,
+		workload.Pod{GraphNodeBase: base("Pod", "ns1", "pod-1")},
+	)
+	core.Cluster.AllPods = append(core.Cluster.AllPods,
+		platform.AllPods{GraphNodeBase: base("AllPods", "", "AllPods")},
+	)
+	core.Cluster.ClusterRoles = append(core.Cluster.ClusterRoles,
+		rbac.ClusterRole{
+			GraphNodeBase: base("ClusterRole", "", "cluster-logs"),
+			PermsDisplay:  []string{"pods/log: get"},
+		},
+	)
+	core.Cluster.ClusterRoleBindings = append(core.Cluster.ClusterRoleBindings,
+		rbac.ClusterRoleBinding{
+			GraphNodeBase: base("ClusterRoleBinding", "", "crb-logs"),
+			RoleKind:      "ClusterRole",
+			RoleName:      "cluster-logs",
+			Subjects:      []nodefw.Subject{{Kind: "ServiceAccount", Name: "cluster-log-reader", Namespace: "ns1"}},
+		},
+	)
+
+	ctx := framework.NewContext(core)
+	edges := rbacReadLogsEdgesRule{}.Apply(ctx)
+	if len(edges) != 1 {
+		t.Fatalf("expected 1 aggregate ReadLogs edge, got %d", len(edges))
+	}
+	saID := nodefw.BuildID("ServiceAccount", "ns1", "cluster-log-reader")
+	if !hasEdge(edges, saID, nodefw.BuildID("AllPods", "", "AllPods"), "ReadLogs") {
+		t.Fatalf("missing ReadLogs edge to AllPods aggregate")
+	}
+	if hasEdge(edges, saID, nodefw.BuildID("Pod", "ns1", "pod-1"), "ReadLogs") {
+		t.Fatalf("unexpected per-pod ReadLogs edge when aggregate should be used")
+	}
+}
+
+func TestRBACReadLogsClusterNamedPodsAcrossNamespaces(t *testing.T) {
+	core := newCore()
+	ns1 := ensureNamespace(core, "ns1")
+	ns2 := ensureNamespace(core, "ns2")
+
+	ns1.ServiceAccounts = append(ns1.ServiceAccounts,
+		rbac.ServiceAccount{GraphNodeBase: base("ServiceAccount", "ns1", "named-reader")},
+	)
+	ns1.Pods = append(ns1.Pods,
+		workload.Pod{GraphNodeBase: base("Pod", "ns1", "log-pod")},
+		workload.Pod{GraphNodeBase: base("Pod", "ns1", "other-pod")},
+	)
+	ns2.Pods = append(ns2.Pods,
+		workload.Pod{GraphNodeBase: base("Pod", "ns2", "log-pod")},
+	)
+
+	core.Cluster.ClusterRoles = append(core.Cluster.ClusterRoles,
+		rbac.ClusterRole{
+			GraphNodeBase: base("ClusterRole", "", "named-logs"),
+			PermsDisplay:  []string{"pods/log/log-pod: get"},
+		},
+	)
+	core.Cluster.ClusterRoleBindings = append(core.Cluster.ClusterRoleBindings,
+		rbac.ClusterRoleBinding{
+			GraphNodeBase: base("ClusterRoleBinding", "", "crb-named-logs"),
+			RoleKind:      "ClusterRole",
+			RoleName:      "named-logs",
+			Subjects:      []nodefw.Subject{{Kind: "ServiceAccount", Name: "named-reader", Namespace: "ns1"}},
+		},
+	)
+
+	ctx := framework.NewContext(core)
+	edges := rbacReadLogsEdgesRule{}.Apply(ctx)
+	if len(edges) != 2 {
+		t.Fatalf("expected 2 named-pod cluster ReadLogs edges, got %d", len(edges))
+	}
+	saID := nodefw.BuildID("ServiceAccount", "ns1", "named-reader")
+	if !hasEdge(edges, saID, nodefw.BuildID("Pod", "ns1", "log-pod"), "ReadLogs") {
+		t.Fatalf("missing ReadLogs edge to ns1/log-pod")
+	}
+	if !hasEdge(edges, saID, nodefw.BuildID("Pod", "ns2", "log-pod"), "ReadLogs") {
+		t.Fatalf("missing ReadLogs edge to ns2/log-pod")
+	}
+	if hasEdge(edges, saID, nodefw.BuildID("Pod", "ns1", "other-pod"), "ReadLogs") {
+		t.Fatalf("unexpected ReadLogs edge to ns1/other-pod")
+	}
+}
+
+func TestRBACReadLogsRejectsWrongVerb(t *testing.T) {
+	core := newCore()
+	ns := ensureNamespace(core, "ns1")
+	ns.ServiceAccounts = append(ns.ServiceAccounts,
+		rbac.ServiceAccount{GraphNodeBase: base("ServiceAccount", "ns1", "writer")},
+	)
+	ns.Pods = append(ns.Pods, workload.Pod{GraphNodeBase: base("Pod", "ns1", "pod-1")})
+	ns.Roles = append(ns.Roles,
+		rbac.Role{
+			GraphNodeBase: base("Role", "ns1", "wrong-verb"),
+			PermsDisplay:  []string{"pods/log: create"},
+		},
+	)
+	ns.RoleBindings = append(ns.RoleBindings,
+		rbac.RoleBinding{
+			GraphNodeBase: base("RoleBinding", "ns1", "rb-wrong-verb"),
+			RoleKind:      "Role",
+			RoleName:      "wrong-verb",
+			Subjects:      []nodefw.Subject{{Kind: "ServiceAccount", Name: "writer"}},
+		},
+	)
+
+	ctx := framework.NewContext(core)
+	edges := rbacReadLogsEdgesRule{}.Apply(ctx)
+	if len(edges) != 0 {
+		t.Fatalf("expected 0 ReadLogs edges for wrong verb, got %d", len(edges))
+	}
+}
+
+func TestRBACReadLogsRejectsPodsResourceWithoutLogSubresource(t *testing.T) {
+	core := newCore()
+	ns := ensureNamespace(core, "ns1")
+	ns.ServiceAccounts = append(ns.ServiceAccounts,
+		rbac.ServiceAccount{GraphNodeBase: base("ServiceAccount", "ns1", "pod-getter")},
+	)
+	ns.Pods = append(ns.Pods, workload.Pod{GraphNodeBase: base("Pod", "ns1", "pod-1")})
+	ns.Roles = append(ns.Roles,
+		rbac.Role{
+			GraphNodeBase: base("Role", "ns1", "pod-get-role"),
+			// `get pods` does NOT grant access to `pods/log` in Kubernetes.
+			PermsDisplay: []string{"pods: get, list, watch"},
+		},
+	)
+	ns.RoleBindings = append(ns.RoleBindings,
+		rbac.RoleBinding{
+			GraphNodeBase: base("RoleBinding", "ns1", "rb-pod-get"),
+			RoleKind:      "Role",
+			RoleName:      "pod-get-role",
+			Subjects:      []nodefw.Subject{{Kind: "ServiceAccount", Name: "pod-getter"}},
+		},
+	)
+
+	ctx := framework.NewContext(core)
+	edges := rbacReadLogsEdgesRule{}.Apply(ctx)
+	if len(edges) != 0 {
+		t.Fatalf("expected 0 ReadLogs edges when only `pods` (without /log subresource) is granted, got %d", len(edges))
+	}
+}

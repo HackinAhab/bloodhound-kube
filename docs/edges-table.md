@@ -7,7 +7,9 @@
 | rbac | `rbac_impersonate` | `SAImpersonate` | ServiceAccount → AllServiceAccounts | Cluster-scoped binding with wildcard resource access |
 | rbac | `rbac_pod_exec` | `PodExec` | ServiceAccount → Pod | SA has `create` on `pods/exec` |
 | rbac | `rbac_pod_exec` | `PodExec` | ServiceAccount → AllPods | Cluster-scoped, wildcard pod access |
-| rbac | `rbac_pod_debug` | `PodDebug` | ServiceAccount → Pod | SA has `get` on `pods/debug` |
+| rbac | `rbac_pod_debug` | `PodDebug` | ServiceAccount → Pod | SA has `update` on `pods/ephemeralcontainers` |
+| rbac | `rbac_read_logs` | `ReadLogs` | ServiceAccount → Pod | SA has `get`/`list`/`watch` on `pods/log` |
+| rbac | `rbac_read_logs` | `ReadLogs` | ServiceAccount → AllPods | Cluster-scoped, wildcard pod log access |
 | rbac | `rbac_read_secrets` | `SAReadSecret` | ServiceAccount → Secret | SA has `get`/`list`/`watch` on `secrets` |
 | rbac | `rbac_read_secrets` | `SAReadSecret` | ServiceAccount → AllSecrets | Cluster-scoped, wildcard secret access |
 | rbac | `rbac_read_configmaps` | `ReadConfigMap` | ServiceAccount → ConfigMap | SA has `get`/`list`/`watch` on `configmaps` |

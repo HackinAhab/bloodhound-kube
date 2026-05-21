@@ -9,6 +9,7 @@ func Register(reg *framework.Registry) {
 	reg.Register(rbacImpersonateEdgesRule{})
 	reg.Register(rbacPodExecEdgesRule{})
 	reg.Register(rbacPodDebugEdgesRule{})
+	reg.Register(rbacReadLogsEdgesRule{})
 	reg.Register(rbacPatchWorkloadEdgesRule{})
 	reg.Register(rbacCreateEdgesRule{})
 	reg.Register(rbacCreateWorkloadEdgesRule{})

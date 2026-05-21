@@ -49,11 +49,23 @@ A ServiceAccount with `impersonate` on the `serviceaccounts` resource can act as
 **File:** `pod_access.go`  
 **Reference:** https://kubehound.io/reference/attacks/POD_ATTACH/
 
-`get` on `pods/debug` allows attaching an ephemeral debug container to a running pod, which can be used to inspect or exfiltrate data.
+`update` on `pods/ephemeralcontainers` allows attaching an ephemeral debug container to a running pod (this is the permission `kubectl debug` requires), which can be used to inspect or exfiltrate data.
 
 | Edge | Source → Target | Trigger |
 |------|----------------|---------|
-| `PodDebug` | ServiceAccount → Pod | SA has `get` on `pods/debug` |
+| `PodDebug` | ServiceAccount → Pod | SA has `update` on `pods/ephemeralcontainers` |
+
+---
+
+### `rbac_read_logs` — Pod Logs Read
+**File:** `pod_logs.go`
+
+`get`, `list`, or `watch` on `pods/log` allows reading container stdout/stderr from any pod in scope. Logs frequently leak credentials, tokens, request payloads, and internal endpoints, so broad log access is effectively a cluster-wide credential-harvesting primitive. Cluster-scoped bindings emit an edge to the `AllPods` aggregate.
+
+| Edge | Source → Target | Trigger |
+|------|----------------|---------|
+| `ReadLogs` | ServiceAccount → Pod | SA has `get`/`list`/`watch` on `pods/log` |
+| `ReadLogs` | ServiceAccount → AllPods | Cluster-scoped, wildcard pod log access |
 
 ---
 

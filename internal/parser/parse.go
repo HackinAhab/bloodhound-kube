@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"sort"
 	"strings"
 	"time"
 
@@ -191,6 +192,32 @@ func addAggregateNodes(nodeList *[]model.BloodHoundNode, coreFacts *model.CoreFa
 	appendBuildResult(nodeList, coreFacts, platform.BuildAllStatefulSets())
 	appendBuildResult(nodeList, coreFacts, platform.BuildAllJobs())
 	appendBuildResult(nodeList, coreFacts, platform.BuildAllCronJobs())
+
+	// Per-namespace aggregates: emitted for every discovered namespace, even
+	// when zero resources of that kind exist. AllNodes is intentionally
+	// excluded — Nodes are intrinsically cluster-scoped.
+	//
+	// Snapshot the namespace keys before iterating because appendBuildResult
+	// calls coreFacts.Add, which writes into the namespace map. Adding the
+	// namespaced aggregate to its own namespace doesn't introduce a new key
+	// (the namespace already exists), but snapshotting keeps iteration order
+	// deterministic.
+	namespaces := make([]string, 0, len(coreFacts.Namespaces))
+	for ns := range coreFacts.Namespaces {
+		namespaces = append(namespaces, ns)
+	}
+	sort.Strings(namespaces)
+	for _, ns := range namespaces {
+		appendBuildResult(nodeList, coreFacts, platform.BuildAllPodsNS(ns))
+		appendBuildResult(nodeList, coreFacts, platform.BuildAllSecretsNS(ns))
+		appendBuildResult(nodeList, coreFacts, platform.BuildAllConfigMapsNS(ns))
+		appendBuildResult(nodeList, coreFacts, platform.BuildAllServiceAccountsNS(ns))
+		appendBuildResult(nodeList, coreFacts, platform.BuildAllDeploymentsNS(ns))
+		appendBuildResult(nodeList, coreFacts, platform.BuildAllDaemonSetsNS(ns))
+		appendBuildResult(nodeList, coreFacts, platform.BuildAllStatefulSetsNS(ns))
+		appendBuildResult(nodeList, coreFacts, platform.BuildAllJobsNS(ns))
+		appendBuildResult(nodeList, coreFacts, platform.BuildAllCronJobsNS(ns))
+	}
 }
 
 func appendBuildResult(nodeList *[]model.BloodHoundNode, coreFacts *model.CoreFacts, result nodes.BuildResult) {

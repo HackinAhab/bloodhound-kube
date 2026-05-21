@@ -32,6 +32,15 @@ type Namespace struct {
 	RoleBindings           []rbac.RoleBinding
 	ExternalSecrets        []addons.ExternalSecret
 	SecretStores           []addons.SecretStore
+	AllPods                []platform.AllPods
+	AllSecrets             []platform.AllSecrets
+	AllConfigMaps          []platform.AllConfigMaps
+	AllServiceAccounts     []platform.AllServiceAccounts
+	AllDeployments         []platform.AllDeployments
+	AllDaemonSets          []platform.AllDaemonSets
+	AllStatefulSets        []platform.AllStatefulSets
+	AllJobs                []platform.AllJobs
+	AllCronJobs            []platform.AllCronJobs
 }
 
 type Cluster struct {

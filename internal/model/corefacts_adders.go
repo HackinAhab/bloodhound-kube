@@ -85,6 +85,29 @@ func init() {
 		ns.ExternalSecrets = append(ns.ExternalSecrets, v)
 	})
 	registerNamespacedFactAdder(func(ns *Namespace, v addons.SecretStore) { ns.SecretStores = append(ns.SecretStores, v) })
+
+	// Per-namespace aggregate adders. The same struct types are also registered
+	// as cluster adders above; CoreFacts.Add selects the map via entry.Cluster
+	// before performing the type lookup, so both registrations coexist safely.
+	registerNamespacedFactAdder(func(ns *Namespace, v platform.AllPods) { ns.AllPods = append(ns.AllPods, v) })
+	registerNamespacedFactAdder(func(ns *Namespace, v platform.AllSecrets) { ns.AllSecrets = append(ns.AllSecrets, v) })
+	registerNamespacedFactAdder(func(ns *Namespace, v platform.AllConfigMaps) {
+		ns.AllConfigMaps = append(ns.AllConfigMaps, v)
+	})
+	registerNamespacedFactAdder(func(ns *Namespace, v platform.AllServiceAccounts) {
+		ns.AllServiceAccounts = append(ns.AllServiceAccounts, v)
+	})
+	registerNamespacedFactAdder(func(ns *Namespace, v platform.AllDeployments) {
+		ns.AllDeployments = append(ns.AllDeployments, v)
+	})
+	registerNamespacedFactAdder(func(ns *Namespace, v platform.AllDaemonSets) {
+		ns.AllDaemonSets = append(ns.AllDaemonSets, v)
+	})
+	registerNamespacedFactAdder(func(ns *Namespace, v platform.AllStatefulSets) {
+		ns.AllStatefulSets = append(ns.AllStatefulSets, v)
+	})
+	registerNamespacedFactAdder(func(ns *Namespace, v platform.AllJobs) { ns.AllJobs = append(ns.AllJobs, v) })
+	registerNamespacedFactAdder(func(ns *Namespace, v platform.AllCronJobs) { ns.AllCronJobs = append(ns.AllCronJobs, v) })
 }
 
 func registerClusterFactAdder[T any](adder func(*CoreFacts, T)) {

@@ -126,3 +126,86 @@ func buildAggregate(kind string, data func(fw.GraphNodeBase) any) fw.BuildResult
 		Core: []fw.CoreEntry{core},
 	}
 }
+
+// buildNamespaceAggregate builds a per-namespace aggregate node. The kind label
+// matches the cluster aggregate (e.g. "AllSecrets") so a single BloodHound
+// query like MATCH (n:AllSecrets) works
+func buildNamespaceAggregate(kind, namespace string, data func(fw.GraphNodeBase) any) fw.BuildResult {
+	base := fw.GraphNodeBase{
+		ID:        fw.BuildID(kind, namespace, kind),
+		Kinds:     []string{kind},
+		Name:      kind,
+		Namespace: namespace,
+	}
+	properties := map[string]any{
+		"name":      kind,
+		"namespace": namespace,
+	}
+	core := fw.CoreEntry{
+		Namespace: namespace,
+		Cluster:   false,
+		Data:      data(base),
+	}
+	return fw.BuildResult{
+		Node: fw.NodeResult{
+			ID:         base.ID,
+			Kinds:      base.Kinds,
+			Properties: properties,
+		},
+		Core: []fw.CoreEntry{core},
+	}
+}
+
+func BuildAllPodsNS(namespace string) fw.BuildResult {
+	return buildNamespaceAggregate("AllPods", namespace, func(base fw.GraphNodeBase) any {
+		return AllPods{GraphNodeBase: base}
+	})
+}
+
+func BuildAllSecretsNS(namespace string) fw.BuildResult {
+	return buildNamespaceAggregate("AllSecrets", namespace, func(base fw.GraphNodeBase) any {
+		return AllSecrets{GraphNodeBase: base}
+	})
+}
+
+func BuildAllConfigMapsNS(namespace string) fw.BuildResult {
+	return buildNamespaceAggregate("AllConfigMaps", namespace, func(base fw.GraphNodeBase) any {
+		return AllConfigMaps{GraphNodeBase: base}
+	})
+}
+
+func BuildAllServiceAccountsNS(namespace string) fw.BuildResult {
+	return buildNamespaceAggregate("AllServiceAccounts", namespace, func(base fw.GraphNodeBase) any {
+		return AllServiceAccounts{GraphNodeBase: base}
+	})
+}
+
+func BuildAllDeploymentsNS(namespace string) fw.BuildResult {
+	return buildNamespaceAggregate("AllDeployments", namespace, func(base fw.GraphNodeBase) any {
+		return AllDeployments{GraphNodeBase: base}
+	})
+}
+
+func BuildAllDaemonSetsNS(namespace string) fw.BuildResult {
+	return buildNamespaceAggregate("AllDaemonSets", namespace, func(base fw.GraphNodeBase) any {
+		return AllDaemonSets{GraphNodeBase: base}
+	})
+}
+
+func BuildAllStatefulSetsNS(namespace string) fw.BuildResult {
+	return buildNamespaceAggregate("AllStatefulSets", namespace, func(base fw.GraphNodeBase) any {
+		return AllStatefulSets{GraphNodeBase: base}
+	})
+}
+
+func BuildAllJobsNS(namespace string) fw.BuildResult {
+	return buildNamespaceAggregate("AllJobs", namespace, func(base fw.GraphNodeBase) any {
+		return AllJobs{GraphNodeBase: base}
+	})
+}
+
+func BuildAllCronJobsNS(namespace string) fw.BuildResult {
+	return buildNamespaceAggregate("AllCronJobs", namespace, func(base fw.GraphNodeBase) any {
+		return AllCronJobs{GraphNodeBase: base}
+	})
+}

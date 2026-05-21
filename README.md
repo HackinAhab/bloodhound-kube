@@ -96,6 +96,10 @@ Common examples:
 # Output control
 ./bloodhound-kube collect --output /tmp/my-collection.jsonl
 
+# Zip the BloodHound JSON output (JSONL stays on disk uncompressed)
+./bloodhound-kube collect --zip
+./bloodhound-kube collect --zip --output /tmp/my-collection.jsonl
+
 # Logging
 ./bloodhound-kube collect --log debug --no-color
 
@@ -124,6 +128,8 @@ defaults:
   concurrency: 10
   paginateLimit: 100
   outputDir: ./output
+  clusterConcurrency: 4  # run up to 4 cluster pipelines in parallel
+  acceptCRDs: true        # required for multi-cluster mode (see below)
 
 clusters:
   - name: prod-us-east
@@ -141,7 +147,11 @@ See [`clusters.example.yaml`](./clusters.example.yaml) for a fully annotated ref
 
 **Per-cluster fields** override the corresponding `defaults` value. Boolean fields (`allNamespaces`, `redacted`, `acceptCRDs`) use three-state semantics: explicit `true`/`false` overrides the default; omitted inherits it.
 
-`--no-parse`, `--resume`, `--checkpoint-file`, and `--fetch-mode-full` apply globally to all clusters.
+`--no-parse`, `--resume`, `--checkpoint-file`, `--fetch-mode-full`, and `--zip` apply globally to all clusters.
+
+**Concurrent collection**: by default clusters are collected sequentially. Use `defaults.clusterConcurrency: N` in the YAML or `--cluster-concurrency N` on the CLI (CLI takes precedence) to run up to N cluster pipelines in parallel. The CLI flag defaults to `0` (defers to YAML; falls back to `1`).
+
+**CRD discovery requirement**: interactive `[y/N]` prompts cannot be used with more than one cluster because multiple goroutines would race on stdin. Ensure every cluster is non-interactive by setting `acceptCRDs: true` (or per-cluster), providing a `discoveryAllowlist`, or using `scope: core`/`scope: allowlist`. The tool rejects multi-cluster configs that would require a prompt.
 
 ### Discovery and allowlists
 - `--scope` controls collection behavior:
@@ -157,17 +167,28 @@ See [`clusters.example.yaml`](./clusters.example.yaml) for a fully annotated ref
   - `group/*`
   - `v1/resource`
 - `--redacted` omits Secret `data` values during collection while preserving key names.
+- `--zip` compresses the BloodHound JSON output (`.json`) into a zip archive after parsing. The raw JSONL file is left on disk and not included in the archive. Has no effect when `--no-parse` is set.
 
-### Parse command
+### Parsing
+Parsing runs as part of `collect` by default — no separate command. The collect step writes JSONL, and the parse step immediately turns it into BloodHound-compatible JSON in the same run. Use `--no-parse` to skip the parse step and keep JSONL only.
+
+Parse-related flags on `collect`:
+
 ```bash
-./bloodhound-kube parse [flags]
-```
-Example parse
-```
-./bloodhound-kube parse -i /tmp/my-collection.jsonl -o /tmp/my-graph.json --cluster prod-us-east-1
+# Set the cluster name embedded in node IDs and added as the `cluster` node property
+./bloodhound-kube collect --cluster prod-us-east-1
+
+# Override the BloodHound JSON output path (defaults to the JSONL filename with a .json extension)
+./bloodhound-kube collect --parsed-output /tmp/my-graph.json
+
+# Skip the parse step entirely (JSONL only)
+./bloodhound-kube collect --no-parse
+
+# Emit generic nodes for resource kinds that don't have a dedicated builder
+./bloodhound-kube collect --parse-undefined-nodes
 ```
 
-When uploading data from multiple clusters to the same BloodHound instance, set a unique `--cluster` value per cluster. This value is embedded in node IDs and added as a `cluster` node property so you can filter results per cluster.
+When uploading data from multiple clusters to the same BloodHound instance, set a unique `--cluster` value per cluster so you can filter results per cluster in BloodHound.
 
 #### Nodes and Edges
 Relationships are implemented in Go and compiled into the binary. Rules live in `internal/edges`, while node parsing lives in `internal/nodes`.
@@ -175,12 +196,7 @@ See [docs/nodes.md](./docs/nodes.md) for details on existing node types and how 
 See [docs/edges.md](./docs/edges.md) for details on existing edge rules and how to add new ones.
 
 #### Parsing Undefined Nodes
-Resources that are undefined in the node builders are byy default skipped to avoid excess noise. To enable generic node creation for undefined kinds, use:
-
-```bash
-bloodhound-kube parse --parse-undefined-nodes
-```
-This will create generic nodes for any resource with a `kind` field, using the format `kind:group` (e.g. `MyResource:mygroup.example.com`). This can be useful for discovery, but will create **a lot** of noise.
+Resources that are undefined in the node builders are by default skipped to avoid excess noise. To enable generic node creation for undefined kinds, use `--parse-undefined-nodes` on the `collect` command. This creates generic nodes for any resource with a `kind` field, using the format `kind:group` (e.g. `MyResource:mygroup.example.com`). Useful for discovery, but it generates **a lot** of noise.
 
 ### Upload command
 The `upload` command is used to upload the icons, colors, and custom cypher queries in BloodHound instance for Kubernetes data. This only needs to be done once per BloodHound instance, and the same types can be used for multiple collections.

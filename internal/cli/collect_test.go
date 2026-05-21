@@ -54,7 +54,7 @@ func TestCollectServiceRunValidation(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := service.Run(context.Background(), tt.req, log)
+			_, err := service.Run(context.Background(), tt.req, nil, log)
 			if err == nil {
 				t.Fatalf("expected error containing %q, got nil", tt.errWant)
 			}

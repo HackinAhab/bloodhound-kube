@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"io"
 	"maps"
 	"os"
 	"path/filepath"
@@ -85,7 +86,10 @@ type outputCheckpointResolution struct {
 	checkpoint     *collector.Checkpoint
 }
 
-func (s CollectService) Run(ctx context.Context, req CollectRequest, log utils.Logger) (CollectResponse, error) {
+func (s CollectService) Run(ctx context.Context, req CollectRequest, out io.Writer, log utils.Logger) (CollectResponse, error) {
+	if out == nil {
+		out = os.Stdout
+	}
 	if err := validateCollectRequest(req); err != nil {
 		return CollectResponse{}, err
 	}
@@ -161,10 +165,10 @@ func (s CollectService) Run(ctx context.Context, req CollectRequest, log utils.L
 	if len(namespacesToCollect) > 1 {
 		scopeMsg = fmt.Sprintf("from all namespaces (%d namespaces)", len(namespacesToCollect))
 	}
-	fmt.Printf("Collected %d resources %s from %s cluster in %v and wrote to %s\n", totalCollected, scopeMsg, c.GetPlatform(), duration, filename)
-	fmt.Printf("Performance: %.1f resources/sec with %d workers\n", float64(totalCollected)/duration.Seconds(), req.Concurrency)
+	fmt.Fprintf(out, "Collected %d resources %s from %s cluster in %v and wrote to %s\n", totalCollected, scopeMsg, c.GetPlatform(), duration, filename)
+	fmt.Fprintf(out, "Performance: %.1f resources/sec with %d workers\n", float64(totalCollected)/duration.Seconds(), req.Concurrency)
 	for _, resourceType := range slices.Sorted(maps.Keys(counts)) {
-		fmt.Printf("  - %s: %d\n", resourceType, counts[resourceType])
+		fmt.Fprintf(out, "  - %s: %d\n", resourceType, counts[resourceType])
 	}
 	if len(errors) > 0 {
 		return CollectResponse{}, fmt.Errorf("collection completed with %d errors", len(errors))

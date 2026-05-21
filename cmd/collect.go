@@ -35,6 +35,7 @@ var (
 	parseUndefinedNodes bool
 	clustersConfig      string
 	zipOutput           bool
+	clusterConcurrency  int
 )
 
 var collectCmd = &cobra.Command{
@@ -83,6 +84,7 @@ Use --no-parse to write JSONL only.`,
 			ParseUndefinedNodes: parseUndefinedNodes,
 			ClustersConfigPath:  clustersConfig,
 			ZipOutput:           zipOutput,
+			ClusterConcurrency:  clusterConcurrency,
 		}, log)
 		return err
 	},
@@ -124,4 +126,5 @@ func addCollectFlags(cmd *cobra.Command) {
 	cmd.Flags().BoolVar(&parseUndefinedNodes, "parse-undefined-nodes", false, "Enable generic node creation policy")
 	cmd.Flags().StringVarP(&clustersConfig, "clusters-config", "C", "", "YAML config file for multi-cluster collection")
 	cmd.Flags().BoolVar(&zipOutput, "zip", false, "Compress BloodHound JSON output into a zip archive")
+	cmd.Flags().IntVar(&clusterConcurrency, "cluster-concurrency", 0, "Number of cluster pipelines to run in parallel (multi-cluster mode only; 0 defers to the clusters config clusterConcurrency default, or sequential if unset)")
 }

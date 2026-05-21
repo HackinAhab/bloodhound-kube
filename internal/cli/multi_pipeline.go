@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -9,6 +10,8 @@ import (
 	"strings"
 	"text/tabwriter"
 	"time"
+
+	"golang.org/x/sync/errgroup"
 
 	"bloodhound-kube/internal/multicluster"
 	"bloodhound-kube/internal/utils"
@@ -26,6 +29,9 @@ type clusterResult struct {
 	edgeCount  int
 	duration   time.Duration
 	err        error
+	// buffered captures all stdout produced by this cluster's pipeline so it
+	// can be flushed in a deterministic order after all clusters finish.
+	buffered []byte
 }
 
 func runMultiPipeline(ctx context.Context, req PipelineRequest, log utils.Logger) (PipelineResponse, error) {
@@ -42,29 +48,61 @@ func runMultiPipeline(ctx context.Context, req PipelineRequest, log utils.Logger
 	entries := multicluster.ApplyDefaults(cfg)
 
 	start := time.Now()
+	runTimestamp := start.Format("2006-01-02-150405")
 	results := make([]clusterResult, len(entries))
 
-	for i, entry := range entries {
-		clusterLog := log.With("cluster", entry.Name)
-		clusterReq, err := buildClusterPipelineRequest(entry, req)
-		if err != nil {
-			results[i] = clusterResult{name: entry.Name, err: err}
-			clusterLog.Error("Failed to build request", "error", err)
-			continue
+	// Determine effective cluster concurrency.
+	// Precedence: CLI flag (req.ClusterConcurrency > 0) > YAML defaults > 1 (sequential).
+	clusterConcurrency := req.ClusterConcurrency
+	if clusterConcurrency <= 0 {
+		if yamlConcurrency := cfg.Defaults.ClusterConcurrency; yamlConcurrency > 0 {
+			clusterConcurrency = yamlConcurrency
+		} else {
+			clusterConcurrency = 1
 		}
+	}
 
-		resp, err := safeRunSinglePipeline(ctx, clusterReq, clusterLog)
-		results[i] = clusterResult{
-			name:       entry.Name,
-			jsonlPath:  resp.JSONLPath,
-			parsedPath: resp.ParsedPath,
-			nodeCount:  resp.NodeCount,
-			edgeCount:  resp.EdgeCount,
-			duration:   resp.Duration,
-			err:        err,
-		}
-		if err != nil {
-			clusterLog.Error("Cluster pipeline failed", "error", err)
+	// Fan-out over entries, bounded by clusterConcurrency.
+	// Errors are aggregated into results[i].err and joined at the end.
+	g, gctx := errgroup.WithContext(ctx)
+	g.SetLimit(clusterConcurrency)
+
+	for i, entry := range entries {
+		i, entry := i, entry // capture loop vars
+		g.Go(func() error {
+			clusterLog := log.With("cluster", entry.Name)
+			clusterReq, err := buildClusterPipelineRequest(entry, req, runTimestamp)
+			if err != nil {
+				results[i] = clusterResult{name: entry.Name, err: err}
+				clusterLog.Error("Failed to build request", "error", err)
+				return nil
+			}
+			var buf bytes.Buffer
+			clusterReq.Out = &buf
+
+			resp, err := safeRunSinglePipeline(gctx, clusterReq, clusterLog)
+			results[i] = clusterResult{
+				name:       entry.Name,
+				jsonlPath:  resp.JSONLPath,
+				parsedPath: resp.ParsedPath,
+				nodeCount:  resp.NodeCount,
+				edgeCount:  resp.EdgeCount,
+				duration:   resp.Duration,
+				err:        err,
+				buffered:   buf.Bytes(),
+			}
+			if err != nil {
+				clusterLog.Error("Cluster pipeline failed", "error", err)
+			}
+			return nil
+		})
+	}
+
+	_ = g.Wait()
+
+	for _, r := range results {
+		if len(r.buffered) > 0 {
+			os.Stdout.Write(r.buffered)
 		}
 	}
 
@@ -100,12 +138,12 @@ func safeRunSinglePipeline(ctx context.Context, req PipelineRequest, log utils.L
 	return runSinglePipelineFn(ctx, req, log)
 }
 
-func buildClusterPipelineRequest(entry multicluster.ClusterEntry, outer PipelineRequest) (PipelineRequest, error) {
+func buildClusterPipelineRequest(entry multicluster.ClusterEntry, outer PipelineRequest, runTimestamp string) (PipelineRequest, error) {
 	allNS := entry.AllNamespaces != nil && *entry.AllNamespaces
 	redacted := entry.Redacted != nil && *entry.Redacted
 	acceptCRDs := entry.AcceptCRDs != nil && *entry.AcceptCRDs
 
-	jsonlPath, err := resolveClusterOutputPath(entry, outer)
+	jsonlPath, err := resolveClusterOutputPath(entry, outer, runTimestamp)
 	if err != nil {
 		return PipelineRequest{}, err
 	}
@@ -145,7 +183,7 @@ func buildClusterPipelineRequest(entry multicluster.ClusterEntry, outer Pipeline
 	}, nil
 }
 
-func resolveClusterOutputPath(entry multicluster.ClusterEntry, outer PipelineRequest) (string, error) {
+func resolveClusterOutputPath(entry multicluster.ClusterEntry, outer PipelineRequest, runTimestamp string) (string, error) {
 	if entry.OutputFile != "" {
 		return entry.OutputFile, nil
 	}
@@ -156,8 +194,7 @@ func resolveClusterOutputPath(entry multicluster.ClusterEntry, outer PipelineReq
 			dir = "."
 		}
 	}
-	ts := time.Now().Format("2006-01-02-150405")
-	filename := fmt.Sprintf("%s-%s.jsonl", entry.Name, ts)
+	filename := fmt.Sprintf("%s-%s.jsonl", entry.Name, runTimestamp)
 	return filepath.Join(dir, filename), nil
 }
 

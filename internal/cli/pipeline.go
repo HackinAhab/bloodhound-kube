@@ -23,6 +23,8 @@ type PipelineRequest struct {
 	ParseUndefinedNodes bool
 	ClustersConfigPath  string
 	ZipOutput           bool
+	ClusterConcurrency  int
+	Out                 io.Writer
 }
 
 type PipelineResponse struct {
@@ -42,10 +44,20 @@ func (s PipelineService) Run(ctx context.Context, req PipelineRequest, log utils
 	return runSinglePipeline(ctx, req, log)
 }
 
+// pipelineOut returns the effective output writer for a request: the
+// caller-provided Out writer, or os.Stdout when nil.
+func pipelineOut(req PipelineRequest) io.Writer {
+	if req.Out != nil {
+		return req.Out
+	}
+	return os.Stdout
+}
+
 func runSinglePipeline(ctx context.Context, req PipelineRequest, log utils.Logger) (PipelineResponse, error) {
 	start := time.Now()
+	out := pipelineOut(req)
 
-	collectResp, err := CollectService{}.Run(ctx, req.Collect, log)
+	collectResp, err := CollectService{}.Run(ctx, req.Collect, out, log)
 	if err != nil {
 		return PipelineResponse{}, err
 	}
@@ -64,7 +76,7 @@ func runSinglePipeline(ctx context.Context, req PipelineRequest, log utils.Logge
 		OutputPath:          parsedPath,
 		ClusterName:         req.ClusterName,
 		ParseUndefinedNodes: req.ParseUndefinedNodes,
-	}, log)
+	}, out, log)
 	if err != nil {
 		log.Error("Parse failed; JSONL artifact is intact", "jsonl_path", jsonlPath)
 		return PipelineResponse{JSONLPath: jsonlPath, Duration: time.Since(start)}, err
@@ -165,7 +177,10 @@ type ParseResponse struct {
 
 type ParseService struct{}
 
-func (s ParseService) Run(req ParseRequest, log utils.Logger) (ParseResponse, error) {
+func (s ParseService) Run(req ParseRequest, out io.Writer, log utils.Logger) (ParseResponse, error) {
+	if out == nil {
+		out = os.Stdout
+	}
 	if req.InputPath == "" {
 		return ParseResponse{}, fmt.Errorf("input file is required")
 	}
@@ -190,17 +205,17 @@ func (s ParseService) Run(req ParseRequest, log utils.Logger) (ParseResponse, er
 		if err := os.WriteFile(req.OutputPath, []byte(jsonData), 0644); err != nil {
 			return ParseResponse{}, fmt.Errorf("failed to write output file: %w", err)
 		}
-		fmt.Printf("BloodHound Kubernetes data written to: %s\n", req.OutputPath)
+		fmt.Fprintf(out, "BloodHound Kubernetes data written to: %s\n", req.OutputPath)
 		nodeCount, edgeCount := 0, 0
 		if graph != nil {
 			nodeCount = graph.GetNodeCount()
 			edgeCount = graph.GetEdgeCount()
 		}
-		fmt.Printf("Processed %d nodes and %d edges from cluster: %s\n", nodeCount, edgeCount, req.ClusterName)
+		fmt.Fprintf(out, "Processed %d nodes and %d edges from cluster: %s\n", nodeCount, edgeCount, req.ClusterName)
 		return ParseResponse{NodeCount: nodeCount, EdgeCount: edgeCount}, nil
 	}
 
-	fmt.Print(jsonData)
+	fmt.Fprint(out, jsonData)
 	nodeCount, edgeCount := 0, 0
 	if graph != nil {
 		nodeCount = graph.GetNodeCount()

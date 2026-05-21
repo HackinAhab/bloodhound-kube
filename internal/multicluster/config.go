@@ -19,6 +19,7 @@ type ClusterDefaults struct {
 	DiscoveryAllowlist string `yaml:"discoveryAllowlist"`
 	ClusterType        string `yaml:"clusterType"`
 	OutputDir          string `yaml:"outputDir"`
+	ClusterConcurrency int    `yaml:"clusterConcurrency"`
 }
 
 // ClusterEntry describes a single cluster target. Boolean fields use pointers

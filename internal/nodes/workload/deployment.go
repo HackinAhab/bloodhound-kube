@@ -11,6 +11,7 @@ type Deployment struct {
 	GraphNodeBase
 	SelectorLabels map[string]string
 	ServiceAccount string
+	EnvDefinitions []EnvDefinition
 }
 
 func BuildDeploymentNode(obj runtime.Object) (BuildResult, bool) {
@@ -30,12 +31,15 @@ func BuildDeploymentNode(obj runtime.Object) (BuildResult, bool) {
 	selectorLabels := Labels(deploy.Spec.Selector.MatchLabels)
 	selectorMap := StringMapToAnyMap(selectorLabels)
 	serviceAccount := deploy.Spec.Template.Spec.ServiceAccountName
+	envDefinitions := buildEnvDefinitionsFromContainers(deploy.Spec.Template.Spec.Containers, false, "Deployment", name)
+	envDefinitions = append(envDefinitions, buildEnvDefinitionsFromContainers(deploy.Spec.Template.Spec.InitContainers, true, "Deployment", name)...)
 
 	replicas := I32(deploy.Spec.Replicas)
 
 	properties := Props(name, namespace, labelsMap, annotationsMap)
 	properties["replicas"] = replicas
 	properties["selector"] = MapToSortedList(selectorMap)
+	properties["envDefinitions"] = envDefinitions
 
 	base := NewGraphNodeBase("Deployment", namespace, name, labelsMap, annotationsMap)
 
@@ -46,6 +50,7 @@ func BuildDeploymentNode(obj runtime.Object) (BuildResult, bool) {
 			GraphNodeBase:  base,
 			SelectorLabels: selectorLabels,
 			ServiceAccount: serviceAccount,
+			EnvDefinitions: envDefinitions,
 		},
 	}
 

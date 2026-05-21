@@ -11,6 +11,7 @@ type DaemonSetCore struct {
 	GraphNodeBase
 	SelectorLabels map[string]string
 	ServiceAccount string
+	EnvDefinitions []EnvDefinition
 }
 
 func BuildDaemonSetNode(obj runtime.Object) (BuildResult, bool) {
@@ -30,10 +31,13 @@ func BuildDaemonSetNode(obj runtime.Object) (BuildResult, bool) {
 	selectorLabels := Labels(set.Spec.Selector.MatchLabels)
 	selectorMap := StringMapToAnyMap(selectorLabels)
 	serviceAccount := set.Spec.Template.Spec.ServiceAccountName
+	envDefinitions := buildEnvDefinitionsFromContainers(set.Spec.Template.Spec.Containers, false, "DaemonSet", name)
+	envDefinitions = append(envDefinitions, buildEnvDefinitionsFromContainers(set.Spec.Template.Spec.InitContainers, true, "DaemonSet", name)...)
 
 	properties := Props(name, namespace, labelsMap, annotationsMap)
 	properties["selector"] = MapToSortedList(selectorMap)
 	properties["serviceAccount"] = serviceAccount
+	properties["envDefinitions"] = envDefinitions
 
 	base := NewGraphNodeBase("DaemonSet", namespace, name, labelsMap, annotationsMap)
 
@@ -44,6 +48,7 @@ func BuildDaemonSetNode(obj runtime.Object) (BuildResult, bool) {
 			GraphNodeBase:  base,
 			SelectorLabels: selectorLabels,
 			ServiceAccount: serviceAccount,
+			EnvDefinitions: envDefinitions,
 		},
 	}
 

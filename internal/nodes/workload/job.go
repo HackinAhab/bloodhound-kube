@@ -11,6 +11,7 @@ type Job struct {
 	GraphNodeBase
 	SelectorLabels map[string]string
 	ServiceAccount string
+	EnvDefinitions []EnvDefinition
 }
 
 func BuildJobNode(obj runtime.Object) (BuildResult, bool) {
@@ -33,6 +34,8 @@ func BuildJobNode(obj runtime.Object) (BuildResult, bool) {
 	}
 	selectorMap := StringMapToAnyMap(selectorLabels)
 	serviceAccount := job.Spec.Template.Spec.ServiceAccountName
+	envDefinitions := buildEnvDefinitionsFromContainers(job.Spec.Template.Spec.Containers, false, "Job", name)
+	envDefinitions = append(envDefinitions, buildEnvDefinitionsFromContainers(job.Spec.Template.Spec.InitContainers, true, "Job", name)...)
 
 	parallelism := I32(job.Spec.Parallelism)
 	completions := I32(job.Spec.Completions)
@@ -42,6 +45,7 @@ func BuildJobNode(obj runtime.Object) (BuildResult, bool) {
 	properties["serviceAccount"] = serviceAccount
 	properties["parallelism"] = parallelism
 	properties["completions"] = completions
+	properties["envDefinitions"] = envDefinitions
 
 	base := NewGraphNodeBase("Job", namespace, name, labelsMap, annotationsMap)
 
@@ -52,6 +56,7 @@ func BuildJobNode(obj runtime.Object) (BuildResult, bool) {
 			GraphNodeBase:  base,
 			SelectorLabels: selectorLabels,
 			ServiceAccount: serviceAccount,
+			EnvDefinitions: envDefinitions,
 		},
 	}
 

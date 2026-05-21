@@ -11,6 +11,7 @@ type StatefulSetCore struct {
 	GraphNodeBase
 	SelectorLabels map[string]string
 	ServiceAccount string
+	EnvDefinitions []EnvDefinition
 }
 
 func BuildStatefulSetNode(obj runtime.Object) (BuildResult, bool) {
@@ -31,6 +32,8 @@ func BuildStatefulSetNode(obj runtime.Object) (BuildResult, bool) {
 	selectorMap := StringMapToAnyMap(selectorLabels)
 	serviceName := set.Spec.ServiceName
 	serviceAccount := set.Spec.Template.Spec.ServiceAccountName
+	envDefinitions := buildEnvDefinitionsFromContainers(set.Spec.Template.Spec.Containers, false, "StatefulSet", name)
+	envDefinitions = append(envDefinitions, buildEnvDefinitionsFromContainers(set.Spec.Template.Spec.InitContainers, true, "StatefulSet", name)...)
 
 	replicas := I32(set.Spec.Replicas)
 
@@ -39,6 +42,7 @@ func BuildStatefulSetNode(obj runtime.Object) (BuildResult, bool) {
 	properties["selector"] = MapToSortedList(selectorMap)
 	properties["serviceAccount"] = serviceAccount
 	properties["serviceName"] = serviceName
+	properties["envDefinitions"] = envDefinitions
 
 	base := NewGraphNodeBase("StatefulSet", namespace, name, labelsMap, annotationsMap)
 
@@ -49,6 +53,7 @@ func BuildStatefulSetNode(obj runtime.Object) (BuildResult, bool) {
 			GraphNodeBase:  base,
 			SelectorLabels: selectorLabels,
 			ServiceAccount: serviceAccount,
+			EnvDefinitions: envDefinitions,
 		},
 	}
 

@@ -162,6 +162,8 @@ func createNodesAndCoreFactsFromReader(reader io.Reader, parseUndefinedNodes boo
 		return nil, nil, 0, err
 	}
 
+	enrichPodNodesWithControllerEnv(nodeList, coreFacts)
+
 	addAggregateNodes(&nodeList, coreFacts)
 
 	external := platform.ExternalNode()

@@ -143,8 +143,8 @@ func podDebugNamespaced(ctx *framework.Context, namespace string, space *model.N
 	if ctx == nil || space == nil {
 		return nil
 	}
-	resourceKeys := []string{"pods/debug"}
-	verbs := []string{"get"}
+	resourceKeys := []string{"pods/ephemeralcontainers"}
+	verbs := []string{"update"}
 
 	roleBindings := ctx.Index.RoleBindingsByNamespace[namespace]
 	var edges []model.BloodHoundEdge
@@ -181,8 +181,8 @@ func podDebugCluster(ctx *framework.Context) []model.BloodHoundEdge {
 	if ctx == nil || ctx.Core == nil {
 		return nil
 	}
-	resourceKeys := []string{"pods/debug"}
-	verbs := []string{"get"}
+	resourceKeys := []string{"pods/ephemeralcontainers"}
+	verbs := []string{"update"}
 
 	var edges []model.BloodHoundEdge
 	for _, binding := range ctx.Index.ClusterRoleBindingsByName {

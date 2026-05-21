@@ -272,6 +272,69 @@ func enrichSecretObject(obj map[string]any, redacted bool) {
 	}
 }
 
+func redactEnvLiteralValues(obj map[string]any, resourcePlural string) {
+	if obj == nil {
+		return
+	}
+
+	switch resourcePlural {
+	case "pods":
+		spec, _ := obj["spec"].(map[string]any)
+		redactEnvInPodSpec(spec)
+	case "deployments", "daemonsets", "statefulsets", "jobs":
+		spec, _ := obj["spec"].(map[string]any)
+		tmpl, _ := spec["template"].(map[string]any)
+		podSpec, _ := tmpl["spec"].(map[string]any)
+		redactEnvInPodSpec(podSpec)
+	case "cronjobs":
+		spec, _ := obj["spec"].(map[string]any)
+		jobTemplate, _ := spec["jobTemplate"].(map[string]any)
+		jobSpec, _ := jobTemplate["spec"].(map[string]any)
+		tmpl, _ := jobSpec["template"].(map[string]any)
+		podSpec, _ := tmpl["spec"].(map[string]any)
+		redactEnvInPodSpec(podSpec)
+	}
+}
+
+func redactEnvInPodSpec(podSpec map[string]any) int {
+	if podSpec == nil {
+		return 0
+	}
+	count := 0
+	count += redactEnvInContainers(podSpec["containers"])
+	count += redactEnvInContainers(podSpec["initContainers"])
+	return count
+}
+
+func redactEnvInContainers(raw any) int {
+	containers, ok := raw.([]any)
+	if !ok {
+		return 0
+	}
+	count := 0
+	for _, c := range containers {
+		container, ok := c.(map[string]any)
+		if !ok || container == nil {
+			continue
+		}
+		envList, ok := container["env"].([]any)
+		if !ok {
+			continue
+		}
+		for _, e := range envList {
+			envEntry, ok := e.(map[string]any)
+			if !ok || envEntry == nil {
+				continue
+			}
+			if _, hasValue := envEntry["value"]; hasValue {
+				envEntry["value"] = ""
+				count++
+			}
+		}
+	}
+	return count
+}
+
 // applyCollectionHelpers applies common cleaning/enrichment to a collected object
 func applyCollectionHelpers(obj map[string]any, resourcePlural string, redacted bool) map[string]any {
 	if obj == nil {
@@ -287,6 +350,10 @@ func applyCollectionHelpers(obj map[string]any, resourcePlural string, redacted 
 
 	if resourcePlural == "secrets" {
 		enrichSecretObject(obj, redacted)
+	}
+
+	if redacted {
+		redactEnvLiteralValues(obj, resourcePlural)
 	}
 
 	return obj

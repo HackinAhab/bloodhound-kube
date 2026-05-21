@@ -32,6 +32,32 @@ type EnvFromSource struct {
 	Raw          map[string]any
 }
 
+type EnvVarValueRef struct {
+	SecretRef    *NamedObjectRef
+	ConfigMapRef *NamedObjectRef
+	Key          string
+}
+
+type EnvVar struct {
+	Name      string
+	Value     string
+	ValueRef  *EnvVarValueRef
+	IsLiteral bool
+}
+
+type EnvDefinition struct {
+	Container       string
+	InitContainer   bool
+	EnvName         string
+	Value           string
+	ValueSourceType string
+	RefName         string
+	RefKey          string
+	SourceKind      string
+	SourceName      string
+	SourcePath      string
+}
+
 type ContainerSecurityContext struct {
 	RunAsUser              *int64
 	RunAsGroup             *int64
@@ -53,6 +79,7 @@ type Container struct {
 	RunAsNonRoot           bool
 	ReadOnlyRootFilesystem bool
 	SecurityContext        ContainerSecurityContext
+	Env                    []EnvVar
 	EnvFrom                []EnvFromSource
 	HostPorts              []HostPort
 	VolumeMounts           []VolumeMount
@@ -81,6 +108,7 @@ type Pod struct {
 	CapabilitiesDrop []string
 	SeLinuxOptions   map[string]any
 	HostPID          bool
+	EnvDefinitions   []EnvDefinition
 }
 
 func BuildPodNode(obj runtime.Object) (BuildResult, bool) {
@@ -117,6 +145,8 @@ func BuildPodNode(obj runtime.Object) (BuildResult, bool) {
 	privateContainers := extractContainersDetail(pod.Spec.Containers, podSec)
 	privateInitContainers := extractInitContainersDetail(pod.Spec.InitContainers)
 	privateVolumes := extractVolumesDetail(pod.Spec.Volumes)
+	podEnvDefinitions := buildEnvDefinitionsFromContainers(pod.Spec.Containers, false, "Pod", name)
+	podEnvDefinitions = append(podEnvDefinitions, buildEnvDefinitionsFromContainers(pod.Spec.InitContainers, true, "Pod", name)...)
 
 	containerSummaries := summarizeContainers(privateContainers, false)
 	initContainerSummaries := summarizeContainers(privateInitContainers, true)
@@ -201,6 +231,7 @@ func BuildPodNode(obj runtime.Object) (BuildResult, bool) {
 			CapabilitiesDrop: capDrop,
 			SeLinuxOptions:   seLinuxRaw,
 			HostPID:          hostPID,
+			EnvDefinitions:   podEnvDefinitions,
 		},
 	}
 

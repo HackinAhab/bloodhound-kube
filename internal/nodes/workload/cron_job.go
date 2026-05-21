@@ -11,6 +11,7 @@ type CronJob struct {
 	GraphNodeBase
 	SelectorLabels map[string]string
 	ServiceAccount string
+	EnvDefinitions []EnvDefinition
 }
 
 func BuildCronJobNode(obj runtime.Object) (BuildResult, bool) {
@@ -33,6 +34,8 @@ func BuildCronJobNode(obj runtime.Object) (BuildResult, bool) {
 	}
 	selectorMap := StringMapToAnyMap(selectorLabels)
 	serviceAccount := cronJob.Spec.JobTemplate.Spec.Template.Spec.ServiceAccountName
+	envDefinitions := buildEnvDefinitionsFromContainers(cronJob.Spec.JobTemplate.Spec.Template.Spec.Containers, false, "CronJob", name)
+	envDefinitions = append(envDefinitions, buildEnvDefinitionsFromContainers(cronJob.Spec.JobTemplate.Spec.Template.Spec.InitContainers, true, "CronJob", name)...)
 
 	suspend := B(cronJob.Spec.Suspend)
 
@@ -42,6 +45,7 @@ func BuildCronJobNode(obj runtime.Object) (BuildResult, bool) {
 	properties["schedule"] = cronJob.Spec.Schedule
 	properties["suspend"] = suspend
 	properties["concurrencyPolicy"] = string(cronJob.Spec.ConcurrencyPolicy)
+	properties["envDefinitions"] = envDefinitions
 
 	base := NewGraphNodeBase("CronJob", namespace, name, labelsMap, annotationsMap)
 
@@ -52,6 +56,7 @@ func BuildCronJobNode(obj runtime.Object) (BuildResult, bool) {
 			GraphNodeBase:  base,
 			SelectorLabels: selectorLabels,
 			ServiceAccount: serviceAccount,
+			EnvDefinitions: envDefinitions,
 		},
 	}
 

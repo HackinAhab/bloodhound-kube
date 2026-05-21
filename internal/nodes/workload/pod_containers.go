@@ -126,6 +126,7 @@ func extractContainersDetail(containers []corev1.Container, podSec *corev1.PodSe
 				Privileged:             privileged,
 				Raw:                    nil,
 			},
+			Env:          extractEnv(container.Env),
 			EnvFrom:      extractEnvFrom(container.EnvFrom),
 			HostPorts:    extractHostPorts(container.Ports),
 			VolumeMounts: extractVolumeMounts(container.VolumeMounts),
@@ -151,11 +152,122 @@ func extractInitContainersDetail(containers []corev1.Container) []Container {
 			Name:       container.Name,
 			Image:      container.Image,
 			Privileged: privileged,
+			Env:        extractEnv(container.Env),
+			EnvFrom:    extractEnvFrom(container.EnvFrom),
 			Raw:        nil,
 		}
 		results = append(results, result)
 	}
 	return results
+}
+
+func extractEnv(items []corev1.EnvVar) []EnvVar {
+	if len(items) == 0 {
+		return []EnvVar{}
+	}
+	results := make([]EnvVar, 0, len(items))
+	for _, item := range items {
+		entry := EnvVar{Name: item.Name}
+		if item.ValueFrom == nil {
+			entry.Value = item.Value
+			entry.IsLiteral = true
+			results = append(results, entry)
+			continue
+		}
+
+		ref := &EnvVarValueRef{}
+		if item.ValueFrom.SecretKeyRef != nil {
+			ref.SecretRef = &NamedObjectRef{Name: item.ValueFrom.SecretKeyRef.Name}
+			ref.Key = item.ValueFrom.SecretKeyRef.Key
+		}
+		if item.ValueFrom.ConfigMapKeyRef != nil {
+			ref.ConfigMapRef = &NamedObjectRef{Name: item.ValueFrom.ConfigMapKeyRef.Name}
+			ref.Key = item.ValueFrom.ConfigMapKeyRef.Key
+		}
+		if ref.SecretRef != nil || ref.ConfigMapRef != nil {
+			entry.ValueRef = ref
+		}
+
+		results = append(results, entry)
+	}
+	return results
+}
+
+func buildEnvDefinitionsFromContainers(containers []corev1.Container, init bool, sourceKind, sourceName string) []EnvDefinition {
+	if len(containers) == 0 {
+		return []EnvDefinition{}
+	}
+	definitions := make([]EnvDefinition, 0)
+	for _, container := range containers {
+		for _, env := range container.Env {
+			if env.ValueFrom == nil {
+				definitions = append(definitions, EnvDefinition{
+					Container:       container.Name,
+					InitContainer:   init,
+					EnvName:         env.Name,
+					Value:           env.Value,
+					ValueSourceType: "literal",
+					SourceKind:      sourceKind,
+					SourceName:      sourceName,
+					SourcePath:      "spec.containers[].env[]",
+				})
+				continue
+			}
+
+			if env.ValueFrom.SecretKeyRef != nil {
+				definitions = append(definitions, EnvDefinition{
+					Container:       container.Name,
+					InitContainer:   init,
+					EnvName:         env.Name,
+					ValueSourceType: "secretKeyRef",
+					RefName:         env.ValueFrom.SecretKeyRef.Name,
+					RefKey:          env.ValueFrom.SecretKeyRef.Key,
+					SourceKind:      sourceKind,
+					SourceName:      sourceName,
+					SourcePath:      "spec.containers[].env[].valueFrom.secretKeyRef",
+				})
+			}
+			if env.ValueFrom.ConfigMapKeyRef != nil {
+				definitions = append(definitions, EnvDefinition{
+					Container:       container.Name,
+					InitContainer:   init,
+					EnvName:         env.Name,
+					ValueSourceType: "configMapKeyRef",
+					RefName:         env.ValueFrom.ConfigMapKeyRef.Name,
+					RefKey:          env.ValueFrom.ConfigMapKeyRef.Key,
+					SourceKind:      sourceKind,
+					SourceName:      sourceName,
+					SourcePath:      "spec.containers[].env[].valueFrom.configMapKeyRef",
+				})
+			}
+		}
+
+		for _, envFrom := range container.EnvFrom {
+			if envFrom.SecretRef != nil {
+				definitions = append(definitions, EnvDefinition{
+					Container:       container.Name,
+					InitContainer:   init,
+					ValueSourceType: "envFromSecretRef",
+					RefName:         envFrom.SecretRef.Name,
+					SourceKind:      sourceKind,
+					SourceName:      sourceName,
+					SourcePath:      "spec.containers[].envFrom[].secretRef",
+				})
+			}
+			if envFrom.ConfigMapRef != nil {
+				definitions = append(definitions, EnvDefinition{
+					Container:       container.Name,
+					InitContainer:   init,
+					ValueSourceType: "envFromConfigMapRef",
+					RefName:         envFrom.ConfigMapRef.Name,
+					SourceKind:      sourceKind,
+					SourceName:      sourceName,
+					SourcePath:      "spec.containers[].envFrom[].configMapRef",
+				})
+			}
+		}
+	}
+	return definitions
 }
 
 func extractEnvFrom(items []corev1.EnvFromSource) []EnvFromSource {

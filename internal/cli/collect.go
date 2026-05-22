@@ -20,26 +20,37 @@ import (
 
 const defaultCRDPromptThreshold = 1
 
+// PartialCollectionError is returned by CollectService.Run when collection
+// completes but one or more resource types could not be collected (e.g. due to
+// permission errors).
+type PartialCollectionError struct {
+	Count int
+}
+
+func (e *PartialCollectionError) Error() string {
+	return fmt.Sprintf("collection completed with %d error(s); some resources may be missing", e.Count)
+}
+
 type CollectRequest struct {
-	Namespaces             string
-	AllNamespaces          bool
-	Output                 string
-	ResourceTypes          []string
-	Concurrency            int
-	PaginateLimit          int
-	Kubeconfig             string
-	Server                 string
-	Token                  string
-	ClusterType            string
-	Resume                 bool
-	CheckpointFile         string
-	Redacted               bool
-	FetchModeFull          bool
-	DiscoveryList          bool
-	DiscoveryAccept        bool
-	DiscoveryAllowlist     string
-	Scope                  string
-	NamespaceFlagSet       bool
+	Namespaces         string
+	AllNamespaces      bool
+	Output             string
+	ResourceTypes      []string
+	Concurrency        int
+	PaginateLimit      int
+	Kubeconfig         string
+	Server             string
+	Token              string
+	ClusterType        string
+	Resume             bool
+	CheckpointFile     string
+	Redacted           bool
+	FetchModeFull      bool
+	DiscoveryList      bool
+	DiscoveryAccept    bool
+	DiscoveryAllowlist string
+	Scope              string
+	NamespaceFlagSet   bool
 }
 
 type CollectResponse struct {
@@ -66,8 +77,8 @@ type collectDiscoveryPolicy struct {
 type crdExclusionMode string
 
 const (
-	crdExclusionNone     crdExclusionMode = "none"
-	crdExclusionStrip    crdExclusionMode = "strip-crds"
+	crdExclusionNone  crdExclusionMode = "none"
+	crdExclusionStrip crdExclusionMode = "strip-crds"
 )
 
 type collectScope string
@@ -170,11 +181,12 @@ func (s CollectService) Run(ctx context.Context, req CollectRequest, out io.Writ
 	for _, resourceType := range slices.Sorted(maps.Keys(counts)) {
 		fmt.Fprintf(out, "  - %s: %d\n", resourceType, counts[resourceType])
 	}
+	outputPath := filepath.Join(outputDir, filename)
 	if len(errors) > 0 {
-		return CollectResponse{}, fmt.Errorf("collection completed with %d errors", len(errors))
+		return CollectResponse{OutputPath: outputPath}, &PartialCollectionError{Count: len(errors)}
 	}
 
-	return CollectResponse{OutputPath: filepath.Join(outputDir, filename)}, nil
+	return CollectResponse{OutputPath: outputPath}, nil
 }
 
 func validateCollectRequest(req CollectRequest) error {
@@ -357,7 +369,9 @@ func resolveOutputAndCheckpoint(req CollectRequest) (outputCheckpointResolution,
 	return resolved, nil
 }
 
-func generateDefaultOutput() string { return fmt.Sprintf("bloodhound-kube-%s.jsonl", time.Now().Format("2006-01-02-150405")) }
+func generateDefaultOutput() string {
+	return fmt.Sprintf("bloodhound-kube-%s.jsonl", time.Now().Format("2006-01-02-150405"))
+}
 
 func parseOutputPath(output string) (dir, filename string) {
 	if output == "" {
@@ -456,9 +470,15 @@ func promptForCRDs(resources []collector.DiscoveryResource) (bool, error) {
 	if crdCount == 0 {
 		return true, nil
 	}
-	groups := make([]struct{ group string; count int }, 0, len(groupCounts))
+	groups := make([]struct {
+		group string
+		count int
+	}, 0, len(groupCounts))
 	for group, count := range groupCounts {
-		groups = append(groups, struct{ group string; count int }{group: group, count: count})
+		groups = append(groups, struct {
+			group string
+			count int
+		}{group: group, count: count})
 	}
 	sort.Slice(groups, func(i, j int) bool {
 		if groups[i].count == groups[j].count {

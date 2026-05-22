@@ -1,6 +1,8 @@
 package workload
 
 import (
+	"fmt"
+
 	. "bloodhound-kube/internal/nodes/framework"
 
 	corev1 "k8s.io/api/core/v1"
@@ -166,6 +168,13 @@ func BuildPodNode(obj runtime.Object) (BuildResult, bool) {
 		}
 		supplementalGroups = podSec.SupplementalGroups
 	}
+	runAsUserStr := fmt.Sprintf("%v", runAsUser) // handles both int and "unset"
+	runAsGroupStr := fmt.Sprintf("%d", runAsGroup)
+	fsGroupStr := fmt.Sprintf("%d", fsGroup)
+	supplementalGroupStrs := make([]string, len(supplementalGroups))
+	for i, g := range supplementalGroups {
+		supplementalGroupStrs[i] = fmt.Sprintf("%d", g)
+	}
 
 	appArmorPod := ""
 	if podSec != nil {
@@ -194,11 +203,11 @@ func BuildPodNode(obj runtime.Object) (BuildResult, bool) {
 		"hostPid":                   pod.Spec.HostPID,
 		"hostIpc":                   pod.Spec.HostIPC,
 		"shareProcessNamespace":     shareProcessNamespace,
-		"runAsUser":                 runAsUser,
-		"runAsGroup":                runAsGroup,
+		"runAsUser":                 runAsUserStr,
+		"runAsGroup":                runAsGroupStr,
 		"runAsNonRoot":              runAsNonRoot,
-		"fsGroup":                   fsGroup,
-		"supplementalGroups":        supplementalGroups,
+		"fsGroup":                   fsGroupStr,
+		"supplementalGroups":        supplementalGroupStrs,
 		"seccompProfile":            seccompProfile,
 		"appArmorProfile":           appArmorPod,
 		"seLinuxOptions":            SeLinuxSummary(seLinuxRaw),

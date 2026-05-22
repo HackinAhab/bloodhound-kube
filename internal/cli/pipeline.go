@@ -59,7 +59,14 @@ func runSinglePipeline(ctx context.Context, req PipelineRequest, log utils.Logge
 
 	collectResp, err := CollectService{}.Run(ctx, req.Collect, out, log)
 	if err != nil {
-		return PipelineResponse{}, err
+		var partialErr *PartialCollectionError
+		if errors.As(err, &partialErr) && collectResp.OutputPath != "" {
+			log.Warn("Collection completed with errors; parsing resources that were collected",
+				"failed_jobs", partialErr.Count,
+				"jsonl_path", collectResp.OutputPath)
+		} else {
+			return PipelineResponse{}, err
+		}
 	}
 
 	jsonlPath := collectResp.OutputPath

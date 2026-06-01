@@ -38,6 +38,15 @@ func hasEdge(edges []model.BloodHoundEdge, startID, endID, kind string) bool {
 	return false
 }
 
+func findEdge(edges []model.BloodHoundEdge, startID, endID, kind string) (model.BloodHoundEdge, bool) {
+	for _, edge := range edges {
+		if edge.Kind == kind && edge.Start.Value == startID && edge.End.Value == endID {
+			return edge, true
+		}
+	}
+	return model.BloodHoundEdge{}, false
+}
+
 func TestAccessForResourceAndParsePerms(t *testing.T) {
 	perms := []string{
 		"secrets: get, list",
@@ -102,16 +111,203 @@ func TestRBACBaseBindingsRule(t *testing.T) {
 
 	ctx := framework.NewContext(core)
 	edges := rbacEdgesRule{}.Apply(ctx)
-	if len(edges) != 3 {
-		t.Fatalf("expected 3 RoleBound edges, got %d", len(edges))
+	// Two unique (start, end) pairs:
+	//   1. Role/team-a/read-role -> SA/team-a/sa-1     (one binding: rb-role)
+	//   2. ClusterRole/cluster-admin-lite -> SA/team-a/sa-1
+	//      (two bindings merged: rb-cluster-role + crb-1)
+	if len(edges) != 2 {
+		t.Fatalf("expected 2 RoleBound edges (with binding merge), got %d", len(edges))
 	}
 
 	saID := nodefw.BuildID("ServiceAccount", "team-a", "sa-1")
-	if !hasEdge(edges, nodefw.BuildID("Role", "team-a", "read-role"), saID, "RoleBound") {
+	roleEdge, ok := findEdge(edges, nodefw.BuildID("Role", "team-a", "read-role"), saID, "RoleBound")
+	if !ok {
 		t.Fatalf("missing role->serviceaccount edge")
 	}
-	if !hasEdge(edges, nodefw.BuildID("ClusterRole", "", "cluster-admin-lite"), saID, "RoleBound") {
+	if got := roleEdge.Properties["bindingKind"]; got != "RoleBinding" {
+		t.Fatalf("role edge bindingKind = %v, want RoleBinding", got)
+	}
+	if got := roleEdge.Properties["bindingName"]; got != "rb-role" {
+		t.Fatalf("role edge bindingName = %v, want rb-role", got)
+	}
+	if got := roleEdge.Properties["bindingNamespace"]; got != "team-a" {
+		t.Fatalf("role edge bindingNamespace = %v, want team-a", got)
+	}
+	if got := roleEdge.Properties["roleKind"]; got != "Role" {
+		t.Fatalf("role edge roleKind = %v, want Role", got)
+	}
+	if got := roleEdge.Properties["roleName"]; got != "read-role" {
+		t.Fatalf("role edge roleName = %v, want read-role", got)
+	}
+	if got := roleEdge.Properties["bindingCount"]; got != 1 {
+		t.Fatalf("role edge bindingCount = %v, want 1", got)
+	}
+	roleBindings, ok := roleEdge.Properties["bindings"].([]map[string]any)
+	if !ok || len(roleBindings) != 1 {
+		t.Fatalf("role edge bindings malformed: %#v", roleEdge.Properties["bindings"])
+	}
+	if roleBindings[0]["name"] != "rb-role" || roleBindings[0]["kind"] != "RoleBinding" {
+		t.Fatalf("role edge bindings[0] = %#v", roleBindings[0])
+	}
+
+	crEdge, ok := findEdge(edges, nodefw.BuildID("ClusterRole", "", "cluster-admin-lite"), saID, "RoleBound")
+	if !ok {
 		t.Fatalf("missing clusterrole->serviceaccount edge")
+	}
+	if got := crEdge.Properties["bindingCount"]; got != 2 {
+		t.Fatalf("clusterrole edge bindingCount = %v, want 2", got)
+	}
+	crBindings, ok := crEdge.Properties["bindings"].([]map[string]any)
+	if !ok || len(crBindings) != 2 {
+		t.Fatalf("clusterrole edge bindings malformed: %#v", crEdge.Properties["bindings"])
+	}
+	// Sorted by (namespace, name, kind): "" < "team-a", so crb-1 comes first.
+	if crBindings[0]["name"] != "crb-1" || crBindings[0]["kind"] != "ClusterRoleBinding" || crBindings[0]["namespace"] != "" {
+		t.Fatalf("clusterrole edge bindings[0] = %#v", crBindings[0])
+	}
+	if crBindings[1]["name"] != "rb-cluster-role" || crBindings[1]["kind"] != "RoleBinding" || crBindings[1]["namespace"] != "team-a" {
+		t.Fatalf("clusterrole edge bindings[1] = %#v", crBindings[1])
+	}
+	// The convenience scalars mirror bindings[0] after sort.
+	if got := crEdge.Properties["bindingName"]; got != "crb-1" {
+		t.Fatalf("clusterrole edge bindingName = %v, want crb-1 (first after sort)", got)
+	}
+	if got := crEdge.Properties["bindingKind"]; got != "ClusterRoleBinding" {
+		t.Fatalf("clusterrole edge bindingKind = %v, want ClusterRoleBinding", got)
+	}
+}
+
+func TestRBACBaseBindingsMergesMultipleClusterRoleBindings(t *testing.T) {
+	core := newCore()
+	ns := ensureNamespace(core, "team-a")
+	ns.ServiceAccounts = append(ns.ServiceAccounts,
+		rbac.ServiceAccount{GraphNodeBase: base("ServiceAccount", "team-a", "sa-1")},
+	)
+	core.Cluster.ClusterRoles = append(core.Cluster.ClusterRoles,
+		rbac.ClusterRole{GraphNodeBase: base("ClusterRole", "", "cluster-admin")},
+	)
+	// Insert in reverse-alpha order to verify sort happens at materialize time.
+	core.Cluster.ClusterRoleBindings = append(core.Cluster.ClusterRoleBindings,
+		rbac.ClusterRoleBinding{
+			GraphNodeBase: base("ClusterRoleBinding", "", "crb-b"),
+			RoleKind:      "ClusterRole",
+			RoleName:      "cluster-admin",
+			Subjects:      []nodefw.Subject{{Kind: "ServiceAccount", Name: "sa-1", Namespace: "team-a"}},
+		},
+		rbac.ClusterRoleBinding{
+			GraphNodeBase: base("ClusterRoleBinding", "", "crb-a"),
+			RoleKind:      "ClusterRole",
+			RoleName:      "cluster-admin",
+			Subjects:      []nodefw.Subject{{Kind: "ServiceAccount", Name: "sa-1", Namespace: "team-a"}},
+		},
+	)
+
+	ctx := framework.NewContext(core)
+	edges := rbacEdgesRule{}.Apply(ctx)
+	if len(edges) != 1 {
+		t.Fatalf("expected 1 merged RoleBound edge, got %d", len(edges))
+	}
+	edge := edges[0]
+	if got := edge.Properties["bindingCount"]; got != 2 {
+		t.Fatalf("bindingCount = %v, want 2", got)
+	}
+	bindings, ok := edge.Properties["bindings"].([]map[string]any)
+	if !ok || len(bindings) != 2 {
+		t.Fatalf("bindings malformed: %#v", edge.Properties["bindings"])
+	}
+	if bindings[0]["name"] != "crb-a" {
+		t.Fatalf("bindings[0].name = %v, want crb-a (sorted)", bindings[0]["name"])
+	}
+	if bindings[1]["name"] != "crb-b" {
+		t.Fatalf("bindings[1].name = %v, want crb-b (sorted)", bindings[1]["name"])
+	}
+	if edge.Properties["bindingName"] != "crb-a" {
+		t.Fatalf("bindingName = %v, want crb-a", edge.Properties["bindingName"])
+	}
+}
+
+func TestRBACBaseBindingsRoleBindingProperties(t *testing.T) {
+	core := newCore()
+	ns := ensureNamespace(core, "ns1")
+	ns.ServiceAccounts = append(ns.ServiceAccounts,
+		rbac.ServiceAccount{GraphNodeBase: base("ServiceAccount", "ns1", "reader")},
+	)
+	ns.Roles = append(ns.Roles, rbac.Role{GraphNodeBase: base("Role", "ns1", "reader-role")})
+	ns.RoleBindings = append(ns.RoleBindings,
+		rbac.RoleBinding{
+			GraphNodeBase: base("RoleBinding", "ns1", "rb-reader"),
+			RoleKind:      "Role",
+			RoleName:      "reader-role",
+			Subjects:      []nodefw.Subject{{Kind: "ServiceAccount", Name: "reader"}},
+		},
+	)
+
+	ctx := framework.NewContext(core)
+	edges := rbacEdgesRule{}.Apply(ctx)
+	if len(edges) != 1 {
+		t.Fatalf("expected 1 RoleBound edge, got %d", len(edges))
+	}
+	edge := edges[0]
+	bindings, ok := edge.Properties["bindings"].([]map[string]any)
+	if !ok || len(bindings) != 1 {
+		t.Fatalf("bindings malformed: %#v", edge.Properties["bindings"])
+	}
+	want := map[string]any{
+		"kind":      "RoleBinding",
+		"name":      "rb-reader",
+		"namespace": "ns1",
+		"roleKind":  "Role",
+		"roleName":  "reader-role",
+	}
+	for k, v := range want {
+		if bindings[0][k] != v {
+			t.Fatalf("bindings[0][%q] = %v, want %v", k, bindings[0][k], v)
+		}
+	}
+}
+
+func TestRBACBaseBindingsDeterministicOrdering(t *testing.T) {
+	core := newCore()
+	ns := ensureNamespace(core, "team-a")
+	ns.ServiceAccounts = append(ns.ServiceAccounts,
+		rbac.ServiceAccount{GraphNodeBase: base("ServiceAccount", "team-a", "sa-1")},
+	)
+	core.Cluster.ClusterRoles = append(core.Cluster.ClusterRoles,
+		rbac.ClusterRole{GraphNodeBase: base("ClusterRole", "", "cluster-role")},
+	)
+	// Mix RoleBinding (namespace=team-a) and ClusterRoleBinding (namespace="")
+	// — sort should place the ClusterRoleBinding first since "" < "team-a".
+	ns.RoleBindings = append(ns.RoleBindings,
+		rbac.RoleBinding{
+			GraphNodeBase: base("RoleBinding", "team-a", "rb-zeta"),
+			RoleKind:      "ClusterRole",
+			RoleName:      "cluster-role",
+			Subjects:      []nodefw.Subject{{Kind: "ServiceAccount", Name: "sa-1"}},
+		},
+	)
+	core.Cluster.ClusterRoleBindings = append(core.Cluster.ClusterRoleBindings,
+		rbac.ClusterRoleBinding{
+			GraphNodeBase: base("ClusterRoleBinding", "", "crb-zeta"),
+			RoleKind:      "ClusterRole",
+			RoleName:      "cluster-role",
+			Subjects:      []nodefw.Subject{{Kind: "ServiceAccount", Name: "sa-1", Namespace: "team-a"}},
+		},
+	)
+
+	ctx := framework.NewContext(core)
+	edges := rbacEdgesRule{}.Apply(ctx)
+	if len(edges) != 1 {
+		t.Fatalf("expected 1 merged RoleBound edge, got %d", len(edges))
+	}
+	bindings, ok := edges[0].Properties["bindings"].([]map[string]any)
+	if !ok || len(bindings) != 2 {
+		t.Fatalf("bindings malformed: %#v", edges[0].Properties["bindings"])
+	}
+	if bindings[0]["namespace"] != "" || bindings[0]["name"] != "crb-zeta" {
+		t.Fatalf("expected ClusterRoleBinding (namespace='') first, got %#v", bindings[0])
+	}
+	if bindings[1]["namespace"] != "team-a" || bindings[1]["name"] != "rb-zeta" {
+		t.Fatalf("expected RoleBinding (namespace='team-a') second, got %#v", bindings[1])
 	}
 }
 

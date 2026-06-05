@@ -2,7 +2,7 @@
 
 | Domain | Rule | Edge | Source → Target | Trigger |
 |--------|------|------|----------------|---------|
-| rbac | `rbac_base` | `RoleBound` | Role/ClusterRole → ServiceAccount | A RoleBinding or ClusterRoleBinding links the role to a ServiceAccount subject |
+| rbac | `rbac_base` | `RoleBound` | Role/ClusterRole → ServiceAccount | A RoleBinding or ClusterRoleBinding links the role to a ServiceAccount subject. Edge properties (`bindingKind`, `bindingName`, `bindingNamespace`, `roleKind`, `roleName`, `bindings[]`, `bindingCount`) identify every contributing binding. |
 | rbac | `rbac_impersonate` | `SAImpersonate` | ServiceAccount → ServiceAccount | SA has `impersonate` verb on `serviceaccounts` via a RoleBinding or ClusterRoleBinding |
 | rbac | `rbac_impersonate` | `SAImpersonate` | ServiceAccount → AllServiceAccounts | Cluster-scoped binding with wildcard resource access |
 | rbac | `rbac_pod_exec` | `PodExec` | ServiceAccount → Pod | SA has `create` on `pods/exec` |
@@ -24,6 +24,15 @@
 | rbac | `rbac_patch_workload` | `WorkloadPatch` | ServiceAccount → CronJob | SA has `patch`/`update` on `cronjobs` |
 | rbac | `rbac_node_proxy` | `NodeProxy` | ServiceAccount → Pod | SA has `get` on `nodes/proxy` via a namespaced binding; pod is on a matching node |
 | rbac | `rbac_node_proxy` | `NodeProxyRCE` | ServiceAccount → Pod | SA has `get`/`create`/`proxy` on `nodes/proxy` via a cluster-scoped binding |
+| rbac | `rbac_pod_portforward` | `PodPortForward` | ServiceAccount → Pod | SA has `create` on `pods/portforward` |
+| rbac | `rbac_pod_portforward` | `PodPortForward` | ServiceAccount → AllPods | Cluster-scoped, wildcard pod access |
+| rbac | `rbac_pod_attach` | `PodAttach` | ServiceAccount → Pod | SA has `create` on `pods/attach` |
+| rbac | `rbac_pod_attach` | `PodAttach` | ServiceAccount → AllPods | Cluster-scoped, wildcard pod access |
+| rbac | `rbac_sa_token_request` | `SATokenRequest` | ServiceAccount → ServiceAccount | SA has `create` on `serviceaccounts/token` via a RoleBinding |
+| rbac | `rbac_sa_token_request` | `SATokenRequest` | ServiceAccount → AllServiceAccounts | Cluster-scoped, wildcard serviceaccount access |
+| rbac | `rbac_escalate_bind` | `RBACEscalate` | ServiceAccount → Role/ClusterRole | SA has `escalate` on `roles` or `clusterroles` |
+| rbac | `rbac_escalate_bind` | `RBACBind` | ServiceAccount → Role/ClusterRole | SA has `bind` on `roles` or `clusterroles` (without `escalate`) |
+| rbac | `rbac_scc_usage` | `SCCUse` | ServiceAccount → SecurityContextConstraints | SA has `use` on `securitycontextconstraints` via a ClusterRoleBinding (OpenShift only) |
 | security | `capabilities` | `CAP_SYS_ADMIN` | Pod → Node | Container has `CAP_SYS_ADMIN` in `securityContext.capabilities.add` |
 | security | `capabilities` | `CAP_NET_ADMIN` | Pod → Node | Container has `CAP_NET_ADMIN` in `securityContext.capabilities.add` |
 | security | `capabilities` | `CAP_SYS_MODULE` | Pod → Node | Container has `CAP_SYS_MODULE` in `securityContext.capabilities.add` |

@@ -25,6 +25,7 @@ type UploadRequest struct {
 	HasModelFlag   bool
 	HasQueriesFlag bool
 	HasUploadFlag  bool
+	ClusterName    string
 }
 
 type UploadService struct{}
@@ -106,7 +107,7 @@ func (s UploadService) Run(req UploadRequest, log utils.Logger) error {
 				return fmt.Errorf("failed to reset custom queries: %w", err)
 			}
 		}
-		queryCount, err := client.UploadQueriesFromFile(ctx, queriesFile)
+		queryCount, err := client.UploadQueriesFromFile(ctx, queriesFile, req.ClusterName)
 		if err != nil {
 			return fmt.Errorf("failed to upload custom queries: %w", err)
 		}

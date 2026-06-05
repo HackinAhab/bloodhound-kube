@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strings"
+	template "text/template"
 )
 
 func (c *Client) savedQueriesImportURL() string {
@@ -18,7 +20,7 @@ func (c *Client) savedQueriesURL() string {
 	return c.baseURL + "/api/v2/saved-queries"
 }
 
-func (c *Client) UploadQueriesFromFile(ctx context.Context, queriesFile string) (int, error) {
+func (c *Client) UploadQueriesFromFile(ctx context.Context, queriesFile string, clusterName string) (int, error) {
 	c.log.Info("Uploading queries", "file", queriesFile)
 	data, err := os.ReadFile(queriesFile)
 	if err != nil {
@@ -32,6 +34,10 @@ func (c *Client) UploadQueriesFromFile(ctx context.Context, queriesFile string) 
 
 	if len(config.Queries) == 0 {
 		return 0, fmt.Errorf("queries file %s contains no queries", queriesFile)
+	}
+
+	if err := renderQueryTemplates(config.Queries, clusterName); err != nil {
+		return 0, err
 	}
 
 	c.log.Info("Uploading queries from file", "count", len(config.Queries))
@@ -50,6 +56,34 @@ func (c *Client) UploadQueriesFromFile(ctx context.Context, queriesFile string) 
 	c.log.Info("Queries upload completed", "count", len(config.Queries))
 
 	return len(config.Queries), nil
+}
+
+type queryTemplateData struct {
+	Cluster string
+}
+
+func renderQueryTemplates(queries []map[string]any, clusterName string) error {
+	cluster := strings.TrimSpace(clusterName)
+	if cluster == "" {
+		cluster = "default"
+	}
+	data := queryTemplateData{Cluster: cluster}
+	for i, q := range queries {
+		raw, ok := q["query"].(string)
+		if !ok {
+			continue
+		}
+		tmpl, err := template.New("").Parse(raw)
+		if err != nil {
+			return fmt.Errorf("query %d has invalid template: %w", i+1, err)
+		}
+		var buf bytes.Buffer
+		if err := tmpl.Execute(&buf, data); err != nil {
+			return fmt.Errorf("query %d template execution failed: %w", i+1, err)
+		}
+		queries[i]["query"] = buf.String()
+	}
+	return nil
 }
 
 func (c *Client) uploadQuery(ctx context.Context, payload []byte) error {

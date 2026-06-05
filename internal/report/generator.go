@@ -16,7 +16,8 @@ func NewGenerator(config Config, log utils.Logger) (*Generator, error) {
 		config: config,
 		log:    log,
 		data: &CollectedData{
-			Namespaces: make(map[string]*Namespace),
+			Namespaces:     make(map[string]*Namespace),
+			ResourceCounts: make(map[string]int),
 		},
 	}
 
@@ -54,6 +55,8 @@ func (g *Generator) Generate() ([]*Report, error) {
 			reports, err = g.generateServiceAccountReport()
 		case "token":
 			reports, err = g.generateTokenReport()
+		case "stats":
+			reports, err = g.generateStatsReport()
 		case "all":
 			reports, err = g.generateAllReports()
 		default:
@@ -89,6 +92,12 @@ func (g *Generator) loadData() error {
 			g.log.Debug("Missing resource payload", "line", line)
 			skipped++
 			return nil
+		}
+
+		if apiVersion := getString(resource, "apiVersion"); apiVersion != "" {
+			if kind := getString(resource, "kind"); kind != "" {
+				g.data.ResourceCounts[apiVersion+"|"+kind]++
+			}
 		}
 
 		if err := g.processItem(resource); err != nil {
@@ -550,6 +559,11 @@ func getInt64(obj map[string]any, key string) *int64 {
 		return &v
 	case json.Number:
 		if v, err := value.Int64(); err == nil {
+			return &v
+		}
+	case string:
+		var v int64
+		if _, err := fmt.Sscanf(value, "%d", &v); err == nil {
 			return &v
 		}
 	}

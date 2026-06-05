@@ -1,11 +1,24 @@
 package workload
 
 import (
+	"sort"
+
 	"bloodhound-kube/internal/edges/framework"
 	"bloodhound-kube/internal/model"
 	nodefw "bloodhound-kube/internal/nodes/framework"
 	"bloodhound-kube/internal/nodes/workload"
 )
+
+type envVarsKey struct {
+	sourceID   string
+	podID      string
+	sourceType string
+}
+
+type envVarsEntry struct {
+	source     nodefw.EdgeNode
+	containers map[string]struct{}
+}
 
 type podEdgesRule struct{}
 
@@ -16,33 +29,67 @@ func (r podEdgesRule) Apply(ctx *framework.Context) []model.BloodHoundEdge {
 		return nil
 	}
 	var edges []model.BloodHoundEdge
-	for _, space := range ctx.Core.Namespaces {
+	for ns, space := range ctx.Core.Namespaces {
 		if space == nil {
 			continue
 		}
-		pods := space.Pods
-		secrets := space.Secrets
-		for i := range pods {
-			pod := &pods[i]
+		secretIndex := ctx.Index.SecretsByNamespace[ns]
+		for i := range space.Pods {
+			pod := &space.Pods[i]
 			if pod.NodeName != "" {
 				if node := ctx.Index.NodesByName[pod.NodeName]; node != nil {
 					edges = append(edges, framework.CreateEdge(pod, node, "ScheduledOn"))
 				}
 			}
 
-			for _, secret := range secrets {
-				for _, volume := range pod.Volumes {
-					if volume.Type == "secret" && volume.SecretName == secret.Name {
-						edges = append(edges, framework.CreateEdge(&secret, pod, "MountedBy"))
-					}
+			for _, volume := range pod.Volumes {
+				if volume.Type != "secret" || volume.SecretName == "" {
+					continue
 				}
-				for _, container := range pod.Containers {
-					for _, envSource := range container.EnvFrom {
-						if envSource.SecretRef != nil && envSource.SecretRef.Name == secret.Name {
-							edges = append(edges, framework.CreateEdge(&secret, pod, "EnvVars"))
+				if secret := secretIndex[volume.SecretName]; secret != nil {
+					edges = append(edges, framework.CreateEdge(secret, pod, "MountedBy"))
+				}
+			}
+
+			// Accumulate EnvVars references: key=(secretID, podID, sourceType) → entry with source + container set
+			envVarsAcc := map[envVarsKey]*envVarsEntry{}
+			for _, container := range pod.Containers {
+				for _, envSource := range container.EnvFrom {
+					if envSource.SecretRef != nil && envSource.SecretRef.Name != "" {
+						if secret := secretIndex[envSource.SecretRef.Name]; secret != nil {
+							k := envVarsKey{sourceID: secret.EdgeID(), podID: pod.EdgeID(), sourceType: "envFrom"}
+							if envVarsAcc[k] == nil {
+								envVarsAcc[k] = &envVarsEntry{source: secret, containers: map[string]struct{}{}}
+							}
+							envVarsAcc[k].containers[container.Name] = struct{}{}
 						}
 					}
 				}
+				for _, env := range container.Env {
+					if env.ValueRef == nil || env.ValueRef.SecretRef == nil {
+						continue
+					}
+					if secret := secretIndex[env.ValueRef.SecretRef.Name]; secret != nil {
+						k := envVarsKey{sourceID: secret.EdgeID(), podID: pod.EdgeID(), sourceType: "valueFrom"}
+						if envVarsAcc[k] == nil {
+							envVarsAcc[k] = &envVarsEntry{source: secret, containers: map[string]struct{}{}}
+						}
+						envVarsAcc[k].containers[container.Name] = struct{}{}
+					}
+				}
+			}
+
+			// Flush accumulator into edges with properties
+			for k, entry := range envVarsAcc {
+				containers := make([]string, 0, len(entry.containers))
+				for name := range entry.containers {
+					containers = append(containers, name)
+				}
+				sort.Strings(containers)
+				edges = append(edges, framework.CreateEdgeWithProperties(entry.source, pod, "EnvVars", map[string]any{
+					"SourceType": k.sourceType,
+					"Containers": containers,
+				}))
 			}
 		}
 	}
@@ -60,26 +107,62 @@ func (r configMapEdgesRule) Apply(ctx *framework.Context) []model.BloodHoundEdge
 		return nil
 	}
 	var edges []model.BloodHoundEdge
-	for _, space := range ctx.Core.Namespaces {
+	for ns, space := range ctx.Core.Namespaces {
 		if space == nil {
 			continue
 		}
-		for i := range space.ConfigMaps {
-			cm := &space.ConfigMaps[i]
-			for j := range space.Pods {
-				pod := &space.Pods[j]
-				for _, volume := range pod.Volumes {
-					if volume.Type == "configmap" && volume.ConfigMapName == cm.Name {
-						edges = append(edges, framework.CreateEdge(cm, pod, "MountedBy"))
-					}
+		cmIndex := ctx.Index.ConfigMapsByNamespace[ns]
+		for j := range space.Pods {
+			pod := &space.Pods[j]
+
+			for _, volume := range pod.Volumes {
+				if volume.Type != "configmap" || volume.ConfigMapName == "" {
+					continue
 				}
-				for _, container := range pod.Containers {
-					for _, envSource := range container.EnvFrom {
-						if envSource.ConfigMapRef != nil && envSource.ConfigMapRef.Name == cm.Name {
-							edges = append(edges, framework.CreateEdge(cm, pod, "EnvVars"))
+				if cm := cmIndex[volume.ConfigMapName]; cm != nil {
+					edges = append(edges, framework.CreateEdge(cm, pod, "MountedBy"))
+				}
+			}
+
+			// Accumulate EnvVars references: key=(cmID, podID, sourceType) → entry with source + container set
+			envVarsAcc := map[envVarsKey]*envVarsEntry{}
+			for _, container := range pod.Containers {
+				for _, envSource := range container.EnvFrom {
+					if envSource.ConfigMapRef != nil && envSource.ConfigMapRef.Name != "" {
+						if cm := cmIndex[envSource.ConfigMapRef.Name]; cm != nil {
+							k := envVarsKey{sourceID: cm.EdgeID(), podID: pod.EdgeID(), sourceType: "envFrom"}
+							if envVarsAcc[k] == nil {
+								envVarsAcc[k] = &envVarsEntry{source: cm, containers: map[string]struct{}{}}
+							}
+							envVarsAcc[k].containers[container.Name] = struct{}{}
 						}
 					}
 				}
+				for _, env := range container.Env {
+					if env.ValueRef == nil || env.ValueRef.ConfigMapRef == nil {
+						continue
+					}
+					if cm := cmIndex[env.ValueRef.ConfigMapRef.Name]; cm != nil {
+						k := envVarsKey{sourceID: cm.EdgeID(), podID: pod.EdgeID(), sourceType: "valueFrom"}
+						if envVarsAcc[k] == nil {
+							envVarsAcc[k] = &envVarsEntry{source: cm, containers: map[string]struct{}{}}
+						}
+						envVarsAcc[k].containers[container.Name] = struct{}{}
+					}
+				}
+			}
+
+			// Flush accumulator into edges with properties
+			for k, entry := range envVarsAcc {
+				containers := make([]string, 0, len(entry.containers))
+				for name := range entry.containers {
+					containers = append(containers, name)
+				}
+				sort.Strings(containers)
+				edges = append(edges, framework.CreateEdgeWithProperties(entry.source, pod, "EnvVars", map[string]any{
+					"SourceType": k.sourceType,
+					"Containers": containers,
+				}))
 			}
 		}
 	}

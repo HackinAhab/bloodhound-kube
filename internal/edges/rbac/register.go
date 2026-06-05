@@ -13,5 +13,10 @@ func Register(reg *framework.Registry) {
 	reg.Register(rbacPatchWorkloadEdgesRule{})
 	reg.Register(rbacCreateEdgesRule{})
 	reg.Register(rbacCreateWorkloadEdgesRule{})
-	// reg.Register(rbacNodeProxyEdgesRule{})
+	reg.Register(rbacNodeProxyEdgesRule{})
+	reg.Register(rbacPodPortForwardEdgesRule{})
+	reg.Register(rbacPodAttachEdgesRule{})
+	reg.Register(rbacSATokenRequestEdgesRule{})
+	reg.Register(rbacEscalateBindEdgesRule{})
+	reg.Register(rbacSCCUsageEdgesRule{})
 }

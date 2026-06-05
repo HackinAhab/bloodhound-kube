@@ -42,13 +42,14 @@ func workloadPatchNamespaced(ctx *framework.Context, namespace string, space *mo
 		if len(perms) == 0 {
 			continue
 		}
+		parsed := parseRBACPerms(perms)
 
-		allPods, podNames := accessForResource(perms, []string{"pods"}, verbs)
-		allDeployments, deploymentNames := accessForResource(perms, []string{"deployments", "apps/deployments"}, verbs)
-		allDaemonSets, daemonSetNames := accessForResource(perms, []string{"daemonsets", "apps/daemonsets"}, verbs)
-		allStatefulSets, statefulSetNames := accessForResource(perms, []string{"statefulsets", "apps/statefulsets"}, verbs)
-		allJobs, jobNames := accessForResource(perms, []string{"jobs", "batch/jobs"}, verbs)
-		allCronJobs, cronJobNames := accessForResource(perms, []string{"cronjobs", "batch/cronjobs"}, verbs)
+		allPods, podNames := accessForParsedResource(parsed, []string{"pods"}, verbs)
+		allDeployments, deploymentNames := accessForParsedResource(parsed, []string{"deployments", "apps/deployments"}, verbs)
+		allDaemonSets, daemonSetNames := accessForParsedResource(parsed, []string{"daemonsets", "apps/daemonsets"}, verbs)
+		allStatefulSets, statefulSetNames := accessForParsedResource(parsed, []string{"statefulsets", "apps/statefulsets"}, verbs)
+		allJobs, jobNames := accessForParsedResource(parsed, []string{"jobs", "batch/jobs"}, verbs)
+		allCronJobs, cronJobNames := accessForParsedResource(parsed, []string{"cronjobs", "batch/cronjobs"}, verbs)
 		if !allPods && len(podNames) == 0 && !allDeployments && len(deploymentNames) == 0 && !allDaemonSets && len(daemonSetNames) == 0 && !allStatefulSets && len(statefulSetNames) == 0 && !allJobs && len(jobNames) == 0 && !allCronJobs && len(cronJobNames) == 0 {
 			continue
 		}
@@ -127,13 +128,14 @@ func workloadPatchCluster(ctx *framework.Context) []model.BloodHoundEdge {
 		if clusterRole == nil {
 			continue
 		}
+		parsed := parseRBACPerms(clusterRole.PermsDisplay)
 
-		allPods, podNames := accessForResource(clusterRole.PermsDisplay, []string{"pods"}, verbs)
-		allDeployments, deploymentNames := accessForResource(clusterRole.PermsDisplay, []string{"deployments", "apps/deployments"}, verbs)
-		allDaemonSets, daemonSetNames := accessForResource(clusterRole.PermsDisplay, []string{"daemonsets", "apps/daemonsets"}, verbs)
-		allStatefulSets, statefulSetNames := accessForResource(clusterRole.PermsDisplay, []string{"statefulsets", "apps/statefulsets"}, verbs)
-		allJobs, jobNames := accessForResource(clusterRole.PermsDisplay, []string{"jobs", "batch/jobs"}, verbs)
-		allCronJobs, cronJobNames := accessForResource(clusterRole.PermsDisplay, []string{"cronjobs", "batch/cronjobs"}, verbs)
+		allPods, podNames := accessForParsedResource(parsed, []string{"pods"}, verbs)
+		allDeployments, deploymentNames := accessForParsedResource(parsed, []string{"deployments", "apps/deployments"}, verbs)
+		allDaemonSets, daemonSetNames := accessForParsedResource(parsed, []string{"daemonsets", "apps/daemonsets"}, verbs)
+		allStatefulSets, statefulSetNames := accessForParsedResource(parsed, []string{"statefulsets", "apps/statefulsets"}, verbs)
+		allJobs, jobNames := accessForParsedResource(parsed, []string{"jobs", "batch/jobs"}, verbs)
+		allCronJobs, cronJobNames := accessForParsedResource(parsed, []string{"cronjobs", "batch/cronjobs"}, verbs)
 		if !allPods && len(podNames) == 0 && !allDeployments && len(deploymentNames) == 0 && !allDaemonSets && len(daemonSetNames) == 0 && !allStatefulSets && len(statefulSetNames) == 0 && !allJobs && len(jobNames) == 0 && !allCronJobs && len(cronJobNames) == 0 {
 			continue
 		}

@@ -13,10 +13,25 @@ func (g *Generator) generateCSVData(report *Report) ([][]string, error) {
 	switch report.Type {
 	case "token":
 		return g.generateTokenCSV(report.Data)
+	case "stats":
+		return g.generateStatsCSV(report.Data)
 	default:
 		// Handle container-based and pod-based reports
 		return g.generateStandardCSV(report.Data, report.Type)
 	}
+}
+
+// generateStatsCSV generates CSV for the stats report
+func (g *Generator) generateStatsCSV(data any) ([][]string, error) {
+	entries, ok := data.([]StatsEntry)
+	if !ok {
+		return nil, fmt.Errorf("invalid data format for stats CSV")
+	}
+	rows := [][]string{{"APIVersion", "Kind", "Count"}}
+	for _, e := range entries {
+		rows = append(rows, []string{e.APIVersion, e.Kind, fmt.Sprintf("%d", e.Count)})
+	}
+	return rows, nil
 }
 
 // generateTokenCSV generates CSV for token reports with specific format

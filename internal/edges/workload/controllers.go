@@ -20,6 +20,9 @@ func (r deploymentEdgesRule) Apply(ctx *framework.Context) []model.BloodHoundEdg
 		}
 		for i := range space.Deployments {
 			deploy := &space.Deployments[i]
+			if len(deploy.SelectorLabels) == 0 {
+				continue
+			}
 			for j := range space.Pods {
 				pod := &space.Pods[j]
 				if framework.LabelsMatchOnly(pod.LabelsMap, deploy.SelectorLabels) {
@@ -46,6 +49,9 @@ func (r daemonSetEdgesRule) Apply(ctx *framework.Context) []model.BloodHoundEdge
 		}
 		for i := range space.DaemonSets {
 			daemonSet := &space.DaemonSets[i]
+			if len(daemonSet.SelectorLabels) == 0 {
+				continue
+			}
 			for j := range space.Pods {
 				pod := &space.Pods[j]
 				if framework.LabelsMatchOnly(pod.LabelsMap, daemonSet.SelectorLabels) {
@@ -72,6 +78,9 @@ func (r statefulSetEdgesRule) Apply(ctx *framework.Context) []model.BloodHoundEd
 		}
 		for i := range space.StatefulSets {
 			statefulSet := &space.StatefulSets[i]
+			if len(statefulSet.SelectorLabels) == 0 {
+				continue
+			}
 			for j := range space.Pods {
 				pod := &space.Pods[j]
 				if framework.LabelsMatchOnly(pod.LabelsMap, statefulSet.SelectorLabels) {

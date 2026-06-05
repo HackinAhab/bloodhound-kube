@@ -114,6 +114,21 @@ func rbacNodeProxyToPodCluster(ctx *framework.Context) []model.BloodHoundEdge {
 					}
 				}
 			}
+			// Also emit SA → Node edges so the node compromise path is visible
+			// directly without traversing through pod intermediaries.
+			if all {
+				if len(ctx.Core.Cluster.AllNodes) > 0 {
+					agg := &ctx.Core.Cluster.AllNodes[0]
+					edges = append(edges, framework.CreateEdgeWithProperties(sa, agg, "NodeProxyRCE", edgePropertiesRBACNodeProxy))
+				}
+			} else {
+				for i := range ctx.Core.Cluster.Nodes {
+					node := &ctx.Core.Cluster.Nodes[i]
+					if hasName(names, node.Name) {
+						edges = append(edges, framework.CreateEdgeWithProperties(sa, node, "NodeProxyRCE", edgePropertiesRBACNodeProxy))
+					}
+				}
+			}
 		}
 	}
 	return edges

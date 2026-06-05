@@ -17,6 +17,8 @@ Maps the structural RBAC graph. For every RoleBinding/ClusterRoleBinding that bi
 |------|----------------|---------|
 | `RoleBound` | Role/ClusterRole → ServiceAccount | A RoleBinding or ClusterRoleBinding links the role to a ServiceAccount subject |
 
+Each `RoleBound` edge carries `bindingKind`, `bindingName`, `bindingNamespace`, `roleKind`, and `roleName` properties identifying the binding that produced it (taken from the first contributing binding after a deterministic sort by `(namespace, name, kind)`). When multiple bindings link the same role and ServiceAccount, they are merged into a single edge to keep graph cardinality bounded; the full list is exposed as a structured `bindings` array (`[{kind, name, namespace, roleKind, roleName}, ...]`) and a `bindingCount` integer.
+
 ---
 
 ### `rbac_impersonate` — Service Account Impersonation
@@ -143,6 +145,68 @@ A ServiceAccount with `impersonate` on the `serviceaccounts` resource can act as
 |------|----------------|---------|
 | `NodeProxy` | ServiceAccount → Pod | SA has `get` on `nodes/proxy` via a namespaced binding; pod is on a matching node |
 | `NodeProxyRCE` | ServiceAccount → Pod | SA has `get`/`create`/`proxy` on `nodes/proxy` via a cluster-scoped binding |
+
+---
+
+### `rbac_pod_portforward` — Pod Port Forward
+**File:** `pod_access.go`
+
+`create` on `pods/portforward` allows forwarding a local port to a port inside a pod, giving direct TCP access to services running in the container — useful for lateral movement to internal services. Cluster-scoped bindings emit an edge to the `AllPods` aggregate.
+
+| Edge | Source → Target | Trigger |
+|------|----------------|---------|
+| `PodPortForward` | ServiceAccount → Pod | SA has `create` on `pods/portforward` |
+| `PodPortForward` | ServiceAccount → AllPods | Cluster-scoped, wildcard pod access |
+
+---
+
+### `rbac_pod_attach` — Pod Attach
+**File:** `pod_access.go`
+
+`create` on `pods/attach` allows attaching to the stdin/stdout of a running container, giving interactive shell access equivalent to `kubectl attach`. Cluster-scoped bindings emit an edge to the `AllPods` aggregate.
+
+| Edge | Source → Target | Trigger |
+|------|----------------|---------|
+| `PodAttach` | ServiceAccount → Pod | SA has `create` on `pods/attach` |
+| `PodAttach` | ServiceAccount → AllPods | Cluster-scoped, wildcard pod access |
+
+---
+
+### `rbac_sa_token_request` — ServiceAccount Token Request
+**File:** `sa_token_request.go`  
+**Reference:** https://kubernetes.io/docs/reference/access-authn-authz/service-accounts-admin/#bound-service-account-tokens
+
+`create` on `serviceaccounts/token` allows minting API tokens for any ServiceAccount in scope via the TokenRequest API. An attacker can use this to assume the identity of a higher-privileged ServiceAccount without needing its existing credentials. Cluster-scoped bindings emit an edge to `AllServiceAccounts`.
+
+| Edge | Source → Target | Trigger |
+|------|----------------|---------|
+| `SATokenRequest` | ServiceAccount → ServiceAccount | SA has `create` on `serviceaccounts/token` via a RoleBinding |
+| `SATokenRequest` | ServiceAccount → AllServiceAccounts | Cluster-scoped, wildcard serviceaccount access |
+
+---
+
+### `rbac_escalate_bind` — Role Escalation and Binding
+**File:** `escalate_bind.go`  
+**Reference:** https://kubernetes.io/docs/reference/access-authn-authz/rbac/#privilege-escalation-prevention-and-bootstrapping
+
+`escalate` allows modifying a role to include permissions the caller does not currently hold, bypassing Kubernetes' escalation prevention. `bind` allows creating a RoleBinding for any role without holding that role's permissions. Both verbs on `roles`/`clusterroles` are privilege-escalation primitives.
+
+| Edge | Source → Target | Trigger |
+|------|----------------|---------|
+| `RBACEscalate` | ServiceAccount → Role/ClusterRole | SA has `escalate` on `roles` or `clusterroles` |
+| `RBACBind` | ServiceAccount → Role/ClusterRole | SA has `bind` on `roles` or `clusterroles` (without `escalate`) |
+
+---
+
+### `rbac_scc_usage` — SecurityContextConstraints Usage
+**File:** `scc_usage.go`  
+**Reference:** https://docs.openshift.com/container-platform/latest/authentication/managing-security-context-constraints.html
+
+OpenShift-specific. `use` on `securitycontextconstraints` (in the `security.openshift.io` API group) allows a ServiceAccount to request admission under that SCC. Combined with `EnforcedSCC` (SCC → Pod), this reveals the full privilege chain: SA → SCC → Pod. Only ClusterRoleBindings are evaluated because SCCs are cluster-scoped resources.
+
+| Edge | Source → Target | Trigger |
+|------|----------------|---------|
+| `SCCUse` | ServiceAccount → SecurityContextConstraints | SA has `use` on `securitycontextconstraints` via a ClusterRoleBinding |
 
 ---
 

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"sort"
 	"strings"
 )
 
@@ -513,12 +514,41 @@ func (g *Generator) generateTokenReport() ([]*Report, error) {
 	return []*Report{report}, nil
 }
 
+// generateStatsReport generates a resource type inventory from the collection
+func (g *Generator) generateStatsReport() ([]*Report, error) {
+	entries := make([]StatsEntry, 0, len(g.data.ResourceCounts))
+	total := 0
+	for key, count := range g.data.ResourceCounts {
+		parts := strings.SplitN(key, "|", 2)
+		entries = append(entries, StatsEntry{APIVersion: parts[0], Kind: parts[1], Count: count})
+		total += count
+	}
+	sort.Slice(entries, func(i, j int) bool {
+		if entries[i].APIVersion != entries[j].APIVersion {
+			if entries[i].APIVersion == "v1" {
+				return true
+			}
+			if entries[j].APIVersion == "v1" {
+				return false
+			}
+			return entries[i].APIVersion < entries[j].APIVersion
+		}
+		return entries[i].Kind < entries[j].Kind
+	})
+
+	report := &Report{Type: "stats", Count: total, Data: entries}
+	if err := g.outputReport(report); err != nil {
+		return nil, err
+	}
+	return []*Report{report}, nil
+}
+
 // generateAllReports generates all report types
 func (g *Generator) generateAllReports() ([]*Report, error) {
 	var allReports []*Report
 
 	// Generate all security report types
-	reportTypes := []string{"privileged", "privesc", "nonroot", "caps", "imgsrc", "seccomp", "limits", "serviceaccount", "token"}
+	reportTypes := []string{"privileged", "privesc", "nonroot", "caps", "imgsrc", "seccomp", "limits", "serviceaccount", "token", "stats"}
 
 	for _, reportType := range reportTypes {
 		var reports []*Report
@@ -543,6 +573,8 @@ func (g *Generator) generateAllReports() ([]*Report, error) {
 			reports, err = g.generateServiceAccountReport()
 		case "token":
 			reports, err = g.generateTokenReport()
+		case "stats":
+			reports, err = g.generateStatsReport()
 		}
 
 		if err != nil {

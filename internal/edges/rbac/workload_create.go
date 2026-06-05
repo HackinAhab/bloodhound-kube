@@ -94,6 +94,17 @@ func rbacCreateCluster(ctx *framework.Context) []model.BloodHoundEdge {
 				cr := clusterRole
 				edges = append(edges, framework.CreateEdgeWithProperties(sa, &cr, "RBACCreate", edgePropertiesRBACCreate))
 			}
+			// Cluster-scoped clusterrolebindings can also bind ClusterRoles into
+			// namespaces via RoleBindings, so namespaced Roles are reachable too.
+			for _, space := range ctx.Core.Namespaces {
+				if space == nil {
+					continue
+				}
+				for i := range space.Roles {
+					role := &space.Roles[i]
+					edges = append(edges, framework.CreateEdgeWithProperties(sa, role, "RBACCreate", edgePropertiesRBACCreate))
+				}
+			}
 		}
 	}
 	return edges
@@ -127,7 +138,7 @@ func workloadCreateNamespaced(ctx *framework.Context, namespace string) []model.
 	if ctx == nil {
 		return nil
 	}
-	resourceKeys := []string{"pods", "deployments", "apps/deployments", "daemonsets", "apps/daemonsets", "statefulsets", "apps/statefulsets", "jobs", "batch/jobs", "cronjobs", "batch/cronjobs"}
+	resourceKeys := []string{"pods", "deployments", "apps/deployments", "daemonsets", "apps/daemonsets", "statefulsets", "apps/statefulsets", "jobs", "batch/jobs", "cronjobs", "batch/cronjobs", "replicationcontrollers"}
 	verbs := []string{"create"}
 
 	roleBindings := ctx.Index.RoleBindingsByNamespace[namespace]
@@ -159,7 +170,7 @@ func workloadCreateCluster(ctx *framework.Context) []model.BloodHoundEdge {
 	if ctx == nil || ctx.Core == nil {
 		return nil
 	}
-	resourceKeys := []string{"pods", "deployments", "apps/deployments", "daemonsets", "apps/daemonsets", "statefulsets", "apps/statefulsets", "jobs", "batch/jobs", "cronjobs", "batch/cronjobs"}
+	resourceKeys := []string{"pods", "deployments", "apps/deployments", "daemonsets", "apps/daemonsets", "statefulsets", "apps/statefulsets", "jobs", "batch/jobs", "cronjobs", "batch/cronjobs", "replicationcontrollers"}
 	verbs := []string{"create"}
 
 	var edges []model.BloodHoundEdge

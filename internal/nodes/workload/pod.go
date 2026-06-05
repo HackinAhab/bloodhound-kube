@@ -110,6 +110,8 @@ type Pod struct {
 	CapabilitiesDrop []string
 	SeLinuxOptions   map[string]any
 	HostPID          bool
+	HostIPC          bool
+	HostNetwork      bool
 	EnvDefinitions   []EnvDefinition
 }
 
@@ -215,6 +217,8 @@ func BuildPodNode(obj runtime.Object) (BuildResult, bool) {
 	}
 
 	hostPID := pod.Spec.HostPID
+	hostIPC := pod.Spec.HostIPC
+	hostNetwork := pod.Spec.HostNetwork
 	automountSAToken := pod.Spec.AutomountServiceAccountToken
 	shareProcNs := pod.Spec.ShareProcessNamespace
 	core := CoreEntry{
@@ -240,6 +244,8 @@ func BuildPodNode(obj runtime.Object) (BuildResult, bool) {
 			CapabilitiesDrop: capDrop,
 			SeLinuxOptions:   seLinuxRaw,
 			HostPID:          hostPID,
+			HostIPC:          hostIPC,
+			HostNetwork:      hostNetwork,
 			EnvDefinitions:   podEnvDefinitions,
 		},
 	}

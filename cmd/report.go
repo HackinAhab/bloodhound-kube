@@ -66,7 +66,7 @@ Examples:
 			reportTypes[i] = strings.TrimSpace(rt)
 		}
 
-		validReportTypes := []string{"all", "privileged", "privesc", "nonroot", "caps", "imgsrc", "seccomp", "limits", "serviceaccount", "token"}
+		validReportTypes := []string{"all", "privileged", "privesc", "nonroot", "caps", "imgsrc", "seccomp", "limits", "serviceaccount", "token", "stats"}
 		for _, rt := range reportTypes {
 			if !slices.Contains(validReportTypes, rt) {
 				return fmt.Errorf("invalid report type %q, must be one of: %s", rt, strings.Join(validReportTypes, ", "))
@@ -118,7 +118,7 @@ Examples:
 func init() {
 	reportCmd.Flags().StringVarP(&reportInputFile, "input", "i", "", "Input JSONL file from collect command (required)")
 	reportCmd.Flags().StringVarP(&reportOutputFile, "output", "o", "", "Output file prefix (optional, prints to stdout if not specified)")
-	reportCmd.Flags().StringVar(&reportType, "report", "all", "Report type(s): all, privileged, privesc, nonroot, caps, imgsrc, seccomp, limits, serviceaccount, token (comma-delimited for multiple)")
+	reportCmd.Flags().StringVar(&reportType, "report", "all", "Report type(s): all, privileged, privesc, nonroot, caps, imgsrc, seccomp, limits, serviceaccount, token, stats (comma-delimited for multiple)")
 	reportCmd.Flags().StringVar(&reportFormat, "format", "json", "Output format: json, csv")
 	reportCmd.Flags().BoolVarP(&reportVerbose, "verbose", "v", false, "Verbose output")
 	reportCmd.Flags().StringVarP(&reportLogLevel, "log", "l", "info", "Log level (trace, debug, info, warn, error)")

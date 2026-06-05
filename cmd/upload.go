@@ -20,6 +20,7 @@ var (
 	uploadLogLevel    string
 	uploadReset       bool
 	uploadResetDB     bool
+	uploadCluster     string
 )
 
 var uploadCmd = &cobra.Command{
@@ -70,6 +71,7 @@ Examples:
 			HasModelFlag:   hasModelFlag,
 			HasQueriesFlag: hasQueriesFlag,
 			HasUploadFlag:  hasUpload,
+			ClusterName:    uploadCluster,
 		}, log)
 	},
 }
@@ -86,6 +88,7 @@ func init() {
 	uploadCmd.Flags().StringVarP(&uploadLogLevel, "log", "l", "info", "Log level (trace, debug, info, warn, error)")
 	uploadCmd.Flags().BoolVar(&uploadReset, "reset", false, "Reset existing custom data before uploading")
 	uploadCmd.Flags().BoolVar(&uploadResetDB, "reset-db", false, "Reset the entire database before uploading")
+	uploadCmd.Flags().StringVar(&uploadCluster, "cluster", "default", "Cluster name to substitute in saved query filters")
 
 	rootCmd.AddCommand(uploadCmd)
 }

@@ -62,7 +62,7 @@ func podHostMountReadCheck(pod *workload.Pod) (string, bool) {
 	if pod == nil {
 		return "", false
 	}
-	sensitivePaths := []string{"/etc", "/root", "/home", "/proc", "/var/lib/kubelet/pods"}
+	sensitivePaths := []string{"/etc", "/root", "/home", "/proc", "/var/lib/kubelet/pods", "/var/run", "/sys", "/dev", "/run", "/usr"}
 	volumeNames := map[string]struct{}{}
 	for _, volume := range pod.Volumes {
 		hostPath := volume.HostPath

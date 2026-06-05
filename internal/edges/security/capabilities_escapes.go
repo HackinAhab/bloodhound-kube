@@ -138,6 +138,27 @@ func (r containerEscapeRule) Apply(ctx *framework.Context) []model.BloodHoundEdg
 					"Reference":   "https://kubehound.io/reference/attacks/CE_VAR_LOG_SYMLINK/",
 				}))
 			}
+
+			if ceHostIPCCheck(pod) {
+				edges = append(edges, framework.CreateEdgeWithProperties(pod, node, "CE_HOST_IPC", map[string]any{
+					"Description": "Pod has hostIPC: true with a privileged container or CAP_SYS_ADMIN. The container shares the host IPC namespace, allowing access to host shared memory, semaphores, and message queues. Combined with privilege, this enables IPC-based process injection or triggering usermode helper patterns.",
+					"Reference":   "https://book.hacktricks.wiki/en/linux-hardening/privilege-escalation/docker-security/docker-breakout-privilege-escalation/",
+				}))
+			}
+
+			if ceHostNetworkCheck(pod) {
+				edges = append(edges, framework.CreateEdgeWithProperties(pod, node, "CE_HOST_NETWORK", map[string]any{
+					"Description": "Pod has hostNetwork: true, sharing the host network namespace. The container can bind to any host port, intercept host-level traffic, and reach network services accessible only from the node.",
+					"Reference":   "https://book.hacktricks.wiki/en/linux-hardening/privilege-escalation/docker-security/docker-breakout-privilege-escalation/",
+				}))
+			}
+
+			if ceShareProcNsCheck(pod) {
+				edges = append(edges, framework.CreateEdgeWithProperties(pod, node, "CE_SHARE_PROC_NS", map[string]any{
+					"Description": "Pod has shareProcessNamespace: true with a privileged container or CAP_SYS_PTRACE. All containers in the pod share a single PID namespace; a privileged container can ptrace other containers' processes to inject code or steal secrets from memory.",
+					"Reference":   "https://kubernetes.io/docs/tasks/configure-pod-container/share-process-namespace/",
+				}))
+			}
 		}
 	}
 	return edges
@@ -178,14 +199,15 @@ func podHasSocketHostPath(pod *workload.Pod) string {
 	return ""
 }
 
+var ceUmhCriticalPaths = map[string]struct{}{"/proc": {}, "/proc/sys": {}, "/proc/sys/kernel": {}}
+
 func ceUmhCorePatternCheck(pod *workload.Pod) (string, bool) {
 	if pod == nil {
 		return "", false
 	}
-	critical := map[string]struct{}{"/proc": {}, "/proc/sys": {}, "/proc/sys/kernel": {}}
 	for _, volume := range pod.Volumes {
 		hostPath := volume.HostPath
-		if _, ok := critical[hostPath]; !ok {
+		if _, ok := ceUmhCriticalPaths[hostPath]; !ok {
 			continue
 		}
 		for _, container := range pod.Containers {
@@ -206,13 +228,37 @@ func ceNsEnterCheck(pod *workload.Pod) bool {
 	return pod.HostPID && podHasPrivilegedContainer(pod)
 }
 
+func ceHostIPCCheck(pod *workload.Pod) bool {
+	if pod == nil || !pod.HostIPC {
+		return false
+	}
+	return podHasPrivilegedContainer(pod) || framework.HasCapability(*pod, "CAP_SYS_ADMIN")
+}
+
+func ceHostNetworkCheck(pod *workload.Pod) bool {
+	if pod == nil || !pod.HostNetwork {
+		return false
+	}
+	return podHasPrivilegedContainer(pod) ||
+		framework.HasCapability(*pod, "CAP_NET_ADMIN") ||
+		framework.HasCapability(*pod, "CAP_NET_RAW")
+}
+
+func ceShareProcNsCheck(pod *workload.Pod) bool {
+	if pod == nil || pod.ShareProcNs == nil || !*pod.ShareProcNs {
+		return false
+	}
+	return podHasPrivilegedContainer(pod) || framework.HasCapability(*pod, "CAP_SYS_PTRACE")
+}
+
 func ceVarLogSymlinkCheck(pod *workload.Pod) (string, bool) {
 	if pod == nil {
 		return "", false
 	}
 	hasQualifyingContainer := false
 	for _, container := range pod.Containers {
-		if container.Privileged && !container.RunAsNonRoot {
+		isRoot := container.Privileged || (container.RunAsUser != nil && *container.RunAsUser == 0)
+		if isRoot && !container.RunAsNonRoot {
 			hasQualifyingContainer = true
 			break
 		}

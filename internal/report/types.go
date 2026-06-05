@@ -32,7 +32,15 @@ type Report struct {
 
 // CollectedData holds the parsed JSONL data organized by type
 type CollectedData struct {
-	Namespaces map[string]*Namespace
+	Namespaces     map[string]*Namespace
+	ResourceCounts map[string]int // "<apiVersion>|<kind>" → count
+}
+
+// StatsEntry represents one resource type in the stats report
+type StatsEntry struct {
+	APIVersion string `json:"apiVersion"`
+	Kind       string `json:"kind"`
+	Count      int    `json:"count"`
 }
 
 // Namespace represents a Kubernetes namespace with its resources

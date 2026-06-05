@@ -238,12 +238,21 @@ func AppArmorProfileValue(profile *corev1.AppArmorProfile) string {
 func BuildRbacRulesDisplay(rules []RbacRule) []string {
 	entries := make([]string, 0, len(rules))
 	for _, rule := range rules {
+		var prefix string
 		if rule.APIGroup == "" {
-			entries = append(entries, rule.Resource+": "+joinWithComma(rule.Verbs))
+			prefix = rule.Resource
 		} else if rule.Resource == "" {
-			entries = append(entries, rule.APIGroup+": "+joinWithComma(rule.Verbs))
+			prefix = rule.APIGroup
 		} else {
-			entries = append(entries, rule.APIGroup+"/"+rule.Resource+": "+joinWithComma(rule.Verbs))
+			prefix = rule.APIGroup + "/" + rule.Resource
+		}
+		verbStr := joinWithComma(rule.Verbs)
+		if len(rule.ResourceNames) == 0 {
+			entries = append(entries, prefix+": "+verbStr)
+		} else {
+			for _, name := range rule.ResourceNames {
+				entries = append(entries, prefix+"/"+name+": "+verbStr)
+			}
 		}
 	}
 	return entries

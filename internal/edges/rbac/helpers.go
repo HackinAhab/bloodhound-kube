@@ -76,7 +76,10 @@ type parsedPerm struct {
 }
 
 func accessForResource(perms []string, resourceKeys []string, verbs []string) (bool, map[string]struct{}) {
-	parsed := parseRBACPerms(perms)
+	return accessForParsedResource(parseRBACPerms(perms), resourceKeys, verbs)
+}
+
+func accessForParsedResource(parsed []parsedPerm, resourceKeys []string, verbs []string) (bool, map[string]struct{}) {
 	var names map[string]struct{}
 	for _, perm := range parsed {
 		if !verbsCheck(perm.verbs, verbs) {

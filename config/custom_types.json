@@ -77,11 +77,32 @@
         "color": "#60A5FA"
       }
     },
+    "AllRoles": {
+      "icon": {
+        "type": "font-awesome",
+        "name": "users",
+        "color": "#60A5FA"
+      }
+    },
+    "AllClusterRoles": {
+      "icon": {
+        "type": "font-awesome",
+        "name": "users",
+        "color": "#60A5FA"
+      }
+    },
     "K8s_Node": {
       "icon": {
         "type": "font-awesome",
         "name": "microchip",
         "color": "#14B8A6"
+      }
+    },
+    "Namespace": {
+      "icon": {
+        "type": "font-awesome",
+        "name": "world",
+        "color": "#0891B2"
       }
     },
     "Pod": {

@@ -192,10 +192,11 @@ func addAggregateNodes(nodeList *[]model.BloodHoundNode, coreFacts *model.CoreFa
 	appendBuildResult(nodeList, coreFacts, platform.BuildAllStatefulSets())
 	appendBuildResult(nodeList, coreFacts, platform.BuildAllJobs())
 	appendBuildResult(nodeList, coreFacts, platform.BuildAllCronJobs())
+	appendBuildResult(nodeList, coreFacts, platform.BuildAllClusterRoles())
 
 	// Per-namespace aggregates: emitted for every discovered namespace, even
-	// when zero resources of that kind exist. AllNodes is intentionally
-	// excluded — Nodes are intrinsically cluster-scoped.
+	// when zero resources of that kind exist. AllNodes and AllClusterRoles are
+	// intentionally excluded — Nodes and ClusterRoles are cluster-scoped.
 	//
 	// Snapshot the namespace keys before iterating because appendBuildResult
 	// calls coreFacts.Add, which writes into the namespace map. Adding the
@@ -217,6 +218,7 @@ func addAggregateNodes(nodeList *[]model.BloodHoundNode, coreFacts *model.CoreFa
 		appendBuildResult(nodeList, coreFacts, platform.BuildAllStatefulSetsNS(ns))
 		appendBuildResult(nodeList, coreFacts, platform.BuildAllJobsNS(ns))
 		appendBuildResult(nodeList, coreFacts, platform.BuildAllCronJobsNS(ns))
+		appendBuildResult(nodeList, coreFacts, platform.BuildAllRolesNS(ns))
 	}
 }
 

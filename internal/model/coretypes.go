@@ -41,6 +41,7 @@ type Namespace struct {
 	AllStatefulSets        []platform.AllStatefulSets
 	AllJobs                []platform.AllJobs
 	AllCronJobs            []platform.AllCronJobs
+	AllRoles               []platform.AllRoles
 }
 
 type Cluster struct {
@@ -61,4 +62,5 @@ type Cluster struct {
 	AllStatefulSets            []platform.AllStatefulSets
 	AllJobs                    []platform.AllJobs
 	AllCronJobs                []platform.AllCronJobs
+	AllClusterRoles            []platform.AllClusterRoles
 }

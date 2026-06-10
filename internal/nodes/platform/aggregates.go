@@ -42,6 +42,14 @@ type AllCronJobs struct {
 	fw.GraphNodeBase
 }
 
+type AllClusterRoles struct {
+	fw.GraphNodeBase
+}
+
+type AllRoles struct {
+	fw.GraphNodeBase
+}
+
 func BuildAllPods() fw.BuildResult {
 	return buildAggregate("AllPods", func(base fw.GraphNodeBase) any {
 		return AllPods{GraphNodeBase: base}
@@ -99,6 +107,12 @@ func BuildAllJobs() fw.BuildResult {
 func BuildAllCronJobs() fw.BuildResult {
 	return buildAggregate("AllCronJobs", func(base fw.GraphNodeBase) any {
 		return AllCronJobs{GraphNodeBase: base}
+	})
+}
+
+func BuildAllClusterRoles() fw.BuildResult {
+	return buildAggregate("AllClusterRoles", func(base fw.GraphNodeBase) any {
+		return AllClusterRoles{GraphNodeBase: base}
 	})
 }
 
@@ -207,5 +221,11 @@ func BuildAllJobsNS(namespace string) fw.BuildResult {
 func BuildAllCronJobsNS(namespace string) fw.BuildResult {
 	return buildNamespaceAggregate("AllCronJobs", namespace, func(base fw.GraphNodeBase) any {
 		return AllCronJobs{GraphNodeBase: base}
+	})
+}
+
+func BuildAllRolesNS(namespace string) fw.BuildResult {
+	return buildNamespaceAggregate("AllRoles", namespace, func(base fw.GraphNodeBase) any {
+		return AllRoles{GraphNodeBase: base}
 	})
 }

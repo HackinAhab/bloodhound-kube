@@ -68,9 +68,12 @@ func escalateBindNamespaced(ctx *framework.Context, namespace string, space *mod
 			if canEscalateRole || canBindRole {
 				edgeType := rbacEscalateBindEdgeType(canEscalateRole)
 				props := rbacEscalateBindProps(canEscalateRole)
-				for i := range space.Roles {
-					role := &space.Roles[i]
-					edges = append(edges, framework.CreateEdgeWithProperties(sa, role, edgeType, props))
+				if len(space.AllRoles) > 0 {
+					edges = append(edges, framework.CreateEdgeWithProperties(sa, &space.AllRoles[0], edgeType, props))
+				} else {
+					for i := range space.Roles {
+						edges = append(edges, framework.CreateEdgeWithProperties(sa, &space.Roles[i], edgeType, props))
+					}
 				}
 			}
 			if canEscalateCR || canBindCR {
@@ -118,9 +121,13 @@ func escalateBindCluster(ctx *framework.Context) []model.BloodHoundEdge {
 			if canEscalateCR || canBindCR {
 				edgeType := rbacEscalateBindEdgeType(canEscalateCR)
 				props := rbacEscalateBindProps(canEscalateCR)
-				for _, cr := range ctx.Core.Cluster.ClusterRoles {
-					c := cr
-					edges = append(edges, framework.CreateEdgeWithProperties(sa, &c, edgeType, props))
+				if len(ctx.Core.Cluster.AllClusterRoles) > 0 {
+					edges = append(edges, framework.CreateEdgeWithProperties(sa, &ctx.Core.Cluster.AllClusterRoles[0], edgeType, props))
+				} else {
+					for _, cr := range ctx.Core.Cluster.ClusterRoles {
+						c := cr
+						edges = append(edges, framework.CreateEdgeWithProperties(sa, &c, edgeType, props))
+					}
 				}
 			}
 			if canEscalateRole || canBindRole {
@@ -130,9 +137,12 @@ func escalateBindCluster(ctx *framework.Context) []model.BloodHoundEdge {
 					if space == nil {
 						continue
 					}
-					for i := range space.Roles {
-						role := &space.Roles[i]
-						edges = append(edges, framework.CreateEdgeWithProperties(sa, role, edgeType, props))
+					if len(space.AllRoles) > 0 {
+						edges = append(edges, framework.CreateEdgeWithProperties(sa, &space.AllRoles[0], edgeType, props))
+					} else {
+						for i := range space.Roles {
+							edges = append(edges, framework.CreateEdgeWithProperties(sa, &space.Roles[i], edgeType, props))
+						}
 					}
 				}
 			}

@@ -29,6 +29,7 @@ func (r aggregateContainsRule) Apply(ctx *framework.Context) []model.BloodHoundE
 	var edges []model.BloodHoundEdge
 	edges = append(edges, namespaceAggregateToResources(ctx)...)
 	edges = append(edges, clusterAggregateToNamespaceAggregates(ctx)...)
+	edges = append(edges, clusterAggregateToClusterResources(ctx)...)
 	return edges
 }
 
@@ -85,6 +86,28 @@ func namespaceAggregateToResources(ctx *framework.Context) []model.BloodHoundEdg
 			for i := range space.CronJobs {
 				edges = append(edges, contains(agg, &space.CronJobs[i]))
 			}
+		}
+		if agg := nsAggregate(space.AllRoles); agg != nil {
+			for i := range space.Roles {
+				edges = append(edges, contains(agg, &space.Roles[i]))
+			}
+		}
+	}
+	return edges
+}
+
+// clusterAggregateToClusterResources emits Contains edges from cluster-scoped
+// aggregates that have no namespace counterpart to their individual members.
+// Currently covers AllClusterRoles → ClusterRole.
+func clusterAggregateToClusterResources(ctx *framework.Context) []model.BloodHoundEdge {
+	cluster := ctx.Core.Cluster
+	if cluster == nil {
+		return nil
+	}
+	var edges []model.BloodHoundEdge
+	if cAgg := clusterAggregate(cluster.AllClusterRoles); cAgg != nil {
+		for i := range cluster.ClusterRoles {
+			edges = append(edges, contains(cAgg, &cluster.ClusterRoles[i]))
 		}
 	}
 	return edges

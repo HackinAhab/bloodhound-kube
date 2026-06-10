@@ -52,6 +52,9 @@ func init() {
 	})
 	registerClusterFactAdder(func(c *CoreFacts, v platform.AllJobs) { c.Cluster.AllJobs = append(c.Cluster.AllJobs, v) })
 	registerClusterFactAdder(func(c *CoreFacts, v platform.AllCronJobs) { c.Cluster.AllCronJobs = append(c.Cluster.AllCronJobs, v) })
+	registerClusterFactAdder(func(c *CoreFacts, v platform.AllClusterRoles) {
+		c.Cluster.AllClusterRoles = append(c.Cluster.AllClusterRoles, v)
+	})
 
 	registerNamespacedFactAdder(func(ns *Namespace, v workload.Pod) { ns.Pods = append(ns.Pods, v) })
 	registerNamespacedFactAdder(func(ns *Namespace, v rbac.ServiceAccount) {
@@ -108,6 +111,7 @@ func init() {
 	})
 	registerNamespacedFactAdder(func(ns *Namespace, v platform.AllJobs) { ns.AllJobs = append(ns.AllJobs, v) })
 	registerNamespacedFactAdder(func(ns *Namespace, v platform.AllCronJobs) { ns.AllCronJobs = append(ns.AllCronJobs, v) })
+	registerNamespacedFactAdder(func(ns *Namespace, v platform.AllRoles) { ns.AllRoles = append(ns.AllRoles, v) })
 }
 
 func registerClusterFactAdder[T any](adder func(*CoreFacts, T)) {

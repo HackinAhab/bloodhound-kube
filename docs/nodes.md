@@ -79,7 +79,7 @@ Aggregates are not collected from the API; they are always created by the parser
 | `AllPods` | `PodExec`, `PodDebug` (cluster-wide RBAC) |
 | `AllSecrets` | `SAReadSecret` (cluster-wide) |
 | `AllConfigMaps` | `ReadConfigMap` (cluster-wide) |
-| `AllServiceAccounts` | `SAImpersonate` (cluster-wide) |
+| `AllServiceAccounts` | `ImpersonateSA` (cluster-wide) |
 | `AllNodes` | `WorkloadCreate` (cluster-wide) |
 | `AllDeployments` | `WorkloadPatch` (cluster-wide) |
 | `AllDaemonSets` | `WorkloadPatch` (cluster-wide) |

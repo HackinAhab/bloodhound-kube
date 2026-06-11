@@ -133,6 +133,20 @@
         "color": "#0369A1"
       }
     },
+    "Job": {
+      "icon": {
+        "type": "font-awesome",
+        "name": "arrows-rotate",
+        "color": "#0EA5E9"
+      }
+    },
+    "CronJob": {
+      "icon": {
+        "type": "font-awesome",
+        "name": "arrows-rotate",
+        "color": "#0EA5E9"
+      }
+    },
     "Service": {
       "icon": {
         "type": "font-awesome",

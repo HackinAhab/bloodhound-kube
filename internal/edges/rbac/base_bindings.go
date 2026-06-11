@@ -247,7 +247,7 @@ func makeRoleBoundEdges(acc map[roleBoundEdgeKey]*roleBoundAccumulator) []model.
 			"bindings":         bindingsList,
 			"bindingCount":     len(entry.bindings),
 		}
-		edges = append(edges, framework.CreateEdgeWithProperties(entry.start, entry.end, "RoleBound", props))
+		edges = append(edges, framework.CreateEdgeWithProperties(entry.end, entry.start, "RoleBound", props))
 	}
 	return edges
 }

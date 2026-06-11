@@ -38,7 +38,7 @@ func TestBuildNamespaceAggregate_IDFormat(t *testing.T) {
 			if len(result.Node.Kinds) != 1 || result.Node.Kinds[0] != tc.kind {
 				t.Fatalf("Kinds = %v, want [%q]", result.Node.Kinds, tc.kind)
 			}
-			if got, want := result.Node.Properties["name"], tc.kind; got != want {
+			if got, want := result.Node.Properties["name"], tc.namespace+"-"+tc.kind; got != want {
 				t.Fatalf("Properties[name] = %v, want %v", got, want)
 			}
 			if got, want := result.Node.Properties["namespace"], tc.namespace; got != want {

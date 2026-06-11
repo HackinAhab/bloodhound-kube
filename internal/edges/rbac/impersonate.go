@@ -70,11 +70,11 @@ func saImpersonateNamespaced(ctx *framework.Context, namespace string, space *mo
 			for i := range space.ServiceAccounts {
 				target := &space.ServiceAccounts[i]
 				if all {
-					edges = append(edges, framework.CreateEdgeWithProperties(sa, target, "SAImpersonate", edgePropertiesRBACImpersonate))
+					edges = append(edges, framework.CreateEdgeWithProperties(sa, target, "ImpersonateSA", edgePropertiesRBACImpersonate))
 					continue
 				}
 				if _, ok := names[target.Name]; ok {
-					edges = append(edges, framework.CreateEdgeWithProperties(sa, target, "SAImpersonate", edgePropertiesRBACImpersonate))
+					edges = append(edges, framework.CreateEdgeWithProperties(sa, target, "ImpersonateSA", edgePropertiesRBACImpersonate))
 				}
 			}
 			if canImpersonateUsers {
@@ -127,7 +127,7 @@ func saImpersonateCluster(ctx *framework.Context) []model.BloodHoundEdge {
 			if len(ctx.Core.Cluster.AllServiceAccounts) > 0 {
 				agg := &ctx.Core.Cluster.AllServiceAccounts[0]
 				if all {
-					edges = append(edges, framework.CreateEdgeWithProperties(sa, agg, "SAImpersonate", edgePropertiesRBACImpersonate))
+					edges = append(edges, framework.CreateEdgeWithProperties(sa, agg, "ImpersonateSA", edgePropertiesRBACImpersonate))
 				}
 				if canImpersonateUsers {
 					edges = append(edges, framework.CreateEdgeWithProperties(sa, agg, "ImpersonateUsers", edgePropertiesRBACImpersonateUsers))
@@ -144,7 +144,7 @@ func saImpersonateCluster(ctx *framework.Context) []model.BloodHoundEdge {
 					for i := range space.ServiceAccounts {
 						target := &space.ServiceAccounts[i]
 						if _, ok := names[target.Name]; ok {
-							edges = append(edges, framework.CreateEdgeWithProperties(sa, target, "SAImpersonate", edgePropertiesRBACImpersonate))
+							edges = append(edges, framework.CreateEdgeWithProperties(sa, target, "ImpersonateSA", edgePropertiesRBACImpersonate))
 						}
 					}
 				}

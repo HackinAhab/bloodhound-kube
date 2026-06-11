@@ -15,7 +15,7 @@ Maps the structural RBAC graph. For every RoleBinding/ClusterRoleBinding that bi
 
 | Edge | Source → Target | Trigger |
 |------|----------------|---------|
-| `RoleBound` | Role/ClusterRole → ServiceAccount | A RoleBinding or ClusterRoleBinding links the role to a ServiceAccount subject |
+| `RoleBound` | ServiceAccount → Role/ClusterRole | A RoleBinding or ClusterRoleBinding links the ServiceAccount subject to the role |
 
 Each `RoleBound` edge carries `bindingKind`, `bindingName`, `bindingNamespace`, `roleKind`, and `roleName` properties identifying the binding that produced it (taken from the first contributing binding after a deterministic sort by `(namespace, name, kind)`). When multiple bindings link the same role and ServiceAccount, they are merged into a single edge to keep graph cardinality bounded; the full list is exposed as a structured `bindings` array (`[{kind, name, namespace, roleKind, roleName}, ...]`) and a `bindingCount` integer.
 
@@ -25,12 +25,14 @@ Each `RoleBound` edge carries `bindingKind`, `bindingName`, `bindingNamespace`, 
 **File:** `impersonate.go`  
 **Reference:** https://kubehound.io/reference/attacks/IDENTITY_IMPERSONATE/
 
-A ServiceAccount with `impersonate` on the `serviceaccounts` resource can act as any other ServiceAccount, bypassing its own privilege constraints. Cluster-scoped bindings emit an edge to the `AllServiceAccounts` aggregate node.
+A ServiceAccount with `impersonate` on the `serviceaccounts` resource can act as any other ServiceAccount, bypassing its own privilege constraints. The same rule also detects `impersonate` on `users` and `groups` resources, which allows impersonating arbitrary user identities or groups (including `system:masters`). Cluster-scoped bindings emit edges to the `AllServiceAccounts` aggregate node.
 
 | Edge | Source → Target | Trigger |
 |------|----------------|---------|
-| `SAImpersonate` | ServiceAccount → ServiceAccount | SA has `impersonate` verb on `serviceaccounts` resource via a RoleBinding or ClusterRoleBinding |
-| `SAImpersonate` | ServiceAccount → AllServiceAccounts | Cluster-scoped binding with wildcard resource access |
+| `ImpersonateSA` | ServiceAccount → ServiceAccount | SA has `impersonate` verb on `serviceaccounts` resource via a RoleBinding or ClusterRoleBinding |
+| `ImpersonateSA` | ServiceAccount → AllServiceAccounts | Cluster-scoped binding with wildcard ServiceAccount access |
+| `ImpersonateUsers` | ServiceAccount → AllServiceAccounts | SA has `impersonate` on `users` resource via any RoleBinding or ClusterRoleBinding |
+| `ImpersonateGroups` | ServiceAccount → AllServiceAccounts | SA has `impersonate` on `groups` resource via any RoleBinding or ClusterRoleBinding |
 
 ---
 
@@ -52,6 +54,8 @@ A ServiceAccount with `impersonate` on the `serviceaccounts` resource can act as
 **Reference:** https://kubehound.io/reference/attacks/POD_ATTACH/
 
 `update` on `pods/ephemeralcontainers` allows attaching an ephemeral debug container to a running pod (this is the permission `kubectl debug` requires), which can be used to inspect or exfiltrate data.
+
+> **Note:** Unlike `PodExec`, `PodAttach`, and `PodPortForward`, this rule does not emit a cluster-scoped `AllPods` aggregate edge. Only individual pod targets are emitted.
 
 | Edge | Source → Target | Trigger |
 |------|----------------|---------|
@@ -132,6 +136,12 @@ A ServiceAccount with `impersonate` on the `serviceaccounts` resource can act as
 | `WorkloadPatch` | ServiceAccount → StatefulSet | SA has `patch`/`update` on `statefulsets` |
 | `WorkloadPatch` | ServiceAccount → Job | SA has `patch`/`update` on `jobs` |
 | `WorkloadPatch` | ServiceAccount → CronJob | SA has `patch`/`update` on `cronjobs` |
+| `WorkloadPatch` | ServiceAccount → AllPods | Cluster-scoped binding with wildcard pod patch access |
+| `WorkloadPatch` | ServiceAccount → AllDeployments | Cluster-scoped binding with wildcard deployment patch access |
+| `WorkloadPatch` | ServiceAccount → AllDaemonSets | Cluster-scoped binding with wildcard daemonset patch access |
+| `WorkloadPatch` | ServiceAccount → AllStatefulSets | Cluster-scoped binding with wildcard statefulset patch access |
+| `WorkloadPatch` | ServiceAccount → AllJobs | Cluster-scoped binding with wildcard job patch access |
+| `WorkloadPatch` | ServiceAccount → AllCronJobs | Cluster-scoped binding with wildcard cronjob patch access |
 
 ---
 
@@ -145,6 +155,7 @@ A ServiceAccount with `impersonate` on the `serviceaccounts` resource can act as
 |------|----------------|---------|
 | `NodeProxy` | ServiceAccount → Pod | SA has `get` on `nodes/proxy` via a namespaced binding; pod is on a matching node |
 | `NodeProxyRCE` | ServiceAccount → Pod | SA has `get`/`create`/`proxy` on `nodes/proxy` via a cluster-scoped binding |
+| `NodeProxyRCE` | ServiceAccount → AllNodes | Cluster-scoped binding with wildcard node access (`all` flag set) |
 
 ---
 
@@ -193,8 +204,12 @@ A ServiceAccount with `impersonate` on the `serviceaccounts` resource can act as
 
 | Edge | Source → Target | Trigger |
 |------|----------------|---------|
-| `RBACEscalate` | ServiceAccount → Role/ClusterRole | SA has `escalate` on `roles` or `clusterroles` |
-| `RBACBind` | ServiceAccount → Role/ClusterRole | SA has `bind` on `roles` or `clusterroles` (without `escalate`) |
+| `RBACEscalate` | ServiceAccount → Role/ClusterRole | SA has `escalate` on `roles` or `clusterroles` (namespaced binding, or cluster-scoped binding with named targets) |
+| `RBACBind` | ServiceAccount → Role/ClusterRole | SA has `bind` on `roles` or `clusterroles` without `escalate` (namespaced binding, or cluster-scoped binding with named targets) |
+| `RBACEscalate` | ServiceAccount → AllClusterRoles | Cluster-scoped binding with wildcard ClusterRole access (`escalate`) |
+| `RBACBind` | ServiceAccount → AllClusterRoles | Cluster-scoped binding with wildcard ClusterRole access (`bind` only) |
+| `RBACEscalate` | ServiceAccount → AllRoles | Cluster-scoped binding with wildcard Role access (`escalate`) |
+| `RBACBind` | ServiceAccount → AllRoles | Cluster-scoped binding with wildcard Role access (`bind` only) |
 
 ---
 
@@ -240,6 +255,9 @@ Checks pods for configurations that enable escaping the container boundary to th
 | `CE_UMH_CORE_PATTERN` | Pod → Node | HostPath volume at `/proc`, `/proc/sys`, or `/proc/sys/kernel` with a writable container mount | Write to `/proc/sys/kernel/core_pattern` to execute arbitrary commands on the host when any process crashes |
 | `MOUNT_CONTAINER_SOCKET` | Pod → Node | HostPath volume path ends in `.sock` (e.g. `/run/containerd/containerd.sock`) | Access the container runtime socket to create privileged containers or escape to the host |
 | `CE_VAR_LOG_SYMLINK` | Pod → Node | HostPath at `/var/log` or `/var`, container is privileged and not `runAsNonRoot` | Create symlinks in the mounted log directory pointing to sensitive host files, then read them via the Kubernetes log API |
+| `CE_HOST_IPC` | Pod → Node | Pod has `hostIPC: true` AND (privileged container OR `CAP_SYS_ADMIN`) | Shares host IPC namespace; access to host shared memory, semaphores, and message queues enables IPC-based process injection |
+| `CE_HOST_NETWORK` | Pod → Node | Pod has `hostNetwork: true` | Container shares host network namespace; can bind host ports, intercept node-level traffic, and reach node-local services |
+| `CE_SHARE_PROC_NS` | Pod → Node | Pod has `shareProcessNamespace: true` AND (privileged container OR `CAP_SYS_PTRACE`) | All containers share a PID namespace; a privileged container can ptrace other containers to inject code or steal secrets from memory |
 
 ---
 
@@ -449,6 +467,30 @@ Maps the ExternalSecrets Operator graph: ExternalSecret objects pull secrets fro
 | `ManagedBy` | Secret → ExternalSecret | Secret name matches ExternalSecret's `target.name` (or the ExternalSecret's own name as fallback) |
 
 > **Note:** `cert_manager.go` and `istio.go` are present but currently empty stubs.
+
+---
+
+## Aggregates (`internal/edges/aggregates/`)
+
+### `aggregate_contains` — Aggregate Containment
+**File:** `contains.go`
+
+Builds the two-level containment hierarchy that makes aggregate-targeted RBAC edges traversable in BloodHound. Without these edges a path like `SA -[SAReadSecret]-> AllSecrets` would be a dead end; `Contains` edges let a query continue from `AllSecrets` down to individual `Secret` nodes.
+
+Two pass types run per execution:
+
+- **Cluster → namespace aggregates**: each cluster-wide aggregate (e.g. `AllSecrets[cluster]`) emits a `Contains` edge to each per-namespace aggregate of the same kind (`AllSecrets[default]`, `AllSecrets[kube-system]`, …).
+- **Namespace aggregate → individual resources**: each per-namespace aggregate emits a `Contains` edge to every resource of that kind in the same namespace.
+
+Covers 11 aggregate kinds: `AllPods`, `AllSecrets`, `AllConfigMaps`, `AllServiceAccounts`, `AllDeployments`, `AllDaemonSets`, `AllStatefulSets`, `AllJobs`, `AllCronJobs`, `AllRoles`, `AllClusterRoles`.
+
+`AllClusterRoles` and `AllNodes` are cluster-scoped only (no per-namespace variant). All others have both a cluster-level and a per-namespace node.
+
+| Edge | Source → Target | Trigger |
+|------|----------------|---------|
+| `Contains` | Cluster aggregate → Namespace aggregate | Both aggregate nodes exist for the same resource kind (applies to all namespace-scoped kinds) |
+| `Contains` | Namespace aggregate → Individual resource | A resource of the matching kind exists in that namespace |
+| `Contains` | AllClusterRoles → ClusterRole | ClusterRole exists in the cluster |
 
 ---
 

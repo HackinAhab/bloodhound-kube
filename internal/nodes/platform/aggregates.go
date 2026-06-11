@@ -145,14 +145,15 @@ func buildAggregate(kind string, data func(fw.GraphNodeBase) any) fw.BuildResult
 // matches the cluster aggregate (e.g. "AllSecrets") so a single BloodHound
 // query like MATCH (n:AllSecrets) works
 func buildNamespaceAggregate(kind, namespace string, data func(fw.GraphNodeBase) any) fw.BuildResult {
+	displayName := namespace + "-" + kind
 	base := fw.GraphNodeBase{
 		ID:        fw.BuildID(kind, namespace, kind),
 		Kinds:     []string{kind},
-		Name:      kind,
+		Name:      displayName,
 		Namespace: namespace,
 	}
 	properties := map[string]any{
-		"name":      kind,
+		"name":      displayName,
 		"namespace": namespace,
 	}
 	core := fw.CoreEntry{

@@ -1,6 +1,8 @@
 package mounts
 
 import (
+	"strings"
+
 	"bloodhound-kube/internal/edges/framework"
 	"bloodhound-kube/internal/model"
 	"bloodhound-kube/internal/nodes/workload"
@@ -66,7 +68,7 @@ func podHostMountReadCheck(pod *workload.Pod) (string, bool) {
 	volumeNames := map[string]struct{}{}
 	for _, volume := range pod.Volumes {
 		hostPath := volume.HostPath
-		if hostPath == "" || !framework.HostPathMatchesAny(hostPath, sensitivePaths) {
+		if hostPath == "" || strings.HasSuffix(hostPath, ".sock") || !framework.HostPathMatchesAny(hostPath, sensitivePaths) {
 			continue
 		}
 		if volume.Name != "" {

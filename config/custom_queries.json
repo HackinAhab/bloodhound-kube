@@ -49,6 +49,16 @@
             "name": "Pods Sharing Process Namespace",
             "description": "Retrieves all pods with shareProcessNamespace enabled.",
             "query": "MATCH (p:Pod)\nWHERE p.cluster = '{{.Cluster}}' AND p.shareProcessNamespace = TRUE\nRETURN p\nLIMIT 1000"
+        },
+        {
+            "name": "Full External Attack Paths",
+            "description": "All paths reachable from the External node up to 6 hops deep.",
+            "query": "MATCH p=(s:External)-[*1..6]->(t)\nWHERE s.cluster = '{{.Cluster}}'\nRETURN p\nLIMIT 500"
+        },
+        {
+            "name": "External to Pod via Service",
+            "description": "Paths where an externally-exposed Service routes to a pod.",
+            "query": "MATCH p=(s:External)-[:ExternalRoutesTo]->(svc)-[:RoutesTo]->(pod:Pod)\nWHERE s.cluster = '{{.Cluster}}'\nRETURN p\nLIMIT 500"
         }
     ]
 }

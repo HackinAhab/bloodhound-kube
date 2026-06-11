@@ -14,6 +14,7 @@ type Service struct {
 	GraphNodeBase
 	ServiceType string
 	ExternalIPs []string
+	SelectorMap map[string]string
 }
 
 func BuildServiceNode(obj runtime.Object) (BuildResult, bool) {
@@ -54,6 +55,7 @@ func BuildServiceNode(obj runtime.Object) (BuildResult, bool) {
 			GraphNodeBase: base,
 			ServiceType:   serviceType,
 			ExternalIPs:   externalIPs,
+			SelectorMap:   svc.Spec.Selector,
 		},
 	}
 

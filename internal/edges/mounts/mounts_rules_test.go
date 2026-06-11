@@ -251,8 +251,8 @@ func TestPodMountServiceAccountNonDefaultMountsToken(t *testing.T) {
 
 	ctx := framework.NewContext(core)
 	edges := PodMountServiceAccountEdgeRule{}.Apply(ctx)
-	if !hasEdge(edges, nodefw.BuildID("Pod", "ns1", "my-pod"), nodefw.BuildID("ServiceAccount", "ns1", "myapp-sa"), "mountedSA") {
-		t.Fatalf("missing mountedSA edge for non-default SA")
+	if !hasEdge(edges, nodefw.BuildID("Pod", "ns1", "my-pod"), nodefw.BuildID("ServiceAccount", "ns1", "myapp-sa"), "mountSA") {
+		t.Fatalf("missing mountSA edge for non-default SA")
 	}
 }
 
@@ -271,7 +271,7 @@ func TestPodMountServiceAccountDefaultNoAutomount(t *testing.T) {
 	ctx := framework.NewContext(core)
 	edges := PodMountServiceAccountEdgeRule{}.Apply(ctx)
 	if len(edges) != 0 {
-		t.Fatalf("expected no mountedSA edge for default SA without explicit automount, got %d", len(edges))
+		t.Fatalf("expected no mountSA edge for default SA without explicit automount, got %d", len(edges))
 	}
 }
 

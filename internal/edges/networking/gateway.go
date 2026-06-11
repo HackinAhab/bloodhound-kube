@@ -23,7 +23,7 @@ func (r gatewayEdgesRule) Apply(ctx *framework.Context) []model.BloodHoundEdge {
 		for i := range space.Gateways {
 			gateway := &space.Gateways[i]
 			if ctx.Index.External != nil {
-				edges = append(edges, framework.CreateEdge(gateway, ctx.Index.External, "ExternalRoutesTo"))
+				edges = append(edges, framework.CreateEdge(ctx.Index.External, gateway, "ExternalRoutesTo"))
 			}
 			edges = append(edges, gatewayHTTPRouteEdges(ctx, gateway, ns)...)
 			edges = append(edges, gatewayGRPCRouteEdges(ctx, gateway, ns)...)

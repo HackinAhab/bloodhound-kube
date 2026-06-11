@@ -8,6 +8,35 @@ import (
 	"bloodhound-kube/internal/model"
 )
 
+type serviceRoutesToRule struct{}
+
+func (r serviceRoutesToRule) Name() string { return "service_routes_to_pods" }
+
+func (r serviceRoutesToRule) Apply(ctx *framework.Context) []model.BloodHoundEdge {
+	if ctx == nil || ctx.Core == nil {
+		return nil
+	}
+	var edges []model.BloodHoundEdge
+	for ns, space := range ctx.Core.Namespaces {
+		if space == nil {
+			continue
+		}
+		podIndex := ctx.Index.PodsByNamespace[ns]
+		for i := range space.Services {
+			svc := &space.Services[i]
+			if len(svc.SelectorMap) == 0 {
+				continue
+			}
+			for _, pod := range podIndex {
+				if framework.LabelsMatchOnly(pod.LabelsMap, svc.SelectorMap) {
+					edges = append(edges, framework.CreateEdge(svc, pod, "RoutesTo"))
+				}
+			}
+		}
+	}
+	return edges
+}
+
 type serviceEdgesRule struct{}
 
 func (r serviceEdgesRule) Name() string { return "services" }

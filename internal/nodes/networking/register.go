@@ -3,6 +3,7 @@ package networking
 import (
 	"bloodhound-kube/internal/nodes/framework"
 
+	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
@@ -12,7 +13,7 @@ import (
 )
 
 func Register(reg *framework.Registry) {
-	reg.RegisterTyped(networkingv1.SchemeGroupVersion.WithKind("Service"), BuildServiceNode)
+	reg.RegisterTyped(corev1.SchemeGroupVersion.WithKind("Service"), BuildServiceNode)
 	reg.RegisterTyped(networkingv1.SchemeGroupVersion.WithKind("Ingress"), BuildIngressNode)
 	reg.RegisterTyped(networkingv1.SchemeGroupVersion.WithKind("NetworkPolicy"), BuildNetworkPolicyNode)
 

@@ -194,9 +194,9 @@ func addAggregateNodes(nodeList *[]model.BloodHoundNode, coreFacts *model.CoreFa
 	appendBuildResult(nodeList, coreFacts, platform.BuildAllCronJobs())
 	appendBuildResult(nodeList, coreFacts, platform.BuildAllClusterRoles())
 
-	// Per-namespace aggregates: emitted for every discovered namespace, even
-	// when zero resources of that kind exist. AllNodes and AllClusterRoles are
-	// intentionally excluded — Nodes and ClusterRoles are cluster-scoped.
+	// Per-namespace aggregates: emitted only when the namespace has at least one
+	// resource of that kind. AllNodes and AllClusterRoles are excluded —
+	// Nodes and ClusterRoles are cluster-scoped.
 	//
 	// Snapshot the namespace keys before iterating because appendBuildResult
 	// calls coreFacts.Add, which writes into the namespace map. Adding the
@@ -209,16 +209,37 @@ func addAggregateNodes(nodeList *[]model.BloodHoundNode, coreFacts *model.CoreFa
 	}
 	sort.Strings(namespaces)
 	for _, ns := range namespaces {
-		appendBuildResult(nodeList, coreFacts, platform.BuildAllPodsNS(ns))
-		appendBuildResult(nodeList, coreFacts, platform.BuildAllSecretsNS(ns))
-		appendBuildResult(nodeList, coreFacts, platform.BuildAllConfigMapsNS(ns))
-		appendBuildResult(nodeList, coreFacts, platform.BuildAllServiceAccountsNS(ns))
-		appendBuildResult(nodeList, coreFacts, platform.BuildAllDeploymentsNS(ns))
-		appendBuildResult(nodeList, coreFacts, platform.BuildAllDaemonSetsNS(ns))
-		appendBuildResult(nodeList, coreFacts, platform.BuildAllStatefulSetsNS(ns))
-		appendBuildResult(nodeList, coreFacts, platform.BuildAllJobsNS(ns))
-		appendBuildResult(nodeList, coreFacts, platform.BuildAllCronJobsNS(ns))
-		appendBuildResult(nodeList, coreFacts, platform.BuildAllRolesNS(ns))
+		space := coreFacts.Namespaces[ns]
+		if len(space.Pods) > 0 {
+			appendBuildResult(nodeList, coreFacts, platform.BuildAllPodsNS(ns))
+		}
+		if len(space.Secrets) > 0 {
+			appendBuildResult(nodeList, coreFacts, platform.BuildAllSecretsNS(ns))
+		}
+		if len(space.ConfigMaps) > 0 {
+			appendBuildResult(nodeList, coreFacts, platform.BuildAllConfigMapsNS(ns))
+		}
+		if len(space.ServiceAccounts) > 0 {
+			appendBuildResult(nodeList, coreFacts, platform.BuildAllServiceAccountsNS(ns))
+		}
+		if len(space.Deployments) > 0 {
+			appendBuildResult(nodeList, coreFacts, platform.BuildAllDeploymentsNS(ns))
+		}
+		if len(space.DaemonSets) > 0 {
+			appendBuildResult(nodeList, coreFacts, platform.BuildAllDaemonSetsNS(ns))
+		}
+		if len(space.StatefulSets) > 0 {
+			appendBuildResult(nodeList, coreFacts, platform.BuildAllStatefulSetsNS(ns))
+		}
+		if len(space.Jobs) > 0 {
+			appendBuildResult(nodeList, coreFacts, platform.BuildAllJobsNS(ns))
+		}
+		if len(space.CronJobs) > 0 {
+			appendBuildResult(nodeList, coreFacts, platform.BuildAllCronJobsNS(ns))
+		}
+		if len(space.Roles) > 0 {
+			appendBuildResult(nodeList, coreFacts, platform.BuildAllRolesNS(ns))
+		}
 	}
 }
 

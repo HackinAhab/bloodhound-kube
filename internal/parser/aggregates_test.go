@@ -5,6 +5,7 @@ import (
 
 	"bloodhound-kube/internal/model"
 	nodefw "bloodhound-kube/internal/nodes/framework"
+	"bloodhound-kube/internal/nodes/rbac"
 	"bloodhound-kube/internal/nodes/workload"
 )
 
@@ -45,13 +46,34 @@ func TestAddAggregateNodes_EmitsClusterAggregates(t *testing.T) {
 	}
 }
 
-// TestAddAggregateNodes_EmitsPerNamespaceAggregates is the core Phase 0
-// invariant: every discovered namespace gets the 9 per-namespace aggregate
-// nodes (AllNodes is intentionally excluded — Nodes are cluster-scoped).
+// TestAddAggregateNodes_EmitsPerNamespaceAggregates verifies that a namespace
+// with resources of every kind gets all per-namespace aggregate nodes.
+// AllNodes is intentionally excluded — Nodes are cluster-scoped.
 func TestAddAggregateNodes_EmitsPerNamespaceAggregates(t *testing.T) {
 	core := model.NewCoreFacts()
-	seedNamespace(core, "ns1")
-	seedNamespace(core, "ns2")
+	for _, ns := range []string{"ns1", "ns2"} {
+		seedNamespace(core, ns)
+		core.Namespaces[ns].Pods = append(core.Namespaces[ns].Pods,
+			workload.Pod{GraphNodeBase: nodefw.NewGraphNodeBase("Pod", ns, "p", nil, nil)})
+		core.Namespaces[ns].Secrets = append(core.Namespaces[ns].Secrets,
+			workload.Secret{GraphNodeBase: nodefw.NewGraphNodeBase("Secret", ns, "s", nil, nil)})
+		core.Namespaces[ns].ConfigMaps = append(core.Namespaces[ns].ConfigMaps,
+			workload.ConfigMap{GraphNodeBase: nodefw.NewGraphNodeBase("ConfigMap", ns, "cm", nil, nil)})
+		core.Namespaces[ns].ServiceAccounts = append(core.Namespaces[ns].ServiceAccounts,
+			rbac.ServiceAccount{GraphNodeBase: nodefw.NewGraphNodeBase("ServiceAccount", ns, "sa", nil, nil)})
+		core.Namespaces[ns].Deployments = append(core.Namespaces[ns].Deployments,
+			workload.Deployment{GraphNodeBase: nodefw.NewGraphNodeBase("Deployment", ns, "d", nil, nil)})
+		core.Namespaces[ns].DaemonSets = append(core.Namespaces[ns].DaemonSets,
+			workload.DaemonSetCore{GraphNodeBase: nodefw.NewGraphNodeBase("DaemonSet", ns, "ds", nil, nil)})
+		core.Namespaces[ns].StatefulSets = append(core.Namespaces[ns].StatefulSets,
+			workload.StatefulSetCore{GraphNodeBase: nodefw.NewGraphNodeBase("StatefulSet", ns, "ss", nil, nil)})
+		core.Namespaces[ns].Jobs = append(core.Namespaces[ns].Jobs,
+			workload.Job{GraphNodeBase: nodefw.NewGraphNodeBase("Job", ns, "j", nil, nil)})
+		core.Namespaces[ns].CronJobs = append(core.Namespaces[ns].CronJobs,
+			workload.CronJob{GraphNodeBase: nodefw.NewGraphNodeBase("CronJob", ns, "cj", nil, nil)})
+		core.Namespaces[ns].Roles = append(core.Namespaces[ns].Roles,
+			rbac.Role{GraphNodeBase: nodefw.NewGraphNodeBase("Role", ns, "r", nil, nil)})
+	}
 
 	var nodes []model.BloodHoundNode
 	addAggregateNodes(&nodes, core)
@@ -59,7 +81,7 @@ func TestAddAggregateNodes_EmitsPerNamespaceAggregates(t *testing.T) {
 	wantPerNS := []string{
 		"AllPods", "AllSecrets", "AllConfigMaps", "AllServiceAccounts",
 		"AllDeployments", "AllDaemonSets", "AllStatefulSets",
-		"AllJobs", "AllCronJobs",
+		"AllJobs", "AllCronJobs", "AllRoles",
 	}
 	for _, ns := range []string{"ns1", "ns2"} {
 		for _, kind := range wantPerNS {
@@ -79,20 +101,47 @@ func TestAddAggregateNodes_EmitsPerNamespaceAggregates(t *testing.T) {
 	}
 }
 
-// TestAddAggregateNodes_EmptyNamespaceStillEmits locks in the design
-// decision to always emit per-namespace aggregates, even when the namespace
-// contains zero resources of that kind. This guarantees rule code can
-// safely take space.AllSecrets[0] without nil-checking the namespace.
-func TestAddAggregateNodes_EmptyNamespaceStillEmits(t *testing.T) {
+// TestAddAggregateNodes_EmptyNamespaceEmitsNoAggregates verifies that a
+// namespace with no resources of a given kind produces no aggregate node
+// for that kind.
+func TestAddAggregateNodes_EmptyNamespaceEmitsNoAggregates(t *testing.T) {
 	core := model.NewCoreFacts()
-	seedNamespace(core, "empty-ns") // no Pods/Secrets/etc. at all
+	seedNamespace(core, "empty-ns") // no Pods/Secrets/etc. added
 
 	var nodes []model.BloodHoundNode
 	addAggregateNodes(&nodes, core)
 
-	id := nodefw.BuildID("AllSecrets", "empty-ns", "AllSecrets")
-	if !containsNodeID(nodes, id) {
-		t.Fatalf("expected per-namespace aggregate %q for empty namespace", id)
+	wantAbsent := []string{
+		"AllPods", "AllSecrets", "AllConfigMaps", "AllServiceAccounts",
+		"AllDeployments", "AllDaemonSets", "AllStatefulSets",
+		"AllJobs", "AllCronJobs", "AllRoles",
+	}
+	for _, kind := range wantAbsent {
+		id := nodefw.BuildID(kind, "empty-ns", kind)
+		if containsNodeID(nodes, id) {
+			t.Errorf("unexpected empty aggregate node %q in output", id)
+		}
+	}
+}
+
+// TestAddAggregateNodes_PopulatedKindEmitsAggregate verifies that only kinds
+// with at least one resource in a namespace get an aggregate node.
+func TestAddAggregateNodes_PopulatedKindEmitsAggregate(t *testing.T) {
+	core := model.NewCoreFacts()
+	seedNamespace(core, "ns1")
+	core.Namespaces["ns1"].Secrets = append(
+		core.Namespaces["ns1"].Secrets,
+		workload.Secret{GraphNodeBase: nodefw.NewGraphNodeBase("Secret", "ns1", "s1", nil, nil)},
+	)
+
+	var nodes []model.BloodHoundNode
+	addAggregateNodes(&nodes, core)
+
+	if !containsNodeID(nodes, nodefw.BuildID("AllSecrets", "ns1", "AllSecrets")) {
+		t.Error("expected AllSecrets aggregate for ns1 that has a secret")
+	}
+	if containsNodeID(nodes, nodefw.BuildID("AllPods", "ns1", "AllPods")) {
+		t.Error("unexpected AllPods aggregate for ns1 with no pods")
 	}
 }
 

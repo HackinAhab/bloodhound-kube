@@ -8,6 +8,7 @@ import (
 	nodefw "bloodhound-kube/internal/nodes/framework"
 	netnodes "bloodhound-kube/internal/nodes/networking"
 	"bloodhound-kube/internal/nodes/platform"
+	"bloodhound-kube/internal/nodes/workload"
 )
 
 func base(kind, namespace, name string) nodefw.GraphNodeBase {
@@ -168,5 +169,96 @@ func TestIngressEdgesRuleNoExternalNoEdge(t *testing.T) {
 		if e.Kind == "ExternalRoutesTo" {
 			t.Fatalf("unexpected ExternalRoutesTo edge when no External node is present: %+v", e)
 		}
+	}
+}
+
+// ---------------------------------------------------------------------------
+// networkPolicyEdgesRule
+// ---------------------------------------------------------------------------
+
+func TestNetworkPolicyEdgesRule_EmptySelectorUsesAggregate(t *testing.T) {
+	// Empty podSelector → AppliesTo must point at the AllPods aggregate, not individual pods.
+	core := newCore()
+	ns := ensureNamespace(core, "ns1")
+	ns.NetworkPolicies = append(ns.NetworkPolicies, netnodes.NetworkPolicy{
+		GraphNodeBase:     base("NetworkPolicy", "ns1", "deny-all"),
+		PodSelectorLabels: nil,
+	})
+	ns.Pods = append(ns.Pods, workload.Pod{
+		GraphNodeBase: base("Pod", "ns1", "my-pod"),
+	})
+	allPodsResult := platform.BuildAllPodsNS("ns1")
+	ns.AllPods = append(ns.AllPods, allPodsResult.Core[0].Data.(platform.AllPods))
+
+	ctx := framework.NewContext(core)
+	edges := networkPolicyEdgesRule{}.Apply(ctx)
+
+	aggID := nodefw.BuildID("AllPods", "ns1", "AllPods")
+	podID := nodefw.BuildID("Pod", "ns1", "my-pod")
+	netpolID := nodefw.BuildID("NetworkPolicy", "ns1", "deny-all")
+
+	if !hasEdge(edges, netpolID, aggID, "AppliesTo") {
+		t.Fatalf("expected AppliesTo edge from netpol to AllPods aggregate, got %v", edges)
+	}
+	if hasEdge(edges, netpolID, podID, "AppliesTo") {
+		t.Fatalf("unexpected AppliesTo edge to individual pod when aggregate is present")
+	}
+}
+
+func TestNetworkPolicyEdgesRule_EmptySelectorNoAggregateSkipped(t *testing.T) {
+	// Empty podSelector but no AllPods aggregate present → no edges emitted.
+	core := newCore()
+	ns := ensureNamespace(core, "ns1")
+	ns.NetworkPolicies = append(ns.NetworkPolicies, netnodes.NetworkPolicy{
+		GraphNodeBase:     base("NetworkPolicy", "ns1", "deny-all"),
+		PodSelectorLabels: nil,
+	})
+	ns.Pods = append(ns.Pods, workload.Pod{
+		GraphNodeBase: base("Pod", "ns1", "my-pod"),
+	})
+	// AllPods deliberately not populated.
+
+	ctx := framework.NewContext(core)
+	edges := networkPolicyEdgesRule{}.Apply(ctx)
+	if len(edges) != 0 {
+		t.Fatalf("expected no edges when aggregate absent, got %d", len(edges))
+	}
+}
+
+func TestNetworkPolicyEdgesRule_LabelSelectorMatchesSpecificPods(t *testing.T) {
+	// Non-empty selector must still fan out to matching individual pods.
+	core := newCore()
+	ns := ensureNamespace(core, "ns1")
+	ns.NetworkPolicies = append(ns.NetworkPolicies, netnodes.NetworkPolicy{
+		GraphNodeBase:     base("NetworkPolicy", "ns1", "web-policy"),
+		PodSelectorLabels: map[string]string{"app": "web"},
+	})
+	ns.Pods = append(ns.Pods,
+		workload.Pod{
+			GraphNodeBase: nodefw.NewGraphNodeBase("Pod", "ns1", "web-pod", map[string]any{"app": "web"}, nil),
+		},
+		workload.Pod{
+			GraphNodeBase: base("Pod", "ns1", "other-pod"),
+		},
+	)
+	allPodsResult := platform.BuildAllPodsNS("ns1")
+	ns.AllPods = append(ns.AllPods, allPodsResult.Core[0].Data.(platform.AllPods))
+
+	ctx := framework.NewContext(core)
+	edges := networkPolicyEdgesRule{}.Apply(ctx)
+
+	netpolID := nodefw.BuildID("NetworkPolicy", "ns1", "web-policy")
+	webPodID := nodefw.BuildID("Pod", "ns1", "web-pod")
+	otherPodID := nodefw.BuildID("Pod", "ns1", "other-pod")
+	aggID := nodefw.BuildID("AllPods", "ns1", "AllPods")
+
+	if !hasEdge(edges, netpolID, webPodID, "AppliesTo") {
+		t.Fatalf("expected AppliesTo edge to matching pod")
+	}
+	if hasEdge(edges, netpolID, otherPodID, "AppliesTo") {
+		t.Fatalf("unexpected AppliesTo edge to non-matching pod")
+	}
+	if hasEdge(edges, netpolID, aggID, "AppliesTo") {
+		t.Fatalf("unexpected AppliesTo edge to aggregate when selector is non-empty")
 	}
 }

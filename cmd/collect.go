@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"os"
 
 	"bloodhound-kube/internal/cli"
 	"bloodhound-kube/internal/utils"
@@ -36,6 +37,7 @@ var (
 	clustersConfig      string
 	zipOutput           bool
 	clusterConcurrency  int
+	parseInputFile      string
 )
 
 var collectCmd = &cobra.Command{
@@ -55,6 +57,16 @@ Use --no-parse to write JSONL only.`,
 		}
 		defer closeFn()
 		utils.SetDefaultLogger(log)
+
+		if parseInputFile != "" {
+			_, err = cli.ParseService{}.Run(cli.ParseRequest{
+				InputPath:           parseInputFile,
+				OutputPath:          parsedOutput,
+				ClusterName:         parseCluster,
+				ParseUndefinedNodes: parseUndefinedNodes,
+			}, os.Stdout, log)
+			return err
+		}
 
 		_, err = cli.PipelineService{}.Run(context.Background(), cli.PipelineRequest{
 			Collect: cli.CollectRequest{
@@ -127,4 +139,5 @@ func addCollectFlags(cmd *cobra.Command) {
 	cmd.Flags().StringVarP(&clustersConfig, "clusters-config", "C", "", "YAML config file for multi-cluster collection")
 	cmd.Flags().BoolVar(&zipOutput, "zip", false, "Compress BloodHound JSON output into a zip archive")
 	cmd.Flags().IntVar(&clusterConcurrency, "cluster-concurrency", 0, "Number of cluster pipelines to run in parallel (multi-cluster mode only; 0 defers to the clusters config clusterConcurrency default, or sequential if unset)")
+	cmd.Flags().StringVar(&parseInputFile, "parse", "", "Parse an existing JSONL file to BloodHound JSON and exit (skips collection)")
 }

@@ -1,0 +1,76 @@
+# clusters.example.yaml — reference config for multi-cluster collection
+#
+# Usage:
+#   bloodhound-kube collect --clusters-config clusters.yaml
+#   bloodhound-kube collect -C clusters.yaml --no-parse
+
+# defaults: fallback values for any field not set on a cluster entry.
+# Every field here is optional.
+defaults:
+  # scope: core | all | allowlist
+  scope: core
+
+  # Collect from all namespaces (cannot combine with namespace)
+  allNamespaces: false
+
+  # Namespace filter — comma-separated (e.g. "prod,monitoring")
+  # namespace: ""
+
+  # Strip Secret data values, keep key names
+  redacted: false
+
+  # Auto-accept CRD discovery without prompting
+  acceptCRDs: false
+
+  # Concurrent collection workers
+  concurrency: 10
+
+  # Kubernetes list pagination limit
+  paginateLimit: 100
+
+  # kubernetes | openshift | auto
+  clusterType: auto
+
+  # Output directory for per-cluster JSONL (and .json) files.
+  # Each cluster gets its own file: <name>-<timestamp>.jsonl
+  outputDir: ./output
+
+clusters:
+  # Minimal entry — relies entirely on defaults and current kubeconfig context.
+  - name: local
+
+  # kubeconfig-based auth with an explicit kubeconfig path.
+  - name: prod-us-east
+    kubeconfig: ~/.kube/prod-us-east
+    clusterType: kubernetes
+    scope: core
+    redacted: true
+
+  # Direct API access — token is read from an environment variable.
+  # ${VAR} references are expanded at runtime; an unset var is an error.
+  - name: staging
+    server: https://k8s-staging.example.com
+    token: ${STAGING_TOKEN}
+    namespace: prod,monitoring
+    concurrency: 20
+
+  # Allowlist scope — collect core resources plus those listed in a file.
+  # Each line in the allowlist is a resource identifier:
+  #   group/version/resource  |  group/version  |  group/resource  |  v1/resource
+  - name: shared-services
+    kubeconfig: ~/.kube/shared
+    scope: allowlist
+    discoveryAllowlist: ./allowlists/shared.txt
+    acceptCRDs: true
+
+  # Explicit output path for this cluster (overrides outputDir).
+  - name: dr-west
+    kubeconfig: ~/.kube/dr-west
+    outputFile: /var/data/dr-west.jsonl
+
+  # Override a default bool to false explicitly.
+  # Omitting a bool field inherits the default; setting it to false overrides.
+  - name: dev
+    kubeconfig: ~/.kube/dev
+    allNamespaces: true
+    redacted: false

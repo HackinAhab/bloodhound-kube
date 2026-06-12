@@ -21,6 +21,7 @@ var (
 	uploadReset       bool
 	uploadResetDB     bool
 	uploadCluster     string
+	uploadConfigs     bool
 )
 
 var uploadCmd = &cobra.Command{
@@ -36,7 +37,7 @@ Examples:
   bloodhound-kube upload --model-file custom_types.json --token-id $BLOODHOUND_TOKEN_ID --token-key $BLOODHOUND_TOKEN_KEY
 
   # Upload embedded configs only (requires embedded build)
-  bloodhound-kube upload --queries-file='' --model-file='' --token-id $BLOODHOUND_TOKEN_ID --token-key $BLOODHOUND_TOKEN_KEY
+  bloodhound-kube upload --configs --token-id $BLOODHOUND_TOKEN_ID --token-key $BLOODHOUND_TOKEN_KEY
 
   # Upload data only (no config changes)
   bloodhound-kube upload --upload-file data.json --token-id $BLOODHOUND_TOKEN_ID --token-key $BLOODHOUND_TOKEN_KEY`,
@@ -58,20 +59,21 @@ Examples:
 		hasQueriesFlag := cmd.Flags().Changed("queries-file")
 		hasUpload := cmd.Flags().Changed("upload-file")
 		return cli.UploadService{}.Run(cli.UploadRequest{
-			ModelFile:      uploadModelFile,
-			QueriesFile:    uploadQueriesFile,
-			UploadFile:     uploadUploadFile,
-			BaseURL:        uploadBaseURL,
-			TokenID:        uploadTokenID,
-			TokenKey:       uploadTokenKey,
-			Insecure:       uploadInsecure,
-			TimeoutSeconds: uploadTimeout,
-			Reset:          uploadReset,
-			ResetDB:        uploadResetDB,
-			HasModelFlag:   hasModelFlag,
-			HasQueriesFlag: hasQueriesFlag,
-			HasUploadFlag:  hasUpload,
-			ClusterName:    uploadCluster,
+			ModelFile:          uploadModelFile,
+			QueriesFile:        uploadQueriesFile,
+			UploadFile:         uploadUploadFile,
+			BaseURL:            uploadBaseURL,
+			TokenID:            uploadTokenID,
+			TokenKey:           uploadTokenKey,
+			Insecure:           uploadInsecure,
+			TimeoutSeconds:     uploadTimeout,
+			Reset:              uploadReset,
+			ResetDB:            uploadResetDB,
+			HasModelFlag:       hasModelFlag,
+			HasQueriesFlag:     hasQueriesFlag,
+			HasUploadFlag:      hasUpload,
+			UseEmbeddedConfigs: uploadConfigs,
+			ClusterName:        uploadCluster,
 		}, log)
 	},
 }
@@ -89,6 +91,7 @@ func init() {
 	uploadCmd.Flags().BoolVar(&uploadReset, "reset", false, "Reset existing custom data before uploading")
 	uploadCmd.Flags().BoolVar(&uploadResetDB, "reset-db", false, "Reset the entire database before uploading")
 	uploadCmd.Flags().StringVar(&uploadCluster, "cluster", "default", "Cluster name to substitute in saved query filters")
+	uploadCmd.Flags().BoolVar(&uploadConfigs, "configs", false, "Upload embedded queries and model (embedded build only; shorthand for --queries-file='' --model-file='')")
 
 	rootCmd.AddCommand(uploadCmd)
 }

@@ -12,20 +12,21 @@ import (
 )
 
 type UploadRequest struct {
-	ModelFile      string
-	QueriesFile    string
-	UploadFile     string
-	BaseURL        string
-	TokenID        string
-	TokenKey       string
-	Insecure       bool
-	TimeoutSeconds int
-	Reset          bool
-	ResetDB        bool
-	HasModelFlag   bool
-	HasQueriesFlag bool
-	HasUploadFlag  bool
-	ClusterName    string
+	ModelFile           string
+	QueriesFile         string
+	UploadFile          string
+	BaseURL             string
+	TokenID             string
+	TokenKey            string
+	Insecure            bool
+	TimeoutSeconds      int
+	Reset               bool
+	ResetDB             bool
+	HasModelFlag        bool
+	HasQueriesFlag      bool
+	HasUploadFlag       bool
+	UseEmbeddedConfigs  bool
+	ClusterName         string
 }
 
 type UploadService struct{}
@@ -34,8 +35,15 @@ func (s UploadService) Run(req UploadRequest, log utils.Logger) error {
 	if req.TokenID == "" || req.TokenKey == "" {
 		return fmt.Errorf("token ID and token key are required")
 	}
-	if !req.HasModelFlag && !req.HasQueriesFlag && !req.Reset && !req.HasUploadFlag {
-		return fmt.Errorf("provide --model-file, --queries-file, --upload-file, or --reset")
+	if !req.HasModelFlag && !req.HasQueriesFlag && !req.Reset && !req.HasUploadFlag && !req.UseEmbeddedConfigs {
+		return fmt.Errorf("provide --model-file, --queries-file, --upload-file, --configs, or --reset")
+	}
+
+	if req.UseEmbeddedConfigs {
+		req.HasModelFlag = true
+		req.ModelFile = ""
+		req.HasQueriesFlag = true
+		req.QueriesFile = ""
 	}
 
 	client, err := upload.NewClient(upload.Config{

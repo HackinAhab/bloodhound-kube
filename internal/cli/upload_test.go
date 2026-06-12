@@ -17,7 +17,7 @@ func TestUploadServiceRunValidation(t *testing.T) {
 	}
 
 	err = service.Run(UploadRequest{TokenID: "id", TokenKey: "key"}, log)
-	if err == nil || !strings.Contains(err.Error(), "provide --model-file, --queries-file, --upload-file, or --reset") {
+	if err == nil || !strings.Contains(err.Error(), "provide --model-file, --queries-file, --upload-file, --configs, or --reset") {
 		t.Fatalf("expected action validation error, got %v", err)
 	}
 }

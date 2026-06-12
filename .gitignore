@@ -1,10 +1,4 @@
 bin
-output
-dev-utils/
-mcp-servers
 .DS_Store
-bloodhound-kube
 .agents
-.opencode
 tmp/
-.env

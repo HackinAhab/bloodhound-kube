@@ -65,7 +65,7 @@
 | security | `host_ports` | `ExternalHostPort` | External → Node | Any container in the pod has `hostPort > 0` |
 | mounts | `lateral_movement_host_mount_read` | `hostMountSensitive` | Pod → Node | Pod has a hostPath volume at `/etc`, `/root`, `/home`, `/proc`, or `/var/lib/kubelet/pods` with a container mount |
 | mounts | `lateral_movement_host_mount_kubelet` | `mountedKubelet` | Pod → Node | Pod has a hostPath volume at `/var/lib/kubelet` or `/etc/kubernetes` |
-| mounts | `lateral_movement_pod_mount_service_account` | `mountedSA` | Pod → ServiceAccount | Pod automounts SA token: non-default SA unless explicitly disabled, or default SA with explicit `true` |
+| mounts | `lateral_movement_pod_mount_service_account` | `mountSA` | Pod → ServiceAccount | Pod automounts SA token: non-default SA unless explicitly disabled, or default SA with explicit `true` |
 | mounts | `cluster` | `MountedBy` | PersistentVolumeClaim → Pod | Pod has a volume referencing the PVC name |
 | mounts | `cluster` | `BoundTo` | PersistentVolume → PersistentVolumeClaim | PV's `claimRef` matches the PVC name and namespace |
 | networking | `ingress` | `RoutesTo` | Ingress → Service | Ingress backend ref names the service |

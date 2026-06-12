@@ -317,7 +317,7 @@ By default (or when `automountServiceAccountToken: true` is explicit for the `de
 
 | Edge | Source → Target | Trigger |
 |------|----------------|---------|
-| `mountedSA` | Pod → ServiceAccount | Pod automounts the SA token: non-default SA unless explicitly disabled, or default SA with explicit `true` |
+| `mountSA` | Pod → ServiceAccount | Pod automounts the SA token: non-default SA unless explicitly disabled, or default SA with explicit `true` |
 
 ---
 
@@ -350,12 +350,12 @@ Maps traffic paths through Ingress objects. `ExternalRoutesTo` edges indicate th
 ### `gateway` — Gateway API Routing
 **File:** `gateway.go`
 
-Maps Gateway API traffic paths. Gateways route to route objects; the `ExternalRoutesTo` edge from a Gateway indicates it is internet-facing.
+Maps Gateway API traffic paths. Gateways route to route objects; the `ExternalRoutesTo` edge into a Gateway indicates it is internet-facing.
 
 | Edge | Source → Target | Trigger |
 |------|----------------|---------|
 | `RoutesTo` | Gateway → HTTPRoute/GRPCRoute/TCPRoute/TLSRoute | Route's `parentRef` names the gateway (matched by name and namespace) |
-| `ExternalRoutesTo` | Gateway → External | Any Gateway exists and an External node is present |
+| `ExternalRoutesTo` | External → Gateway | Any Gateway exists and an External node is present |
 
 ---
 
@@ -384,14 +384,15 @@ Maps route objects to their backend Services.
 
 ---
 
-### `services` — Externally Exposed Services
+### `services` — Externally Exposed Services and Service-to-Pod Routing
 **File:** `service.go`
 
-Services of type `NodePort` or `LoadBalancer` are accessible from outside the cluster. `LoadBalancer` services include their external IPs in the edge properties.
+Services of type `NodePort` or `LoadBalancer` are accessible from outside the cluster. `LoadBalancer` services include their external IPs in the edge properties. All Services with a non-empty label selector emit `RoutesTo` edges to the pods they select, completing the external path chain: `External → Service → Pod`.
 
 | Edge | Source → Target | Trigger |
 |------|----------------|---------|
 | `ExternalRoutesTo` | External → Service | Service type is `NodePort` or `LoadBalancer` |
+| `RoutesTo` | Service → Pod | Service has a non-empty `spec.selector` and a pod's labels satisfy it |
 
 ---
 

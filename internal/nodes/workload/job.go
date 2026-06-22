@@ -47,7 +47,7 @@ func BuildJobNode(obj runtime.Object) (BuildResult, bool) {
 	properties["completions"] = completions
 	properties["envDefinitions"] = envDefinitions
 
-	base := NewGraphNodeBase("Job", namespace, name, labelsMap, annotationsMap)
+	base := NewGraphNodeBase("BHK_Job", namespace, name, labelsMap, annotationsMap)
 
 	core := CoreEntry{
 		Namespace: namespace,

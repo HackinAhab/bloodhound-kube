@@ -36,16 +36,21 @@ type Client struct {
 	log        utils.Logger
 }
 
-type CustomNode struct {
-	KindName string `json:"kindName"`
+type Extension struct {
+	ID        int    `json:"id"`
+	Name      string `json:"name"`
+	Namespace string `json:"namespace"`
+	IsBuiltin bool   `json:"is_builtin"`
 }
 
 type QueriesConfig struct {
 	Queries []map[string]any `json:"queries"`
 }
 
-type customNodesResponse struct {
-	Data []CustomNode `json:"data"`
+type extensionsResponse struct {
+	Data struct {
+		Extensions []Extension `json:"extensions"`
+	} `json:"data"`
 }
 
 func NewClient(cfg Config) (*Client, error) {
@@ -181,7 +186,7 @@ func (c *Client) ResetDatabase(ctx context.Context) error {
 
 func (c *Client) ResetCustomData(ctx context.Context) error {
 	c.log.Info("Resetting custom data")
-	if err := c.ResetCustomNodes(ctx); err != nil {
+	if err := c.ResetExtensions(ctx); err != nil {
 		return err
 	}
 	if err := c.ResetQueries(ctx); err != nil {

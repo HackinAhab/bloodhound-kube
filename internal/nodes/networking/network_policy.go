@@ -53,8 +53,8 @@ func BuildNetworkPolicyNode(obj runtime.Object) (BuildResult, bool) {
 		Cluster:   false,
 		Data: NetworkPolicy{
 			GraphNodeBase: GraphNodeBase{
-				ID:             BuildID("NetworkPolicy", namespace, name),
-				Kinds:          []string{"NetworkPolicy"},
+				ID:             BuildID("BHK_NetworkPolicy", namespace, name),
+				Kinds:          []string{"BHK_NetworkPolicy"},
 				Name:           name,
 				Namespace:      namespace,
 				LabelsMap:      labelsMap,
@@ -66,8 +66,8 @@ func BuildNetworkPolicyNode(obj runtime.Object) (BuildResult, bool) {
 
 	return BuildResult{
 		Node: NodeResult{
-			ID:         BuildID("NetworkPolicy", namespace, name),
-			Kinds:      []string{"NetworkPolicy"},
+			ID:         BuildID("BHK_NetworkPolicy", namespace, name),
+			Kinds:      []string{"BHK_NetworkPolicy"},
 			Properties: properties,
 		},
 		Core: []CoreEntry{core},

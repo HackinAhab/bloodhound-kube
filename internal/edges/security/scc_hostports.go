@@ -30,7 +30,7 @@ func (r sccEdgesRule) Apply(ctx *framework.Context) []model.BloodHoundEdge {
 				continue
 			}
 			if scc := ctx.Index.SecurityContextConstraintsBy[sccName]; scc != nil {
-				edges = append(edges, framework.CreateEdge(scc, pod, "EnforcedSCC"))
+				edges = append(edges, framework.CreateEdge(scc, pod, "BHK_EnforcedSCC"))
 			}
 		}
 	}
@@ -65,10 +65,10 @@ func (r hostPortsEdgesRule) Apply(ctx *framework.Context) []model.BloodHoundEdge
 					if hostPort == 0 {
 						continue
 					}
-					edges = append(edges, framework.CreateEdgeWithProperties(node, pod, "HostPort", map[string]any{"HostPort": hostPort}))
+					edges = append(edges, framework.CreateEdgeWithProperties(node, pod, "BHK_HostPort", map[string]any{"BHK_HostPort": hostPort}))
 					if ctx.Index.External != nil {
 						desc := fmt.Sprintf("External access to node %s via host port %d", node.Name, hostPort)
-						edges = append(edges, framework.CreateEdgeWithProperties(ctx.Index.External, node, "ExternalHostPort", map[string]any{
+						edges = append(edges, framework.CreateEdgeWithProperties(ctx.Index.External, node, "BHK_ExternalHostPort", map[string]any{
 							"Description": desc,
 						}))
 					}

@@ -46,8 +46,8 @@ func BuildRoleBindingNode(obj runtime.Object) (BuildResult, bool) {
 		Cluster:   false,
 		Data: RoleBinding{
 			GraphNodeBase: GraphNodeBase{
-				ID:             BuildID("RoleBinding", namespace, name),
-				Kinds:          []string{"RoleBinding"},
+				ID:             BuildID("BHK_RoleBinding", namespace, name),
+				Kinds:          []string{"BHK_RoleBinding"},
 				Name:           name,
 				Namespace:      namespace,
 				LabelsMap:      labelsMap,
@@ -61,8 +61,8 @@ func BuildRoleBindingNode(obj runtime.Object) (BuildResult, bool) {
 
 	return BuildResult{
 		Node: NodeResult{
-			ID:         BuildID("RoleBinding", namespace, name),
-			Kinds:      []string{"RoleBinding"},
+			ID:         BuildID("BHK_RoleBinding", namespace, name),
+			Kinds:      []string{"BHK_RoleBinding"},
 			Properties: properties,
 		},
 		Core: []CoreEntry{core},

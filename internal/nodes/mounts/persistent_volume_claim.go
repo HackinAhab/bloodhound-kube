@@ -34,7 +34,7 @@ func BuildPVCNode(obj runtime.Object) (BuildResult, bool) {
 		"annotations": MapToSortedList(annotationsMap),
 	}
 
-	base := NewGraphNodeBase("PersistentVolumeClaim", namespace, name, labelsMap, annotationsMap)
+	base := NewGraphNodeBase("BHK_PersistentVolumeClaim", namespace, name, labelsMap, annotationsMap)
 
 	core := CoreEntry{
 		Namespace: namespace,

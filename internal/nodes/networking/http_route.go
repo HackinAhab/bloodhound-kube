@@ -60,7 +60,7 @@ func buildHTTPRouteFromV1(route *gatewayv1.HTTPRoute) (BuildResult, bool) {
 		"backendRefKeys": backendRefKeys,
 	}
 
-	base := NewGraphNodeBase("HTTPRoute", namespace, name, labelsMap, annotationsMap)
+	base := NewGraphNodeBase("BHK_HTTPRoute", namespace, name, labelsMap, annotationsMap)
 
 	core := CoreEntry{
 		Namespace: namespace,

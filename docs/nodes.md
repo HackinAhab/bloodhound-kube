@@ -10,61 +10,63 @@ Nodes are organized by domain. Each domain has its own subdirectory under `inter
 
 | Kind | Go File | Scope | Notes |
 |------|---------|-------|-------|
-| `Namespace` | `platform/namespace.go` | cluster | Metadata-only fetch (`FetchModeHintMetadata`) |
-| `Node` | `platform/node.go` | cluster | Kubernetes worker/control-plane node; metadata-only fetch |
-| `External` | `platform/external.go` | cluster | Synthetic node representing external traffic sources |
+| `BHK_Namespace` | `platform/namespace.go` | cluster | Metadata-only fetch (`FetchModeHintMetadata`) |
+| `BHK_Node` | `platform/node.go` | cluster | Kubernetes worker/control-plane node; metadata-only fetch |
+| `BHK_External` | `platform/external.go` | cluster | Synthetic node representing external traffic sources |
 
 ### rbac
 
 | Kind | Go File | Scope | Notes |
 |------|---------|-------|-------|
-| `ServiceAccount` | `rbac/serviceaccount.go` | namespace | |
-| `Role` | `rbac/role.go` | namespace | Namespaced RBAC role |
-| `ClusterRole` | `rbac/clusterrole.go` | cluster | |
-| `RoleBinding` | `rbac/rolebinding.go` | namespace | |
-| `ClusterRoleBinding` | `rbac/clusterrolebinding.go` | cluster | |
+| `BHK_ServiceAccount` | `rbac/serviceaccount.go` | namespace | |
+| `BHK_User` | `rbac/user.go` | cluster | Created from RoleBinding/ClusterRoleBinding subjects |
+| `BHK_Group` | `rbac/group.go` | cluster | Created from RoleBinding/ClusterRoleBinding subjects |
+| `BHK_Role` | `rbac/role.go` | namespace | Namespaced RBAC role |
+| `BHK_ClusterRole` | `rbac/clusterrole.go` | cluster | |
+| `BHK_RoleBinding` | `rbac/rolebinding.go` | namespace | |
+| `BHK_ClusterRoleBinding` | `rbac/clusterrolebinding.go` | cluster | |
 
 ### workload
 
 | Kind | Go File | Scope | Notes |
 |------|---------|-------|-------|
-| `Pod` | `workload/pod.go` | namespace | Full spec fetch |
-| `Deployment` | `workload/deployment.go` | namespace | |
-| `DaemonSet` | `workload/daemonset.go` | namespace | |
-| `StatefulSet` | `workload/statefulset.go` | namespace | |
-| `Job` | `workload/job.go` | namespace | |
-| `CronJob` | `workload/cronjob.go` | namespace | |
-| `Secret` | `workload/secret.go` | namespace | `data` omitted when `--redacted` |
-| `ConfigMap` | `workload/configmap.go` | namespace | |
+| `BHK_Pod` | `workload/pod.go` | namespace | Full spec fetch |
+| `BHK_Deployment` | `workload/deployment.go` | namespace | |
+| `BHK_DaemonSet` | `workload/daemonset.go` | namespace | |
+| `BHK_StatefulSet` | `workload/statefulset.go` | namespace | |
+| `BHK_Job` | `workload/job.go` | namespace | |
+| `BHK_CronJob` | `workload/cronjob.go` | namespace | |
+| `BHK_Secret` | `workload/secret.go` | namespace | `data` omitted when `--redacted` |
+| `BHK_ConfigMap` | `workload/configmap.go` | namespace | |
 
 ### networking
 
 | Kind | Go File | Scope | Notes |
 |------|---------|-------|-------|
-| `Service` | `networking/service.go` | namespace | |
-| `Ingress` | `networking/ingress.go` | namespace | |
-| `NetworkPolicy` | `networking/networkpolicy.go` | namespace | |
-| `Gateway` | `networking/gateway.go` | namespace | Registered for both `gateway.networking.k8s.io/v1` and `v1beta1` |
-| `HTTPRoute` | `networking/httproute.go` | namespace | Registered for `v1` and `v1beta1` |
-| `GRPCRoute` | `networking/grpcroute.go` | namespace | Registered for `v1` and `v1alpha2` |
-| `TCPRoute` | `networking/tcproute.go` | namespace | Registered for `v1alpha2` |
-| `TLSRoute` | `networking/tlsroute.go` | namespace | Registered for `v1` and `v1alpha2` |
+| `BHK_Service` | `networking/service.go` | namespace | |
+| `BHK_Ingress` | `networking/ingress.go` | namespace | |
+| `BHK_NetworkPolicy` | `networking/networkpolicy.go` | namespace | |
+| `BHK_Gateway` | `networking/gateway.go` | namespace | Registered for both `gateway.networking.k8s.io/v1` and `v1beta1` |
+| `BHK_HTTPRoute` | `networking/httproute.go` | namespace | Registered for `v1` and `v1beta1` |
+| `BHK_GRPCRoute` | `networking/grpcroute.go` | namespace | Registered for `v1` and `v1alpha2` |
+| `BHK_TCPRoute` | `networking/tcproute.go` | namespace | Registered for `v1alpha2` |
+| `BHK_TLSRoute` | `networking/tlsroute.go` | namespace | Registered for `v1` and `v1alpha2` |
 
 ### mounts
 
 | Kind | Go File | Scope | Notes |
 |------|---------|-------|-------|
-| `PersistentVolume` | `mounts/pv.go` | cluster | Full spec fetch |
-| `PersistentVolumeClaim` | `mounts/pvc.go` | namespace | Metadata-only fetch (`FetchModeHintMetadata`) |
+| `BHK_PersistentVolume` | `mounts/pv.go` | cluster | Full spec fetch |
+| `BHK_PersistentVolumeClaim` | `mounts/pvc.go` | namespace | Metadata-only fetch (`FetchModeHintMetadata`) |
 
 ### addons
 
 | Kind | Go File | Scope | Notes |
 |------|---------|-------|-------|
-| `SecretStore` | `addons/external_secrets.go` | namespace | external-secrets operator |
-| `ClusterSecretStore` | `addons/external_secrets.go` | cluster | external-secrets operator |
-| `ExternalSecret` | `addons/external_secrets.go` | namespace | external-secrets operator |
-| `SecurityContextConstraints` | `addons/security_context_constraints.go` | cluster | OpenShift only; builder implemented but not yet registered |
+| `BHK_SecretStore` | `addons/external_secrets.go` | namespace | external-secrets operator |
+| `BHK_ClusterSecretStore` | `addons/external_secrets.go` | cluster | external-secrets operator |
+| `BHK_ExternalSecret` | `addons/external_secrets.go` | namespace | external-secrets operator |
+| `BHK_SecurityContextConstraint` | `addons/security_context_constraints.go` | cluster | OpenShift only; builder implemented but not yet registered |
 
 ---
 
@@ -76,18 +78,35 @@ Aggregates are not collected from the API; they are always created by the parser
 
 | Kind | Used By Edge |
 |------|-------------|
-| `AllPods` | `PodExec`, `PodDebug` (cluster-wide RBAC) |
-| `AllSecrets` | `SAReadSecret` (cluster-wide) |
-| `AllConfigMaps` | `ReadConfigMap` (cluster-wide) |
-| `AllServiceAccounts` | `ImpersonateSA` (cluster-wide) |
-| `AllNodes` | `WorkloadCreate` (cluster-wide) |
-| `AllDeployments` | `WorkloadPatch` (cluster-wide) |
-| `AllDaemonSets` | `WorkloadPatch` (cluster-wide) |
-| `AllStatefulSets` | `WorkloadPatch` (cluster-wide) |
-| `AllJobs` | `WorkloadPatch` (cluster-wide) |
-| `AllCronJobs` | `WorkloadPatch` (cluster-wide) |
+| `BHK_AllPods` | `BHK_PodExec` (cluster-wide RBAC) |
+| `BHK_AllSecrets` | `BHK_ReadSecret` (cluster-wide) |
+| `BHK_AllConfigMaps` | `BHK_ReadConfigMap` (cluster-wide) |
+| `BHK_AllServiceAccounts` | `BHK_Impersonate` (cluster-wide) |
+| `BHK_AllNodes` | `BHK_WorkloadCreate` (cluster-wide) |
+| `BHK_AllDeployments` | `BHK_WorkloadPatch` (cluster-wide) |
+| `BHK_AllDaemonSets` | `BHK_WorkloadPatch` (cluster-wide) |
+| `BHK_AllStatefulSets` | `BHK_WorkloadPatch` (cluster-wide) |
+| `BHK_AllJobs` | `BHK_WorkloadPatch` (cluster-wide) |
+| `BHK_AllCronJobs` | `BHK_WorkloadPatch` (cluster-wide) |
+| `BHK_AllClusterRoles` | `BHK_RBACEscalate`, `BHK_RBACBind` (cluster-wide) |
+| `BHK_AllUsers` | `BHK_Impersonate` (cluster-wide user impersonation) |
+| `BHK_AllGroups` | `BHK_Impersonate` (cluster-wide group impersonation) |
+| `BHK_AllRoles` | `BHK_RBACEscalate`, `BHK_RBACBind` (namespace-scoped) |
 
-Aggregate builders live in `internal/nodes/platform/aggregates.go`. They use `CoreEntry{Cluster: true}` so edge rules can look them up from the cluster-scoped index.
+Aggregate builders live in `internal/nodes/platform/aggregates.go`. They use `CoreEntry{Cluster: true}` so edge rules can look them up from the cluster-scoped index. Namespace-scoped aggregates (e.g. `BHK_AllPods` within a specific namespace) are also created per-namespace and stored in the namespace index.
+
+---
+
+## Secondary Types (for Cypher Queries)
+
+Some node kinds carry additional secondary type labels. These are not standalone node kinds — they are extra labels on existing nodes that enable broader Cypher queries across related types.
+
+| Secondary Kind | Applied To | Purpose |
+|----------------|-----------|---------|
+| `BHK_Identity` | `BHK_ServiceAccount`, `BHK_User`, `BHK_Group` | Abstract principal type shared by all identity kinds. Use `MATCH (n:BHK_Identity)` to query across all principals regardless of whether they are a ServiceAccount, User, or Group. |
+| `BHK_Aggregate` | All `BHK_All*` nodes | Shared label on all aggregate nodes. Use `MATCH (n:BHK_Aggregate)` to query all aggregate targets in a single Cypher pattern. |
+
+These secondary types are defined in `config/schema.json` with `is_display_kind: false` (they do not appear as standalone node types in the BloodHound UI).
 
 ---
 
@@ -261,7 +280,6 @@ Confirm `internal/nodes/node_registry.go` imports your domain package (each doma
 
 The following are not currently implemented:
 
-- Non-ServiceAccount RBAC subjects (User, Group)
 - `ListenerSet` / `ListenerSetGroup` (Gateway API extension)
-- OpenShift `SecurityContextConstraints` node (builder exists in `addons/security_context_constraints.go` but is not yet registered)
+- OpenShift `BHK_SecurityContextConstraint` node (builder exists in `addons/security_context_constraints.go` but is not yet registered)
 - Istio resources (stub file exists but is not implemented)

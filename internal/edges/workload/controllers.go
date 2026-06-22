@@ -26,7 +26,7 @@ func (r deploymentEdgesRule) Apply(ctx *framework.Context) []model.BloodHoundEdg
 			for j := range space.Pods {
 				pod := &space.Pods[j]
 				if framework.LabelsMatchOnly(pod.LabelsMap, deploy.SelectorLabels) {
-					edges = append(edges, framework.CreateEdge(deploy, pod, "ManagedBy"))
+					edges = append(edges, framework.CreateEdge(deploy, pod, "BHK_ManagedBy"))
 				}
 			}
 		}
@@ -55,7 +55,7 @@ func (r daemonSetEdgesRule) Apply(ctx *framework.Context) []model.BloodHoundEdge
 			for j := range space.Pods {
 				pod := &space.Pods[j]
 				if framework.LabelsMatchOnly(pod.LabelsMap, daemonSet.SelectorLabels) {
-					edges = append(edges, framework.CreateEdge(daemonSet, pod, "ManagedBy"))
+					edges = append(edges, framework.CreateEdge(daemonSet, pod, "BHK_ManagedBy"))
 				}
 			}
 		}
@@ -84,7 +84,7 @@ func (r statefulSetEdgesRule) Apply(ctx *framework.Context) []model.BloodHoundEd
 			for j := range space.Pods {
 				pod := &space.Pods[j]
 				if framework.LabelsMatchOnly(pod.LabelsMap, statefulSet.SelectorLabels) {
-					edges = append(edges, framework.CreateEdge(statefulSet, pod, "ManagedBy"))
+					edges = append(edges, framework.CreateEdge(statefulSet, pod, "BHK_ManagedBy"))
 				}
 			}
 		}
@@ -113,7 +113,7 @@ func (r jobEdgesRule) Apply(ctx *framework.Context) []model.BloodHoundEdge {
 			for j := range space.Pods {
 				pod := &space.Pods[j]
 				if framework.LabelsMatchOnly(pod.LabelsMap, job.SelectorLabels) {
-					edges = append(edges, framework.CreateEdge(job, pod, "ManagedBy"))
+					edges = append(edges, framework.CreateEdge(job, pod, "BHK_ManagedBy"))
 				}
 			}
 		}
@@ -142,7 +142,7 @@ func (r cronJobEdgesRule) Apply(ctx *framework.Context) []model.BloodHoundEdge {
 			for j := range space.Pods {
 				pod := &space.Pods[j]
 				if framework.LabelsMatchOnly(pod.LabelsMap, cronJob.SelectorLabels) {
-					edges = append(edges, framework.CreateEdge(cronJob, pod, "ManagedBy"))
+					edges = append(edges, framework.CreateEdge(cronJob, pod, "BHK_ManagedBy"))
 				}
 			}
 		}

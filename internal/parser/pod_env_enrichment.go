@@ -17,7 +17,7 @@ func enrichPodNodesWithControllerEnv(nodeList []model.BloodHoundNode, coreFacts 
 	podNodesByID := map[string]*model.BloodHoundNode{}
 	for i := range nodeList {
 		node := &nodeList[i]
-		if len(node.Kinds) == 0 || node.Kinds[0] != "Pod" {
+		if len(node.Kinds) == 0 || node.Kinds[0] != "BHK_Pod" {
 			continue
 		}
 		podNodesByID[node.ID] = node
@@ -30,7 +30,7 @@ func enrichPodNodesWithControllerEnv(nodeList []model.BloodHoundNode, coreFacts 
 
 		for i := range space.Pods {
 			pod := &space.Pods[i]
-			podID := nodefw.BuildID("Pod", ns, pod.Name)
+			podID := nodefw.BuildID("BHK_Pod", ns, pod.Name)
 			node := podNodesByID[podID]
 			if node == nil || node.Properties == nil {
 				continue

@@ -10,7 +10,7 @@ type rbacReadSecretsEdgesRule struct{}
 func (r rbacReadSecretsEdgesRule) Name() string { return "rbac_read_secrets" }
 
 var edgePropertiesRBACReadSecrets = map[string]any{
-	"Description": "ServiceAccount has RBAC permissions to read secrets.",
+	"Description": "Identity has RBAC permissions to read secrets.",
 }
 
 func (r rbacReadSecretsEdgesRule) Apply(ctx *framework.Context) []model.BloodHoundEdge {
@@ -47,14 +47,14 @@ func saReadSecretNamespaced(ctx *framework.Context, namespace string, space *mod
 			continue
 		}
 		for _, subject := range binding.Subjects {
-			sa := resolveNamespacedSubjectSA(ctx, namespace, binding.Namespace, subject.Kind, subject.Namespace, subject.Name)
-			if sa == nil {
+			principal := resolveNamespacedSubject(ctx, namespace, binding.Namespace, subject)
+			if principal == nil {
 				continue
 			}
 			if all {
 				if len(space.AllSecrets) > 0 {
 					agg := &space.AllSecrets[0]
-					edges = append(edges, framework.CreateEdgeWithProperties(sa, agg, "SAReadSecret", edgePropertiesRBACReadSecrets))
+					edges = append(edges, framework.CreateEdgeWithProperties(principal, agg, "BHK_ReadSecret", edgePropertiesRBACReadSecrets))
 				}
 				continue
 			}
@@ -62,7 +62,7 @@ func saReadSecretNamespaced(ctx *framework.Context, namespace string, space *mod
 			for i := range space.Secrets {
 				secret := &space.Secrets[i]
 				if _, ok := names[secret.Name]; ok {
-					edges = append(edges, framework.CreateEdgeWithProperties(sa, secret, "SAReadSecret", edgePropertiesRBACReadSecrets))
+					edges = append(edges, framework.CreateEdgeWithProperties(principal, secret, "BHK_ReadSecret", edgePropertiesRBACReadSecrets))
 				}
 			}
 		}
@@ -91,14 +91,14 @@ func saReadSecretCluster(ctx *framework.Context) []model.BloodHoundEdge {
 			continue
 		}
 		for _, subject := range binding.Subjects {
-			sa := resolveClusterSubjectSA(ctx, subject.Kind, subject.Namespace, subject.Name)
-			if sa == nil {
+			principal := resolveClusterSubject(ctx, subject)
+			if principal == nil {
 				continue
 			}
 			if all {
 				if len(ctx.Core.Cluster.AllSecrets) > 0 {
 					agg := &ctx.Core.Cluster.AllSecrets[0]
-					edges = append(edges, framework.CreateEdgeWithProperties(sa, agg, "SAReadSecret", edgePropertiesRBACReadSecrets))
+					edges = append(edges, framework.CreateEdgeWithProperties(principal, agg, "BHK_ReadSecret", edgePropertiesRBACReadSecrets))
 				}
 				continue
 			}
@@ -109,7 +109,7 @@ func saReadSecretCluster(ctx *framework.Context) []model.BloodHoundEdge {
 				for i := range space.Secrets {
 					secret := &space.Secrets[i]
 					if _, ok := names[secret.Name]; ok {
-						edges = append(edges, framework.CreateEdgeWithProperties(sa, secret, "SAReadSecret", edgePropertiesRBACReadSecrets))
+						edges = append(edges, framework.CreateEdgeWithProperties(principal, secret, "BHK_ReadSecret", edgePropertiesRBACReadSecrets))
 					}
 				}
 			}
@@ -123,7 +123,7 @@ type rbacReadConfigMapsEdgesRule struct{}
 func (r rbacReadConfigMapsEdgesRule) Name() string { return "rbac_read_configmaps" }
 
 var edgePropertiesRBACReadConfigMaps = map[string]any{
-	"Description": "ServiceAccount has RBAC permissions to read configmaps.",
+	"Description": "Identity has RBAC permissions to read configmaps.",
 }
 
 func (r rbacReadConfigMapsEdgesRule) Apply(ctx *framework.Context) []model.BloodHoundEdge {
@@ -160,14 +160,14 @@ func saReadConfigMapNamespaced(ctx *framework.Context, namespace string, space *
 			continue
 		}
 		for _, subject := range binding.Subjects {
-			sa := resolveNamespacedSubjectSA(ctx, namespace, binding.Namespace, subject.Kind, subject.Namespace, subject.Name)
-			if sa == nil {
+			principal := resolveNamespacedSubject(ctx, namespace, binding.Namespace, subject)
+			if principal == nil {
 				continue
 			}
 			if all {
 				if len(space.AllConfigMaps) > 0 {
 					agg := &space.AllConfigMaps[0]
-					edges = append(edges, framework.CreateEdgeWithProperties(sa, agg, "ReadConfigMap", edgePropertiesRBACReadConfigMaps))
+					edges = append(edges, framework.CreateEdgeWithProperties(principal, agg, "BHK_ReadConfigMap", edgePropertiesRBACReadConfigMaps))
 				}
 				continue
 			}
@@ -175,7 +175,7 @@ func saReadConfigMapNamespaced(ctx *framework.Context, namespace string, space *
 			for i := range space.ConfigMaps {
 				configMap := &space.ConfigMaps[i]
 				if _, ok := names[configMap.Name]; ok {
-					edges = append(edges, framework.CreateEdgeWithProperties(sa, configMap, "ReadConfigMap", edgePropertiesRBACReadConfigMaps))
+					edges = append(edges, framework.CreateEdgeWithProperties(principal, configMap, "BHK_ReadConfigMap", edgePropertiesRBACReadConfigMaps))
 				}
 			}
 		}
@@ -204,14 +204,14 @@ func saReadConfigMapCluster(ctx *framework.Context) []model.BloodHoundEdge {
 			continue
 		}
 		for _, subject := range binding.Subjects {
-			sa := resolveClusterSubjectSA(ctx, subject.Kind, subject.Namespace, subject.Name)
-			if sa == nil {
+			principal := resolveClusterSubject(ctx, subject)
+			if principal == nil {
 				continue
 			}
 			if all {
 				if len(ctx.Core.Cluster.AllConfigMaps) > 0 {
 					agg := &ctx.Core.Cluster.AllConfigMaps[0]
-					edges = append(edges, framework.CreateEdgeWithProperties(sa, agg, "ReadConfigMap", edgePropertiesRBACReadConfigMaps))
+					edges = append(edges, framework.CreateEdgeWithProperties(principal, agg, "BHK_ReadConfigMap", edgePropertiesRBACReadConfigMaps))
 				}
 				continue
 			}
@@ -222,7 +222,7 @@ func saReadConfigMapCluster(ctx *framework.Context) []model.BloodHoundEdge {
 				for i := range space.ConfigMaps {
 					configMap := &space.ConfigMaps[i]
 					if _, ok := names[configMap.Name]; ok {
-						edges = append(edges, framework.CreateEdgeWithProperties(sa, configMap, "ReadConfigMap", edgePropertiesRBACReadConfigMaps))
+						edges = append(edges, framework.CreateEdgeWithProperties(principal, configMap, "BHK_ReadConfigMap", edgePropertiesRBACReadConfigMaps))
 					}
 				}
 			}

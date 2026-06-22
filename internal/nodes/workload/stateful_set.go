@@ -44,7 +44,7 @@ func BuildStatefulSetNode(obj runtime.Object) (BuildResult, bool) {
 	properties["serviceName"] = serviceName
 	properties["envDefinitions"] = envDefinitions
 
-	base := NewGraphNodeBase("StatefulSet", namespace, name, labelsMap, annotationsMap)
+	base := NewGraphNodeBase("BHK_StatefulSet", namespace, name, labelsMap, annotationsMap)
 
 	core := CoreEntry{
 		Namespace: namespace,

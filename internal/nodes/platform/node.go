@@ -35,8 +35,8 @@ func BuildNodeNode(obj runtime.Object) (fw.BuildResult, bool) {
 		Cluster: true,
 		Data: Node{
 			GraphNodeBase: fw.GraphNodeBase{
-				ID:             fw.BuildID("Node", "", name),
-				Kinds:          []string{"Node"},
+				ID:             fw.BuildID("BHK_Node", "", name),
+				Kinds:          []string{"BHK_Node"},
 				Name:           name,
 				Namespace:      "",
 				LabelsMap:      labelsMap,
@@ -47,8 +47,8 @@ func BuildNodeNode(obj runtime.Object) (fw.BuildResult, bool) {
 
 	return fw.BuildResult{
 		Node: fw.NodeResult{
-			ID:         fw.BuildID("Node", "", name),
-			Kinds:      []string{"K8s_Node"},
+			ID:         fw.BuildID("BHK_Node", "", name),
+			Kinds:      []string{"BHK_Node"},
 			Properties: properties,
 		},
 		Core: []fw.CoreEntry{core},

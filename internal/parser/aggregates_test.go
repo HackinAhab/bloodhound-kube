@@ -28,16 +28,16 @@ func TestAddAggregateNodes_EmitsClusterAggregates(t *testing.T) {
 
 	// One cluster aggregate per kind: 9 typed + AllNodes.
 	wantClusterIDs := []string{
-		"AllPods:AllPods",
-		"AllSecrets:AllSecrets",
-		"AllConfigMaps:AllConfigMaps",
-		"AllServiceAccounts:AllServiceAccounts",
-		"AllNodes:AllNodes",
-		"AllDeployments:AllDeployments",
-		"AllDaemonSets:AllDaemonSets",
-		"AllStatefulSets:AllStatefulSets",
-		"AllJobs:AllJobs",
-		"AllCronJobs:AllCronJobs",
+		"BHK_AllPods:BHK_AllPods",
+		"BHK_AllSecrets:BHK_AllSecrets",
+		"BHK_AllConfigMaps:BHK_AllConfigMaps",
+		"BHK_AllServiceAccounts:BHK_AllServiceAccounts",
+		"BHK_AllNodes:BHK_AllNodes",
+		"BHK_AllDeployments:BHK_AllDeployments",
+		"BHK_AllDaemonSets:BHK_AllDaemonSets",
+		"BHK_AllStatefulSets:BHK_AllStatefulSets",
+		"BHK_AllJobs:BHK_AllJobs",
+		"BHK_AllCronJobs:BHK_AllCronJobs",
 	}
 	for _, id := range wantClusterIDs {
 		if !containsNodeID(nodes, id) {
@@ -54,34 +54,34 @@ func TestAddAggregateNodes_EmitsPerNamespaceAggregates(t *testing.T) {
 	for _, ns := range []string{"ns1", "ns2"} {
 		seedNamespace(core, ns)
 		core.Namespaces[ns].Pods = append(core.Namespaces[ns].Pods,
-			workload.Pod{GraphNodeBase: nodefw.NewGraphNodeBase("Pod", ns, "p", nil, nil)})
+			workload.Pod{GraphNodeBase: nodefw.NewGraphNodeBase("BHK_Pod", ns, "p", nil, nil)})
 		core.Namespaces[ns].Secrets = append(core.Namespaces[ns].Secrets,
-			workload.Secret{GraphNodeBase: nodefw.NewGraphNodeBase("Secret", ns, "s", nil, nil)})
+			workload.Secret{GraphNodeBase: nodefw.NewGraphNodeBase("BHK_Secret", ns, "s", nil, nil)})
 		core.Namespaces[ns].ConfigMaps = append(core.Namespaces[ns].ConfigMaps,
-			workload.ConfigMap{GraphNodeBase: nodefw.NewGraphNodeBase("ConfigMap", ns, "cm", nil, nil)})
+			workload.ConfigMap{GraphNodeBase: nodefw.NewGraphNodeBase("BHK_ConfigMap", ns, "cm", nil, nil)})
 		core.Namespaces[ns].ServiceAccounts = append(core.Namespaces[ns].ServiceAccounts,
-			rbac.ServiceAccount{GraphNodeBase: nodefw.NewGraphNodeBase("ServiceAccount", ns, "sa", nil, nil)})
+			rbac.ServiceAccount{GraphNodeBase: nodefw.NewGraphNodeBase("BHK_ServiceAccount", ns, "sa", nil, nil)})
 		core.Namespaces[ns].Deployments = append(core.Namespaces[ns].Deployments,
-			workload.Deployment{GraphNodeBase: nodefw.NewGraphNodeBase("Deployment", ns, "d", nil, nil)})
+			workload.Deployment{GraphNodeBase: nodefw.NewGraphNodeBase("BHK_Deployment", ns, "d", nil, nil)})
 		core.Namespaces[ns].DaemonSets = append(core.Namespaces[ns].DaemonSets,
-			workload.DaemonSetCore{GraphNodeBase: nodefw.NewGraphNodeBase("DaemonSet", ns, "ds", nil, nil)})
+			workload.DaemonSetCore{GraphNodeBase: nodefw.NewGraphNodeBase("BHK_DaemonSet", ns, "ds", nil, nil)})
 		core.Namespaces[ns].StatefulSets = append(core.Namespaces[ns].StatefulSets,
-			workload.StatefulSetCore{GraphNodeBase: nodefw.NewGraphNodeBase("StatefulSet", ns, "ss", nil, nil)})
+			workload.StatefulSetCore{GraphNodeBase: nodefw.NewGraphNodeBase("BHK_StatefulSet", ns, "ss", nil, nil)})
 		core.Namespaces[ns].Jobs = append(core.Namespaces[ns].Jobs,
-			workload.Job{GraphNodeBase: nodefw.NewGraphNodeBase("Job", ns, "j", nil, nil)})
+			workload.Job{GraphNodeBase: nodefw.NewGraphNodeBase("BHK_Job", ns, "j", nil, nil)})
 		core.Namespaces[ns].CronJobs = append(core.Namespaces[ns].CronJobs,
-			workload.CronJob{GraphNodeBase: nodefw.NewGraphNodeBase("CronJob", ns, "cj", nil, nil)})
+			workload.CronJob{GraphNodeBase: nodefw.NewGraphNodeBase("BHK_CronJob", ns, "cj", nil, nil)})
 		core.Namespaces[ns].Roles = append(core.Namespaces[ns].Roles,
-			rbac.Role{GraphNodeBase: nodefw.NewGraphNodeBase("Role", ns, "r", nil, nil)})
+			rbac.Role{GraphNodeBase: nodefw.NewGraphNodeBase("BHK_Role", ns, "r", nil, nil)})
 	}
 
 	var nodes []model.BloodHoundNode
 	addAggregateNodes(&nodes, core)
 
 	wantPerNS := []string{
-		"AllPods", "AllSecrets", "AllConfigMaps", "AllServiceAccounts",
-		"AllDeployments", "AllDaemonSets", "AllStatefulSets",
-		"AllJobs", "AllCronJobs", "AllRoles",
+		"BHK_AllPods", "BHK_AllSecrets", "BHK_AllConfigMaps", "BHK_AllServiceAccounts",
+		"BHK_AllDeployments", "BHK_AllDaemonSets", "BHK_AllStatefulSets",
+		"BHK_AllJobs", "BHK_AllCronJobs", "BHK_AllRoles",
 	}
 	for _, ns := range []string{"ns1", "ns2"} {
 		for _, kind := range wantPerNS {
@@ -94,7 +94,7 @@ func TestAddAggregateNodes_EmitsPerNamespaceAggregates(t *testing.T) {
 
 	// AllNodes must NOT have a per-namespace flavor.
 	for _, ns := range []string{"ns1", "ns2"} {
-		bad := nodefw.BuildID("AllNodes", ns, "AllNodes")
+		bad := nodefw.BuildID("BHK_AllNodes", ns, "BHK_AllNodes")
 		if containsNodeID(nodes, bad) {
 			t.Errorf("unexpected per-namespace AllNodes node %q (Nodes are cluster-scoped)", bad)
 		}
@@ -112,9 +112,9 @@ func TestAddAggregateNodes_EmptyNamespaceEmitsNoAggregates(t *testing.T) {
 	addAggregateNodes(&nodes, core)
 
 	wantAbsent := []string{
-		"AllPods", "AllSecrets", "AllConfigMaps", "AllServiceAccounts",
-		"AllDeployments", "AllDaemonSets", "AllStatefulSets",
-		"AllJobs", "AllCronJobs", "AllRoles",
+		"BHK_AllPods", "BHK_AllSecrets", "BHK_AllConfigMaps", "BHK_AllServiceAccounts",
+		"BHK_AllDeployments", "BHK_AllDaemonSets", "BHK_AllStatefulSets",
+		"BHK_AllJobs", "BHK_AllCronJobs", "BHK_AllRoles",
 	}
 	for _, kind := range wantAbsent {
 		id := nodefw.BuildID(kind, "empty-ns", kind)
@@ -131,16 +131,16 @@ func TestAddAggregateNodes_PopulatedKindEmitsAggregate(t *testing.T) {
 	seedNamespace(core, "ns1")
 	core.Namespaces["ns1"].Secrets = append(
 		core.Namespaces["ns1"].Secrets,
-		workload.Secret{GraphNodeBase: nodefw.NewGraphNodeBase("Secret", "ns1", "s1", nil, nil)},
+		workload.Secret{GraphNodeBase: nodefw.NewGraphNodeBase("BHK_Secret", "ns1", "s1", nil, nil)},
 	)
 
 	var nodes []model.BloodHoundNode
 	addAggregateNodes(&nodes, core)
 
-	if !containsNodeID(nodes, nodefw.BuildID("AllSecrets", "ns1", "AllSecrets")) {
+	if !containsNodeID(nodes, nodefw.BuildID("BHK_AllSecrets", "ns1", "BHK_AllSecrets")) {
 		t.Error("expected AllSecrets aggregate for ns1 that has a secret")
 	}
-	if containsNodeID(nodes, nodefw.BuildID("AllPods", "ns1", "AllPods")) {
+	if containsNodeID(nodes, nodefw.BuildID("BHK_AllPods", "ns1", "BHK_AllPods")) {
 		t.Error("unexpected AllPods aggregate for ns1 with no pods")
 	}
 }
@@ -154,7 +154,7 @@ func TestAddAggregateNodes_RoutesIntoNamespaceCoreFacts(t *testing.T) {
 	// Pre-existing namespaced data should not be disturbed.
 	core.Namespaces["ns1"].Secrets = append(
 		core.Namespaces["ns1"].Secrets,
-		workload.Secret{GraphNodeBase: nodefw.NewGraphNodeBase("Secret", "ns1", "pre-existing", nil, nil)},
+		workload.Secret{GraphNodeBase: nodefw.NewGraphNodeBase("BHK_Secret", "ns1", "pre-existing", nil, nil)},
 	)
 
 	var nodes []model.BloodHoundNode
@@ -164,9 +164,9 @@ func TestAddAggregateNodes_RoutesIntoNamespaceCoreFacts(t *testing.T) {
 	if len(space.AllSecrets) != 1 {
 		t.Fatalf("expected 1 AllSecrets entry in ns1, got %d", len(space.AllSecrets))
 	}
-	if space.AllSecrets[0].EdgeID() != "AllSecrets:ns1:AllSecrets" {
+	if space.AllSecrets[0].EdgeID() != "BHK_AllSecrets:ns1:BHK_AllSecrets" {
 		t.Fatalf("AllSecrets[0] EdgeID = %q, want %q",
-			space.AllSecrets[0].EdgeID(), "AllSecrets:ns1:AllSecrets")
+			space.AllSecrets[0].EdgeID(), "BHK_AllSecrets:ns1:BHK_AllSecrets")
 	}
 	if len(space.Secrets) != 1 || space.Secrets[0].Name != "pre-existing" {
 		t.Fatalf("pre-existing namespace data was disturbed: Secrets=%v", space.Secrets)

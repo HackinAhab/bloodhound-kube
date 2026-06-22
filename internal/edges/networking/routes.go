@@ -107,7 +107,7 @@ func routeBackendsToServices(ctx *framework.Context, route nodefw.EdgeNode, rout
 		}
 		if serviceIndex := ctx.Index.ServicesByNamespace[backendNS]; serviceIndex != nil {
 			if svc := serviceIndex[backendName]; svc != nil {
-				edges = append(edges, framework.CreateEdge(route, svc, "RoutesTo"))
+				edges = append(edges, framework.CreateEdge(route, svc, "BHK_RoutesTo"))
 			}
 		}
 	}

@@ -42,7 +42,7 @@ func BuildSecretStoreNode(resource map[string]any) (BuildResult, bool) {
 		"providerType": providerType,
 	}
 
-	base := NewGraphNodeBase("SecretStore", namespace, name, labelsMap, annotationsMap)
+	base := NewGraphNodeBase("BHK_SecretStore", namespace, name, labelsMap, annotationsMap)
 
 	core := CoreEntry{
 		Namespace: namespace,
@@ -79,7 +79,7 @@ func BuildClusterSecretStoreNode(resource map[string]any) (BuildResult, bool) {
 		"providerType": providerType,
 	}
 
-	base := NewGraphNodeBase("ClusterSecretStore", "", name, labelsMap, annotationsMap)
+	base := NewGraphNodeBase("BHK_ClusterSecretStore", "", name, labelsMap, annotationsMap)
 
 	core := CoreEntry{
 		Cluster: true,
@@ -128,7 +128,7 @@ func BuildExternalSecretNode(resource map[string]any) (BuildResult, bool) {
 		"dataFromTypes":   dataFromTypes,
 	}
 
-	base := NewGraphNodeBase("ExternalSecret", namespace, name, labelsMap, annotationsMap)
+	base := NewGraphNodeBase("BHK_ExternalSecret", namespace, name, labelsMap, annotationsMap)
 
 	core := CoreEntry{
 		Namespace: namespace,

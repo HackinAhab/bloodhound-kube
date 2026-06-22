@@ -55,6 +55,10 @@ func init() {
 	registerClusterFactAdder(func(c *CoreFacts, v platform.AllClusterRoles) {
 		c.Cluster.AllClusterRoles = append(c.Cluster.AllClusterRoles, v)
 	})
+	registerClusterFactAdder(func(c *CoreFacts, v rbac.User) { c.Cluster.Users = append(c.Cluster.Users, v) })
+	registerClusterFactAdder(func(c *CoreFacts, v rbac.Group) { c.Cluster.Groups = append(c.Cluster.Groups, v) })
+	registerClusterFactAdder(func(c *CoreFacts, v platform.AllUsers) { c.Cluster.AllUsers = append(c.Cluster.AllUsers, v) })
+	registerClusterFactAdder(func(c *CoreFacts, v platform.AllGroups) { c.Cluster.AllGroups = append(c.Cluster.AllGroups, v) })
 
 	registerNamespacedFactAdder(func(ns *Namespace, v workload.Pod) { ns.Pods = append(ns.Pods, v) })
 	registerNamespacedFactAdder(func(ns *Namespace, v rbac.ServiceAccount) {

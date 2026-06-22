@@ -12,7 +12,7 @@ func Register(reg *framework.Registry) {
 	reg.Register(aggregateContainsRule{})
 }
 
-const containsKind = "Contains"
+const containsKind = "BHK_Contains"
 
 var edgePropertiesAggregateContains = map[string]any{
 	"Description": "Aggregate node contains this resource (or sub-aggregate).",

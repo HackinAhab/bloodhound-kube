@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"bloodhound-kube/internal/edges/framework"
+	nodefw "bloodhound-kube/internal/nodes/framework"
 	"bloodhound-kube/internal/nodes/rbac"
 )
 
@@ -60,6 +61,62 @@ func resolveClusterSubjectSA(ctx *framework.Context, subjectKind, subjectNamespa
 		return nil
 	}
 	return saIndex[subjectName]
+}
+
+func resolveNamespacedSubject(ctx *framework.Context, namespace, bindingNamespace string, subject nodefw.Subject) nodefw.EdgeNode {
+	if ctx == nil {
+		return nil
+	}
+	switch subject.Kind {
+	case "ServiceAccount":
+		sa := resolveNamespacedSubjectSA(ctx, namespace, bindingNamespace, subject.Kind, subject.Namespace, subject.Name)
+		if sa == nil {
+			return nil
+		}
+		return sa
+	case "User":
+		user := ctx.Index.UsersByName[subject.Name]
+		if user == nil {
+			return nil
+		}
+		return user
+	case "Group":
+		group := ctx.Index.GroupsByName[subject.Name]
+		if group == nil {
+			return nil
+		}
+		return group
+	default:
+		return nil
+	}
+}
+
+func resolveClusterSubject(ctx *framework.Context, subject nodefw.Subject) nodefw.EdgeNode {
+	if ctx == nil {
+		return nil
+	}
+	switch subject.Kind {
+	case "ServiceAccount":
+		sa := resolveClusterSubjectSA(ctx, subject.Kind, subject.Namespace, subject.Name)
+		if sa == nil {
+			return nil
+		}
+		return sa
+	case "User":
+		user := ctx.Index.UsersByName[subject.Name]
+		if user == nil {
+			return nil
+		}
+		return user
+	case "Group":
+		group := ctx.Index.GroupsByName[subject.Name]
+		if group == nil {
+			return nil
+		}
+		return group
+	default:
+		return nil
+	}
 }
 
 func hasName(names map[string]struct{}, name string) bool {

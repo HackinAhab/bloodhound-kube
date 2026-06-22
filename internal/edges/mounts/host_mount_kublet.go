@@ -50,7 +50,7 @@ func podHostMountKubeletNamespaced(ctx *framework.Context, namespace string, spa
 		}
 		description, _ := edgePropertiesHostMountKubelet["Description"].(string)
 		reference := edgePropertiesHostMountKubelet["Reference"]
-		edges = append(edges, framework.CreateEdgeWithProperties(pod, node, "mountedKubelet", map[string]any{
+		edges = append(edges, framework.CreateEdgeWithProperties(pod, node, "BHK_mountedKubelet", map[string]any{
 			"Description": description + " Mount path: " + mountPath,
 			"Reference":   reference,
 		}))

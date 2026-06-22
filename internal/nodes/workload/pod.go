@@ -226,8 +226,8 @@ func BuildPodNode(obj runtime.Object) (BuildResult, bool) {
 		Cluster:   false,
 		Data: Pod{
 			GraphNodeBase: GraphNodeBase{
-				ID:             BuildID("Pod", namespace, name),
-				Kinds:          []string{"Pod"},
+				ID:             BuildID("BHK_Pod", namespace, name),
+				Kinds:          []string{"BHK_Pod"},
 				Name:           name,
 				Namespace:      namespace,
 				LabelsMap:      labelsMap,
@@ -252,8 +252,8 @@ func BuildPodNode(obj runtime.Object) (BuildResult, bool) {
 
 	return BuildResult{
 		Node: NodeResult{
-			ID:         BuildID("Pod", namespace, name),
-			Kinds:      []string{"Pod"},
+			ID:         BuildID("BHK_Pod", namespace, name),
+			Kinds:      []string{"BHK_Pod"},
 			Properties: properties,
 		},
 		Core: []CoreEntry{core},

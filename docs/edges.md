@@ -11,13 +11,13 @@ Edge naming follows [KubeHound's](https://kubehound.io/reference/attacks/) conve
 ### `rbac_base` — Role Bindings
 **File:** `base_bindings.go`
 
-Maps the structural RBAC graph. For every RoleBinding/ClusterRoleBinding that binds a Role or ClusterRole to a ServiceAccount, a `RoleBound` edge is created.
+Maps the structural RBAC graph. For every RoleBinding/ClusterRoleBinding that binds a Role or ClusterRole to a ServiceAccount, a `BHK_RoleBound` edge is created.
 
 | Edge | Source → Target | Trigger |
 |------|----------------|---------|
-| `RoleBound` | ServiceAccount → Role/ClusterRole | A RoleBinding or ClusterRoleBinding links the ServiceAccount subject to the role |
+| `BHK_RoleBound` | ServiceAccount → Role/ClusterRole | A RoleBinding or ClusterRoleBinding links the ServiceAccount subject to the role |
 
-Each `RoleBound` edge carries `bindingKind`, `bindingName`, `bindingNamespace`, `roleKind`, and `roleName` properties identifying the binding that produced it (taken from the first contributing binding after a deterministic sort by `(namespace, name, kind)`). When multiple bindings link the same role and ServiceAccount, they are merged into a single edge to keep graph cardinality bounded; the full list is exposed as a structured `bindings` array (`[{kind, name, namespace, roleKind, roleName}, ...]`) and a `bindingCount` integer.
+Each `BHK_RoleBound` edge carries `bindingKind`, `bindingName`, `bindingNamespace`, `roleKind`, and `roleName` properties identifying the binding that produced it (taken from the first contributing binding after a deterministic sort by `(namespace, name, kind)`). When multiple bindings link the same role and ServiceAccount, they are merged into a single edge to keep graph cardinality bounded; the full list is exposed as a structured `bindings` array (`[{kind, name, namespace, roleKind, roleName}, ...]`) and a `bindingCount` integer.
 
 ---
 
@@ -25,14 +25,16 @@ Each `RoleBound` edge carries `bindingKind`, `bindingName`, `bindingNamespace`, 
 **File:** `impersonate.go`  
 **Reference:** https://kubehound.io/reference/attacks/IDENTITY_IMPERSONATE/
 
-A ServiceAccount with `impersonate` on the `serviceaccounts` resource can act as any other ServiceAccount, bypassing its own privilege constraints. The same rule also detects `impersonate` on `users` and `groups` resources, which allows impersonating arbitrary user identities or groups (including `system:masters`). Cluster-scoped bindings emit edges to the `AllServiceAccounts` aggregate node.
+A ServiceAccount with `impersonate` on the `serviceaccounts` resource can act as any other ServiceAccount, bypassing its own privilege constraints. The same rule also detects `impersonate` on `users` and `groups` resources, which allows impersonating arbitrary user identities or groups (including `system:masters`). Cluster-scoped bindings emit edges to the `BHK_AllServiceAccounts` aggregate node.
 
 | Edge | Source → Target | Trigger |
 |------|----------------|---------|
-| `ImpersonateSA` | ServiceAccount → ServiceAccount | SA has `impersonate` verb on `serviceaccounts` resource via a RoleBinding or ClusterRoleBinding |
-| `ImpersonateSA` | ServiceAccount → AllServiceAccounts | Cluster-scoped binding with wildcard ServiceAccount access |
-| `ImpersonateUsers` | ServiceAccount → AllServiceAccounts | SA has `impersonate` on `users` resource via any RoleBinding or ClusterRoleBinding |
-| `ImpersonateGroups` | ServiceAccount → AllServiceAccounts | SA has `impersonate` on `groups` resource via any RoleBinding or ClusterRoleBinding |
+| `BHK_Impersonate` | Identity → ServiceAccount | Identity has `impersonate` verb on `serviceaccounts` resource via a RoleBinding or ClusterRoleBinding |
+| `BHK_Impersonate` | Identity → AllServiceAccounts | Cluster-scoped binding with wildcard ServiceAccount access |
+| `BHK_Impersonate` | Identity → User | Identity has `impersonate` on `users` resource (named user) |
+| `BHK_Impersonate` | Identity → AllUsers | Cluster-scoped binding with wildcard user impersonation |
+| `BHK_Impersonate` | Identity → Group | Identity has `impersonate` on `groups` resource (named group) |
+| `BHK_Impersonate` | Identity → AllGroups | Cluster-scoped binding with wildcard group impersonation |
 
 ---
 
@@ -40,12 +42,12 @@ A ServiceAccount with `impersonate` on the `serviceaccounts` resource can act as
 **File:** `pod_access.go`  
 **Reference:** https://kubehound.io/reference/attacks/POD_EXEC/
 
-`create` on `pods/exec` allows running arbitrary commands in a pod's containers via `kubectl exec`. Cluster-scoped bindings emit an edge to the `AllPods` aggregate.
+`create` on `pods/exec` allows running arbitrary commands in a pod's containers via `kubectl exec`. Cluster-scoped bindings emit an edge to the `BHK_AllPods` aggregate.
 
 | Edge | Source → Target | Trigger |
 |------|----------------|---------|
-| `PodExec` | ServiceAccount → Pod | SA has `create` on `pods/exec` |
-| `PodExec` | ServiceAccount → AllPods | Cluster-scoped, wildcard pod access |
+| `BHK_PodExec` | ServiceAccount → Pod | SA has `create` on `pods/exec` |
+| `BHK_PodExec` | ServiceAccount → AllPods | Cluster-scoped, wildcard pod access |
 
 ---
 
@@ -55,47 +57,47 @@ A ServiceAccount with `impersonate` on the `serviceaccounts` resource can act as
 
 `update` on `pods/ephemeralcontainers` allows attaching an ephemeral debug container to a running pod (this is the permission `kubectl debug` requires), which can be used to inspect or exfiltrate data.
 
-> **Note:** Unlike `PodExec`, `PodAttach`, and `PodPortForward`, this rule does not emit a cluster-scoped `AllPods` aggregate edge. Only individual pod targets are emitted.
+> **Note:** Unlike `BHK_PodExec`, `BHK_PodAttach`, and `BHK_PodPortForward`, this rule does not emit a cluster-scoped `BHK_AllPods` aggregate edge. Only individual pod targets are emitted.
 
 | Edge | Source → Target | Trigger |
 |------|----------------|---------|
-| `PodDebug` | ServiceAccount → Pod | SA has `update` on `pods/ephemeralcontainers` |
+| `BHK_PodDebug` | ServiceAccount → Pod | SA has `update` on `pods/ephemeralcontainers` |
 
 ---
 
 ### `rbac_read_logs` — Pod Logs Read
 **File:** `pod_logs.go`
 
-`get`, `list`, or `watch` on `pods/log` allows reading container stdout/stderr from any pod in scope. Logs frequently leak credentials, tokens, request payloads, and internal endpoints, so broad log access is effectively a cluster-wide credential-harvesting primitive. Cluster-scoped bindings emit an edge to the `AllPods` aggregate.
+`get`, `list`, or `watch` on `pods/log` allows reading container stdout/stderr from any pod in scope. Logs frequently leak credentials, tokens, request payloads, and internal endpoints, so broad log access is effectively a cluster-wide credential-harvesting primitive. Cluster-scoped bindings emit an edge to the `BHK_AllPods` aggregate.
 
 | Edge | Source → Target | Trigger |
 |------|----------------|---------|
-| `ReadLogs` | ServiceAccount → Pod | SA has `get`/`list`/`watch` on `pods/log` |
-| `ReadLogs` | ServiceAccount → AllPods | Cluster-scoped, wildcard pod log access |
+| `BHK_ReadLogs` | ServiceAccount → Pod | SA has `get`/`list`/`watch` on `pods/log` |
+| `BHK_ReadLogs` | ServiceAccount → AllPods | Cluster-scoped, wildcard pod log access |
 
 ---
 
 ### `rbac_read_secrets` — Secret Read
 **File:** `read.go`
 
-`get`, `list`, or `watch` on `secrets` allows reading Kubernetes Secret values, which may contain credentials, API keys, TLS private keys, or other sensitive material. Cluster-scoped bindings emit an edge to `AllSecrets`.
+`get`, `list`, or `watch` on `secrets` allows reading Kubernetes Secret values, which may contain credentials, API keys, TLS private keys, or other sensitive material. Cluster-scoped bindings emit an edge to `BHK_AllSecrets`.
 
 | Edge | Source → Target | Trigger |
 |------|----------------|---------|
-| `SAReadSecret` | ServiceAccount → Secret | SA has `get`/`list`/`watch` on `secrets` |
-| `SAReadSecret` | ServiceAccount → AllSecrets | Cluster-scoped, wildcard secret access |
+| `BHK_ReadSecret` | ServiceAccount → Secret | SA has `get`/`list`/`watch` on `secrets` |
+| `BHK_ReadSecret` | ServiceAccount → AllSecrets | Cluster-scoped, wildcard secret access |
 
 ---
 
 ### `rbac_read_configmaps` — ConfigMap Read
 **File:** `read.go`
 
-`get`, `list`, or `watch` on `configmaps` allows reading ConfigMap data, which sometimes contains sensitive configuration, internal endpoints, or bootstrap credentials. Cluster-scoped bindings emit an edge to `AllConfigMaps`.
+`get`, `list`, or `watch` on `configmaps` allows reading ConfigMap data, which sometimes contains sensitive configuration, internal endpoints, or bootstrap credentials. Cluster-scoped bindings emit an edge to `BHK_AllConfigMaps`.
 
 | Edge | Source → Target | Trigger |
 |------|----------------|---------|
-| `ReadConfigMap` | ServiceAccount → ConfigMap | SA has `get`/`list`/`watch` on `configmaps` |
-| `ReadConfigMap` | ServiceAccount → AllConfigMaps | Cluster-scoped, wildcard configmap access |
+| `BHK_ReadConfigMap` | ServiceAccount → ConfigMap | SA has `get`/`list`/`watch` on `configmaps` |
+| `BHK_ReadConfigMap` | ServiceAccount → AllConfigMaps | Cluster-scoped, wildcard configmap access |
 
 ---
 
@@ -106,7 +108,7 @@ A ServiceAccount with `impersonate` on the `serviceaccounts` resource can act as
 
 | Edge | Source → Target | Trigger |
 |------|----------------|---------|
-| `RBACCreate` | ServiceAccount → Role/ClusterRole | SA has `create` on `rolebindings` (namespaced) or `clusterrolebindings` (cluster-scoped) |
+| `BHK_RBACCreate` | ServiceAccount → Role/ClusterRole | SA has `create` on `rolebindings` (namespaced) or `clusterrolebindings` (cluster-scoped) |
 
 ---
 
@@ -118,7 +120,7 @@ A ServiceAccount with `impersonate` on the `serviceaccounts` resource can act as
 
 | Edge | Source → Target | Trigger |
 |------|----------------|---------|
-| `WorkloadCreate` | ServiceAccount → Node | SA has `create` on pods, deployments, daemonsets, statefulsets, jobs, or cronjobs |
+| `BHK_WorkloadCreate` | ServiceAccount → Node | SA has `create` on pods, deployments, daemonsets, statefulsets, jobs, or cronjobs |
 
 ---
 
@@ -130,18 +132,18 @@ A ServiceAccount with `impersonate` on the `serviceaccounts` resource can act as
 
 | Edge | Source → Target | Trigger |
 |------|----------------|---------|
-| `WorkloadPatch` | ServiceAccount → Pod | SA has `patch`/`update` on `pods` |
-| `WorkloadPatch` | ServiceAccount → Deployment | SA has `patch`/`update` on `deployments` |
-| `WorkloadPatch` | ServiceAccount → DaemonSet | SA has `patch`/`update` on `daemonsets` |
-| `WorkloadPatch` | ServiceAccount → StatefulSet | SA has `patch`/`update` on `statefulsets` |
-| `WorkloadPatch` | ServiceAccount → Job | SA has `patch`/`update` on `jobs` |
-| `WorkloadPatch` | ServiceAccount → CronJob | SA has `patch`/`update` on `cronjobs` |
-| `WorkloadPatch` | ServiceAccount → AllPods | Cluster-scoped binding with wildcard pod patch access |
-| `WorkloadPatch` | ServiceAccount → AllDeployments | Cluster-scoped binding with wildcard deployment patch access |
-| `WorkloadPatch` | ServiceAccount → AllDaemonSets | Cluster-scoped binding with wildcard daemonset patch access |
-| `WorkloadPatch` | ServiceAccount → AllStatefulSets | Cluster-scoped binding with wildcard statefulset patch access |
-| `WorkloadPatch` | ServiceAccount → AllJobs | Cluster-scoped binding with wildcard job patch access |
-| `WorkloadPatch` | ServiceAccount → AllCronJobs | Cluster-scoped binding with wildcard cronjob patch access |
+| `BHK_WorkloadPatch` | ServiceAccount → Pod | SA has `patch`/`update` on `pods` |
+| `BHK_WorkloadPatch` | ServiceAccount → Deployment | SA has `patch`/`update` on `deployments` |
+| `BHK_WorkloadPatch` | ServiceAccount → DaemonSet | SA has `patch`/`update` on `daemonsets` |
+| `BHK_WorkloadPatch` | ServiceAccount → StatefulSet | SA has `patch`/`update` on `statefulsets` |
+| `BHK_WorkloadPatch` | ServiceAccount → Job | SA has `patch`/`update` on `jobs` |
+| `BHK_WorkloadPatch` | ServiceAccount → CronJob | SA has `patch`/`update` on `cronjobs` |
+| `BHK_WorkloadPatch` | ServiceAccount → AllPods | Cluster-scoped binding with wildcard pod patch access |
+| `BHK_WorkloadPatch` | ServiceAccount → AllDeployments | Cluster-scoped binding with wildcard deployment patch access |
+| `BHK_WorkloadPatch` | ServiceAccount → AllDaemonSets | Cluster-scoped binding with wildcard daemonset patch access |
+| `BHK_WorkloadPatch` | ServiceAccount → AllStatefulSets | Cluster-scoped binding with wildcard statefulset patch access |
+| `BHK_WorkloadPatch` | ServiceAccount → AllJobs | Cluster-scoped binding with wildcard job patch access |
+| `BHK_WorkloadPatch` | ServiceAccount → AllCronJobs | Cluster-scoped binding with wildcard cronjob patch access |
 
 ---
 
@@ -149,37 +151,37 @@ A ServiceAccount with `impersonate` on the `serviceaccounts` resource can act as
 **File:** `node_proxy.go`  
 **Reference:** https://grahamhelton.com/blog/nodes-proxy-rce
 
-`get` on `nodes/proxy` allows proxying HTTP requests directly to the kubelet API on any node. This can be used to list and exec into pods, retrieve secrets from the kubelet, or interact with the container runtime. Cluster-scoped bindings (which also check `create` and `proxy` verbs) are flagged as `NodeProxyRCE` to distinguish higher-severity access.
+`get` on `nodes/proxy` allows proxying HTTP requests directly to the kubelet API on any node. This can be used to list and exec into pods, retrieve secrets from the kubelet, or interact with the container runtime. Cluster-scoped bindings (which also check `create` and `proxy` verbs) are flagged as `BHK_NodeProxyRCE` to distinguish higher-severity access.
 
 | Edge | Source → Target | Trigger |
 |------|----------------|---------|
-| `NodeProxy` | ServiceAccount → Pod | SA has `get` on `nodes/proxy` via a namespaced binding; pod is on a matching node |
-| `NodeProxyRCE` | ServiceAccount → Pod | SA has `get`/`create`/`proxy` on `nodes/proxy` via a cluster-scoped binding |
-| `NodeProxyRCE` | ServiceAccount → AllNodes | Cluster-scoped binding with wildcard node access (`all` flag set) |
+| `BHK_NodeProxy` | ServiceAccount → Pod | SA has `get` on `nodes/proxy` via a namespaced binding; pod is on a matching node |
+| `BHK_NodeProxyRCE` | ServiceAccount → Pod | SA has `get`/`create`/`proxy` on `nodes/proxy` via a cluster-scoped binding |
+| `BHK_NodeProxyRCE` | ServiceAccount → AllNodes | Cluster-scoped binding with wildcard node access (`all` flag set) |
 
 ---
 
 ### `rbac_pod_portforward` — Pod Port Forward
 **File:** `pod_access.go`
 
-`create` on `pods/portforward` allows forwarding a local port to a port inside a pod, giving direct TCP access to services running in the container — useful for lateral movement to internal services. Cluster-scoped bindings emit an edge to the `AllPods` aggregate.
+`create` on `pods/portforward` allows forwarding a local port to a port inside a pod, giving direct TCP access to services running in the container — useful for lateral movement to internal services. Cluster-scoped bindings emit an edge to the `BHK_AllPods` aggregate.
 
 | Edge | Source → Target | Trigger |
 |------|----------------|---------|
-| `PodPortForward` | ServiceAccount → Pod | SA has `create` on `pods/portforward` |
-| `PodPortForward` | ServiceAccount → AllPods | Cluster-scoped, wildcard pod access |
+| `BHK_PodPortForward` | ServiceAccount → Pod | SA has `create` on `pods/portforward` |
+| `BHK_PodPortForward` | ServiceAccount → AllPods | Cluster-scoped, wildcard pod access |
 
 ---
 
 ### `rbac_pod_attach` — Pod Attach
 **File:** `pod_access.go`
 
-`create` on `pods/attach` allows attaching to the stdin/stdout of a running container, giving interactive shell access equivalent to `kubectl attach`. Cluster-scoped bindings emit an edge to the `AllPods` aggregate.
+`create` on `pods/attach` allows attaching to the stdin/stdout of a running container, giving interactive shell access equivalent to `kubectl attach`. Cluster-scoped bindings emit an edge to the `BHK_AllPods` aggregate.
 
 | Edge | Source → Target | Trigger |
 |------|----------------|---------|
-| `PodAttach` | ServiceAccount → Pod | SA has `create` on `pods/attach` |
-| `PodAttach` | ServiceAccount → AllPods | Cluster-scoped, wildcard pod access |
+| `BHK_PodAttach` | ServiceAccount → Pod | SA has `create` on `pods/attach` |
+| `BHK_PodAttach` | ServiceAccount → AllPods | Cluster-scoped, wildcard pod access |
 
 ---
 
@@ -187,12 +189,12 @@ A ServiceAccount with `impersonate` on the `serviceaccounts` resource can act as
 **File:** `sa_token_request.go`  
 **Reference:** https://kubernetes.io/docs/reference/access-authn-authz/service-accounts-admin/#bound-service-account-tokens
 
-`create` on `serviceaccounts/token` allows minting API tokens for any ServiceAccount in scope via the TokenRequest API. An attacker can use this to assume the identity of a higher-privileged ServiceAccount without needing its existing credentials. Cluster-scoped bindings emit an edge to `AllServiceAccounts`.
+`create` on `serviceaccounts/token` allows minting API tokens for any ServiceAccount in scope via the TokenRequest API. An attacker can use this to assume the identity of a higher-privileged ServiceAccount without needing its existing credentials. Cluster-scoped bindings emit an edge to `BHK_AllServiceAccounts`.
 
 | Edge | Source → Target | Trigger |
 |------|----------------|---------|
-| `SATokenRequest` | ServiceAccount → ServiceAccount | SA has `create` on `serviceaccounts/token` via a RoleBinding |
-| `SATokenRequest` | ServiceAccount → AllServiceAccounts | Cluster-scoped, wildcard serviceaccount access |
+| `BHK_SATokenRequest` | ServiceAccount → ServiceAccount | SA has `create` on `serviceaccounts/token` via a RoleBinding |
+| `BHK_SATokenRequest` | ServiceAccount → AllServiceAccounts | Cluster-scoped, wildcard serviceaccount access |
 
 ---
 
@@ -204,24 +206,24 @@ A ServiceAccount with `impersonate` on the `serviceaccounts` resource can act as
 
 | Edge | Source → Target | Trigger |
 |------|----------------|---------|
-| `RBACEscalate` | ServiceAccount → Role/ClusterRole | SA has `escalate` on `roles` or `clusterroles` (namespaced binding, or cluster-scoped binding with named targets) |
-| `RBACBind` | ServiceAccount → Role/ClusterRole | SA has `bind` on `roles` or `clusterroles` without `escalate` (namespaced binding, or cluster-scoped binding with named targets) |
-| `RBACEscalate` | ServiceAccount → AllClusterRoles | Cluster-scoped binding with wildcard ClusterRole access (`escalate`) |
-| `RBACBind` | ServiceAccount → AllClusterRoles | Cluster-scoped binding with wildcard ClusterRole access (`bind` only) |
-| `RBACEscalate` | ServiceAccount → AllRoles | Cluster-scoped binding with wildcard Role access (`escalate`) |
-| `RBACBind` | ServiceAccount → AllRoles | Cluster-scoped binding with wildcard Role access (`bind` only) |
+| `BHK_RBACEscalate` | ServiceAccount → Role/ClusterRole | SA has `escalate` on `roles` or `clusterroles` (namespaced binding, or cluster-scoped binding with named targets) |
+| `BHK_RBACBind` | ServiceAccount → Role/ClusterRole | SA has `bind` on `roles` or `clusterroles` without `escalate` (namespaced binding, or cluster-scoped binding with named targets) |
+| `BHK_RBACEscalate` | ServiceAccount → AllClusterRoles | Cluster-scoped binding with wildcard ClusterRole access (`escalate`) |
+| `BHK_RBACBind` | ServiceAccount → AllClusterRoles | Cluster-scoped binding with wildcard ClusterRole access (`bind` only) |
+| `BHK_RBACEscalate` | ServiceAccount → AllRoles | Cluster-scoped binding with wildcard Role access (`escalate`) |
+| `BHK_RBACBind` | ServiceAccount → AllRoles | Cluster-scoped binding with wildcard Role access (`bind` only) |
 
 ---
 
-### `rbac_scc_usage` — SecurityContextConstraints Usage
+### `rbac_scc_usage` — SecurityContextConstraint Usage
 **File:** `scc_usage.go`  
 **Reference:** https://docs.openshift.com/container-platform/latest/authentication/managing-security-context-constraints.html
 
-OpenShift-specific. `use` on `securitycontextconstraints` (in the `security.openshift.io` API group) allows a ServiceAccount to request admission under that SCC. Combined with `EnforcedSCC` (SCC → Pod), this reveals the full privilege chain: SA → SCC → Pod. Only ClusterRoleBindings are evaluated because SCCs are cluster-scoped resources.
+OpenShift-specific. `use` on `securitycontextconstraints` (in the `security.openshift.io` API group) allows a ServiceAccount to request admission under that SCC. Combined with `BHK_EnforcedSCC` (SCC → Pod), this reveals the full privilege chain: SA → SCC → Pod. Only ClusterRoleBindings are evaluated because SCCs are cluster-scoped resources.
 
 | Edge | Source → Target | Trigger |
 |------|----------------|---------|
-| `SCCUse` | ServiceAccount → SecurityContextConstraints | SA has `use` on `securitycontextconstraints` via a ClusterRoleBinding |
+| `BHK_SCCUse` | ServiceAccount → SecurityContextConstraint | SA has `use` on `securitycontextconstraints` via a ClusterRoleBinding |
 
 ---
 
@@ -234,11 +236,11 @@ Checks each pod's containers for dangerous capabilities explicitly added via `se
 
 | Edge | Source → Target | Trigger | Impact |
 |------|----------------|---------|--------|
-| `CAP_SYS_ADMIN` | Pod → Node | Container has `CAP_SYS_ADMIN` added | Broad privilege escalation; can mount filesystems, load eBPF programs, bypass namespacing |
-| `CAP_NET_ADMIN` | Pod → Node | Container has `CAP_NET_ADMIN` added | Network administration; can intercept traffic, modify interfaces and routes |
-| `CAP_SYS_MODULE` | Pod → Node | Container has `CAP_SYS_MODULE` added | Load/unload kernel modules; effectively full kernel access |
-| `CAP_SYS_PTRACE` | Pod → Node | Container has `CAP_SYS_PTRACE` added | Trace and debug other processes; enables code injection and secret theft from host processes |
-| `CAP_SYS_RAWIO` | Pod → Node | Container has `CAP_SYS_RAWIO` added | Raw I/O; can access and modify raw disk data and memory |
+| `BHK_CAP_SYS_ADMIN` | Pod → Node | Container has `BHK_CAP_SYS_ADMIN` added | Broad privilege escalation; can mount filesystems, load eBPF programs, bypass namespacing |
+| `BHK_CAP_NET_ADMIN` | Pod → Node | Container has `BHK_CAP_NET_ADMIN` added | Network administration; can intercept traffic, modify interfaces and routes |
+| `BHK_CAP_SYS_MODULE` | Pod → Node | Container has `BHK_CAP_SYS_MODULE` added | Load/unload kernel modules; effectively full kernel access |
+| `BHK_CAP_SYS_PTRACE` | Pod → Node | Container has `BHK_CAP_SYS_PTRACE` added | Trace and debug other processes; enables code injection and secret theft from host processes |
+| `BHK_CAP_SYS_RAWIO` | Pod → Node | Container has `BHK_CAP_SYS_RAWIO` added | Raw I/O; can access and modify raw disk data and memory |
 
 ---
 
@@ -249,26 +251,26 @@ Checks pods for configurations that enable escaping the container boundary to th
 
 | Edge | Source → Target | Trigger | Attack |
 |------|----------------|---------|--------|
-| `CE_PRIV_MOUNT` | Pod → Node | Any container has `privileged: true` | Privileged containers can mount the host filesystem and interact directly with host devices |
-| `CE_NSENTER` | Pod → Node | Pod has `hostPID: true` AND a privileged container | An attacker can use `nsenter` to switch into the host PID namespace and execute commands as root on the node |
-| `CE_SYS_PTRACE` | Pod → Node | Privileged container, OR (hostPID + CAP_SYS_PTRACE + CAP_SYS_ADMIN) | Attach to a host process via ptrace to inject shellcode or steal credentials |
-| `CE_UMH_CORE_PATTERN` | Pod → Node | HostPath volume at `/proc`, `/proc/sys`, or `/proc/sys/kernel` with a writable container mount | Write to `/proc/sys/kernel/core_pattern` to execute arbitrary commands on the host when any process crashes |
-| `MOUNT_CONTAINER_SOCKET` | Pod → Node | HostPath volume path ends in `.sock` (e.g. `/run/containerd/containerd.sock`) | Access the container runtime socket to create privileged containers or escape to the host |
-| `CE_VAR_LOG_SYMLINK` | Pod → Node | HostPath at `/var/log` or `/var`, container is privileged and not `runAsNonRoot` | Create symlinks in the mounted log directory pointing to sensitive host files, then read them via the Kubernetes log API |
-| `CE_HOST_IPC` | Pod → Node | Pod has `hostIPC: true` AND (privileged container OR `CAP_SYS_ADMIN`) | Shares host IPC namespace; access to host shared memory, semaphores, and message queues enables IPC-based process injection |
-| `CE_HOST_NETWORK` | Pod → Node | Pod has `hostNetwork: true` | Container shares host network namespace; can bind host ports, intercept node-level traffic, and reach node-local services |
-| `CE_SHARE_PROC_NS` | Pod → Node | Pod has `shareProcessNamespace: true` AND (privileged container OR `CAP_SYS_PTRACE`) | All containers share a PID namespace; a privileged container can ptrace other containers to inject code or steal secrets from memory |
+| `BHK_CE_PRIV_MOUNT` | Pod → Node | Any container has `privileged: true` | Privileged containers can mount the host filesystem and interact directly with host devices |
+| `BHK_CE_NSENTER` | Pod → Node | Pod has `hostPID: true` AND a privileged container | An attacker can use `nsenter` to switch into the host PID namespace and execute commands as root on the node |
+| `BHK_CE_SYS_PTRACE` | Pod → Node | Privileged container, OR (hostPID + CAP_SYS_PTRACE + CAP_SYS_ADMIN) | Attach to a host process via ptrace to inject shellcode or steal credentials |
+| `BHK_CE_UMH_CORE_PATTERN` | Pod → Node | HostPath volume at `/proc`, `/proc/sys`, or `/proc/sys/kernel` with a writable container mount | Write to `/proc/sys/kernel/core_pattern` to execute arbitrary commands on the host when any process crashes |
+| `BHK_MOUNT_CONTAINER_SOCKET` | Pod → Node | HostPath volume path ends in `.sock` (e.g. `/run/containerd/containerd.sock`) | Access the container runtime socket to create privileged containers or escape to the host |
+| `BHK_CE_VAR_LOG_SYMLINK` | Pod → Node | HostPath at `/var/log` or `/var`, container is privileged and not `runAsNonRoot` | Create symlinks in the mounted log directory pointing to sensitive host files, then read them via the Kubernetes log API |
+| `BHK_CE_HOST_IPC` | Pod → Node | Pod has `hostIPC: true` AND (privileged container OR `BHK_CAP_SYS_ADMIN`) | Shares host IPC namespace; access to host shared memory, semaphores, and message queues enables IPC-based process injection |
+| `BHK_CE_HOST_NETWORK` | Pod → Node | Pod has `hostNetwork: true` | Container shares host network namespace; can bind host ports, intercept node-level traffic, and reach node-local services |
+| `BHK_CE_SHARE_PROC_NS` | Pod → Node | Pod has `shareProcessNamespace: true` AND (privileged container OR `CAP_SYS_PTRACE`) | All containers share a PID namespace; a privileged container can ptrace other containers to inject code or steal secrets from memory |
 
 ---
 
 ### `security_context_constraints` — OpenShift SCC Enforcement
 **File:** `scc_hostports.go`
 
-OpenShift-specific. Links a SecurityContextConstraints object to every pod that was admitted under it (indicated by the `openshift.io/scc` annotation). Used for contextual awareness of what security posture was enforced.
+OpenShift-specific. Links a SecurityContextConstraint object to every pod that was admitted under it (indicated by the `openshift.io/scc` annotation). Used for contextual awareness of what security posture was enforced.
 
 | Edge | Source → Target | Trigger |
 |------|----------------|---------|
-| `EnforcedSCC` | SecurityContextConstraints → Pod | Pod has `openshift.io/scc` annotation matching an SCC name |
+| `BHK_EnforcedSCC` | SecurityContextConstraint → Pod | Pod has `openshift.io/scc` annotation matching an SCC name |
 
 ---
 
@@ -279,8 +281,8 @@ Containers with `hostPort` set bind directly to a port on the node's network int
 
 | Edge | Source → Target | Trigger |
 |------|----------------|---------|
-| `HostPort` | Node → Pod | Any container in the pod has `hostPort > 0` |
-| `ExternalHostPort` | External → Node | Same — annotates that the node itself becomes externally reachable on that port |
+| `BHK_HostPort` | Node → Pod | Any container in the pod has `hostPort > 0` |
+| `BHK_ExternalHostPort` | External → Node | Same — annotates that the node itself becomes externally reachable on that port |
 
 ---
 
@@ -294,7 +296,7 @@ A pod with a hostPath volume pointing to a sensitive directory can read host fil
 
 | Edge | Source → Target | Trigger |
 |------|----------------|---------|
-| `hostMountSensitive` | Pod → Node | Pod has a hostPath volume at a sensitive path with a container volume mount |
+| `BHK_hostMountSensitive` | Pod → Node | Pod has a hostPath volume at a sensitive path with a container volume mount |
 
 ---
 
@@ -305,7 +307,7 @@ Mounting kubelet directories gives access to node credentials, bootstrap tokens,
 
 | Edge | Source → Target | Trigger |
 |------|----------------|---------|
-| `mountedKubelet` | Pod → Node | Pod has a hostPath volume at `/var/lib/kubelet` or `/etc/kubernetes` |
+| `BHK_mountedKubelet` | Pod → Node | Pod has a hostPath volume at `/var/lib/kubelet` or `/etc/kubernetes` |
 
 ---
 
@@ -317,7 +319,7 @@ By default (or when `automountServiceAccountToken: true` is explicit for the `de
 
 | Edge | Source → Target | Trigger |
 |------|----------------|---------|
-| `mountSA` | Pod → ServiceAccount | Pod automounts the SA token: non-default SA unless explicitly disabled, or default SA with explicit `true` |
+| `BHK_mountSA` | Pod → ServiceAccount | Pod automounts the SA token: non-default SA unless explicitly disabled, or default SA with explicit `true` |
 
 ---
 
@@ -328,8 +330,8 @@ Contextual edges for storage. Tracks which PVCs are mounted by which pods, and w
 
 | Edge | Source → Target | Trigger |
 |------|----------------|---------|
-| `MountedBy` | PersistentVolumeClaim → Pod | Pod has a volume referencing the PVC name |
-| `BoundTo` | PersistentVolume → PersistentVolumeClaim | PV's `claimRef` matches the PVC name and namespace |
+| `BHK_MountedBy` | PersistentVolumeClaim → Pod | Pod has a volume referencing the PVC name |
+| `BHK_BoundTo` | PersistentVolume → PersistentVolumeClaim | PV's `claimRef` matches the PVC name and namespace |
 
 ---
 
@@ -338,24 +340,24 @@ Contextual edges for storage. Tracks which PVCs are mounted by which pods, and w
 ### `ingress` — Ingress Routing
 **File:** `ingress.go`
 
-Maps traffic paths through Ingress objects. `ExternalRoutesTo` edges indicate that an Ingress is reachable from outside the cluster.
+Maps traffic paths through Ingress objects. `BHK_ExternalRoutesTo` edges indicate that an Ingress is reachable from outside the cluster.
 
 | Edge | Source → Target | Trigger |
 |------|----------------|---------|
-| `RoutesTo` | Ingress → Service | Ingress backend ref names the service |
-| `ExternalRoutesTo` | External → Ingress | Any Ingress exists and an External node is present |
+| `BHK_RoutesTo` | Ingress → Service | Ingress backend ref names the service |
+| `BHK_ExternalRoutesTo` | External → Ingress | Any Ingress exists and an External node is present |
 
 ---
 
 ### `gateway` — Gateway API Routing
 **File:** `gateway.go`
 
-Maps Gateway API traffic paths. Gateways route to route objects; the `ExternalRoutesTo` edge into a Gateway indicates it is internet-facing.
+Maps Gateway API traffic paths. Gateways route to route objects; the `BHK_ExternalRoutesTo` edge into a Gateway indicates it is internet-facing.
 
 | Edge | Source → Target | Trigger |
 |------|----------------|---------|
-| `RoutesTo` | Gateway → HTTPRoute/GRPCRoute/TCPRoute/TLSRoute | Route's `parentRef` names the gateway (matched by name and namespace) |
-| `ExternalRoutesTo` | External → Gateway | Any Gateway exists and an External node is present |
+| `BHK_RoutesTo` | Gateway → HTTPRoute/GRPCRoute/TCPRoute/TLSRoute | Route's `parentRef` names the gateway (matched by name and namespace) |
+| `BHK_ExternalRoutesTo` | External → Gateway | Any Gateway exists and an External node is present |
 
 ---
 
@@ -366,7 +368,7 @@ Links a NetworkPolicy to the pods it governs via label selector. Used for contex
 
 | Edge | Source → Target | Trigger |
 |------|----------------|---------|
-| `AppliesTo` | NetworkPolicy → Pod | Pod labels satisfy the NetworkPolicy's `podSelector` |
+| `BHK_AppliesTo` | NetworkPolicy → Pod | Pod labels satisfy the NetworkPolicy's `podSelector` |
 
 ---
 
@@ -377,22 +379,22 @@ Maps route objects to their backend Services.
 
 | Edge | Source → Target | Trigger |
 |------|----------------|---------|
-| `RoutesTo` | HTTPRoute → Service | Route backendRef names the service |
-| `RoutesTo` | GRPCRoute → Service | Same |
-| `RoutesTo` | TCPRoute → Service | Same |
-| `RoutesTo` | TLSRoute → Service | Same |
+| `BHK_RoutesTo` | HTTPRoute → Service | Route backendRef names the service |
+| `BHK_RoutesTo` | GRPCRoute → Service | Same |
+| `BHK_RoutesTo` | TCPRoute → Service | Same |
+| `BHK_RoutesTo` | TLSRoute → Service | Same |
 
 ---
 
 ### `services` — Externally Exposed Services and Service-to-Pod Routing
 **File:** `service.go`
 
-Services of type `NodePort` or `LoadBalancer` are accessible from outside the cluster. `LoadBalancer` services include their external IPs in the edge properties. All Services with a non-empty label selector emit `RoutesTo` edges to the pods they select, completing the external path chain: `External → Service → Pod`.
+Services of type `NodePort` or `LoadBalancer` are accessible from outside the cluster. `LoadBalancer` services include their external IPs in the edge properties. All Services with a non-empty label selector emit `BHK_RoutesTo` edges to the pods they select, completing the external path chain: `External → Service → Pod`.
 
 | Edge | Source → Target | Trigger |
 |------|----------------|---------|
-| `ExternalRoutesTo` | External → Service | Service type is `NodePort` or `LoadBalancer` |
-| `RoutesTo` | Service → Pod | Service has a non-empty `spec.selector` and a pod's labels satisfy it |
+| `BHK_ExternalRoutesTo` | External → Service | Service type is `NodePort` or `LoadBalancer` |
+| `BHK_RoutesTo` | Service → Pod | Service has a non-empty `spec.selector` and a pod's labels satisfy it |
 
 ---
 
@@ -405,11 +407,11 @@ Contextual edges that link workload controllers to the pods they manage, resolve
 
 | Edge | Source → Target | Trigger |
 |------|----------------|---------|
-| `ManagedBy` | Deployment → Pod | Pod labels match the Deployment's selector |
-| `ManagedBy` | DaemonSet → Pod | Pod labels match the DaemonSet's selector |
-| `ManagedBy` | StatefulSet → Pod | Pod labels match the StatefulSet's selector |
-| `ManagedBy` | Job → Pod | Pod labels match the Job's selector |
-| `ManagedBy` | CronJob → Pod | Pod labels match the CronJob's selector |
+| `BHK_ManagedBy` | Deployment → Pod | Pod labels match the Deployment's selector |
+| `BHK_ManagedBy` | DaemonSet → Pod | Pod labels match the DaemonSet's selector |
+| `BHK_ManagedBy` | StatefulSet → Pod | Pod labels match the StatefulSet's selector |
+| `BHK_ManagedBy` | Job → Pod | Pod labels match the Job's selector |
+| `BHK_ManagedBy` | CronJob → Pod | Pod labels match the CronJob's selector |
 
 ---
 
@@ -422,14 +424,14 @@ Covers three relationship types for pods:
 
 | Edge | Source → Target | Trigger |
 |------|----------------|---------|
-| `ScheduledOn` | Pod → Node | Pod has a `nodeName` set |
+| `BHK_ScheduledOn` | Pod → Node | Pod has a `nodeName` set |
 
 **Secret injection** (both volume-mount and environment-variable paths):
 
 | Edge | Source → Target | Trigger |
 |------|----------------|---------|
-| `MountedBy` | Secret → Pod | Pod has a `secret` volume referencing the secret name |
-| `EnvVars` | Secret → Pod | Pod container has `envFrom.secretRef` referencing the secret name |
+| `BHK_MountedBy` | Secret → Pod | Pod has a `secret` volume referencing the secret name |
+| `BHK_EnvVars` | Secret → Pod | Pod container has `envFrom.secretRef` referencing the secret name |
 
 ---
 
@@ -438,8 +440,8 @@ Covers three relationship types for pods:
 
 | Edge | Source → Target | Trigger |
 |------|----------------|---------|
-| `MountedBy` | ConfigMap → Pod | Pod has a `configmap` volume referencing the ConfigMap name |
-| `EnvVars` | ConfigMap → Pod | Pod container has `envFrom.configMapRef` referencing the ConfigMap name |
+| `BHK_MountedBy` | ConfigMap → Pod | Pod has a `configmap` volume referencing the ConfigMap name |
+| `BHK_EnvVars` | ConfigMap → Pod | Pod container has `envFrom.configMapRef` referencing the ConfigMap name |
 
 ---
 
@@ -450,7 +452,7 @@ Older-style SA token secrets (type `kubernetes.io/service-account-token`) are ex
 
 | Edge | Source → Target | Trigger |
 |------|----------------|---------|
-| `SAToken` | Secret → ServiceAccount | Secret type is `kubernetes.io/service-account-token` and the secret name appears in the SA's `.secrets[]` list |
+| `BHK_SAToken` | Secret → ServiceAccount | Secret type is `kubernetes.io/service-account-token` and the secret name appears in the SA's `.secrets[]` list |
 
 ---
 
@@ -463,9 +465,9 @@ Maps the ExternalSecrets Operator graph: ExternalSecret objects pull secrets fro
 
 | Edge | Source → Target | Trigger |
 |------|----------------|---------|
-| `ManagedBy` | ExternalSecret → SecretStore | ExternalSecret's `storeRef.name` matches a SecretStore in the same namespace |
-| `ManagedBy` | ExternalSecret → ClusterSecretStore | ExternalSecret's `storeRef.kind` is `ClusterSecretStore` and the name matches |
-| `ManagedBy` | Secret → ExternalSecret | Secret name matches ExternalSecret's `target.name` (or the ExternalSecret's own name as fallback) |
+| `BHK_ManagedBy` | ExternalSecret → SecretStore | ExternalSecret's `storeRef.name` matches a SecretStore in the same namespace |
+| `BHK_ManagedBy` | ExternalSecret → ClusterSecretStore | ExternalSecret's `storeRef.kind` is `BHK_ClusterSecretStore` and the name matches |
+| `BHK_ManagedBy` | Secret → ExternalSecret | Secret name matches ExternalSecret's `target.name` (or the ExternalSecret's own name as fallback) |
 
 > **Note:** `cert_manager.go` and `istio.go` are present but currently empty stubs.
 
@@ -476,22 +478,22 @@ Maps the ExternalSecrets Operator graph: ExternalSecret objects pull secrets fro
 ### `aggregate_contains` — Aggregate Containment
 **File:** `contains.go`
 
-Builds the two-level containment hierarchy that makes aggregate-targeted RBAC edges traversable in BloodHound. Without these edges a path like `SA -[SAReadSecret]-> AllSecrets` would be a dead end; `Contains` edges let a query continue from `AllSecrets` down to individual `Secret` nodes.
+Builds the two-level containment hierarchy that makes aggregate-targeted RBAC edges traversable in BloodHound. Without these edges a path like `SA -[BHK_ReadSecret]-> BHK_AllSecrets` would be a dead end; `BHK_Contains` edges let a query continue from `BHK_AllSecrets` down to individual `BHK_Secret` nodes.
 
 Two pass types run per execution:
 
-- **Cluster → namespace aggregates**: each cluster-wide aggregate (e.g. `AllSecrets[cluster]`) emits a `Contains` edge to each per-namespace aggregate of the same kind (`AllSecrets[default]`, `AllSecrets[kube-system]`, …).
-- **Namespace aggregate → individual resources**: each per-namespace aggregate emits a `Contains` edge to every resource of that kind in the same namespace.
+- **Cluster → namespace aggregates**: each cluster-wide aggregate (e.g. `BHK_AllSecrets[cluster]`) emits a `BHK_Contains` edge to each per-namespace aggregate of the same kind (`BHK_AllSecrets[default]`, `BHK_AllSecrets[kube-system]`, …).
+- **Namespace aggregate → individual resources**: each per-namespace aggregate emits a `BHK_Contains` edge to every resource of that kind in the same namespace.
 
-Covers 11 aggregate kinds: `AllPods`, `AllSecrets`, `AllConfigMaps`, `AllServiceAccounts`, `AllDeployments`, `AllDaemonSets`, `AllStatefulSets`, `AllJobs`, `AllCronJobs`, `AllRoles`, `AllClusterRoles`.
+Covers 11 aggregate kinds: `BHK_AllPods`, `BHK_AllSecrets`, `BHK_AllConfigMaps`, `BHK_AllServiceAccounts`, `BHK_AllDeployments`, `BHK_AllDaemonSets`, `BHK_AllStatefulSets`, `BHK_AllJobs`, `BHK_AllCronJobs`, `BHK_AllRoles`, `BHK_AllClusterRoles`.
 
-`AllClusterRoles` and `AllNodes` are cluster-scoped only (no per-namespace variant). All others have both a cluster-level and a per-namespace node.
+`BHK_AllClusterRoles` and `BHK_AllNodes` are cluster-scoped only (no per-namespace variant). All others have both a cluster-level and a per-namespace node.
 
 | Edge | Source → Target | Trigger |
 |------|----------------|---------|
-| `Contains` | Cluster aggregate → Namespace aggregate | Both aggregate nodes exist for the same resource kind (applies to all namespace-scoped kinds) |
-| `Contains` | Namespace aggregate → Individual resource | A resource of the matching kind exists in that namespace |
-| `Contains` | AllClusterRoles → ClusterRole | ClusterRole exists in the cluster |
+| `BHK_Contains` | Cluster aggregate → Namespace aggregate | Both aggregate nodes exist for the same resource kind (applies to all namespace-scoped kinds) |
+| `BHK_Contains` | Namespace aggregate → Individual resource | A resource of the matching kind exists in that namespace |
+| `BHK_Contains` | AllClusterRoles → ClusterRole | ClusterRole exists in the cluster |
 
 ---
 

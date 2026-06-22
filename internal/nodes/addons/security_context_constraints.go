@@ -34,8 +34,8 @@ func BuildSecurityContextConstraintsNode(obj runtime.Object) (BuildResult, bool)
 		Cluster: true,
 		Data: SecurityContextConstraints{
 			GraphNodeBase: GraphNodeBase{
-				ID:             BuildID("SecurityContextConstraints", "", name),
-				Kinds:          []string{"SecurityContextConstraints"},
+				ID:             BuildID("BHK_SecurityContextConstraint", "", name),
+				Kinds:          []string{"BHK_SecurityContextConstraint"},
 				Name:           name,
 				Namespace:      "",
 				LabelsMap:      labelsMap,
@@ -46,8 +46,8 @@ func BuildSecurityContextConstraintsNode(obj runtime.Object) (BuildResult, bool)
 
 	return BuildResult{
 		Node: NodeResult{
-			ID:         BuildID("SecurityContextConstraints", "", name),
-			Kinds:      []string{"SecurityContextConstraints"},
+			ID:         BuildID("BHK_SecurityContextConstraint", "", name),
+			Kinds:      []string{"BHK_SecurityContextConstraint"},
 			Properties: properties,
 		},
 		Core: []CoreEntry{core},

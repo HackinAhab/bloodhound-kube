@@ -22,21 +22,25 @@ func LabelsMatchOnly(labels map[string]any, selector map[string]string) bool {
 }
 
 func NormalizeCapability(capability string) string {
-	if strings.HasPrefix(capability, "CAP_") {
-		return capability
-	}
 	if capability == "" {
 		return ""
 	}
-	return "CAP_" + capability
+	if strings.HasPrefix(capability, "BHK_CAP_") {
+		return capability
+	}
+	if strings.HasPrefix(capability, "CAP_") {
+		return "BHK_" + capability
+	}
+	return "BHK_CAP_" + capability
 }
 
 func HasCapability(pod workload.Pod, capability string) bool {
 	if capability == "" {
 		return false
 	}
+	normalized := NormalizeCapability(capability)
 	for _, capAdd := range pod.CapabilitiesAdd {
-		if NormalizeCapability(capAdd) == capability {
+		if NormalizeCapability(capAdd) == normalized {
 			return true
 		}
 	}

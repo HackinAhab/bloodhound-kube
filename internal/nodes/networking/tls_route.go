@@ -54,7 +54,7 @@ func buildTLSRouteFromV1(route *gatewayv1.TLSRoute) (BuildResult, bool) {
 		"backendRefKeys": backendRefKeys,
 	}
 
-	base := NewGraphNodeBase("TLSRoute", namespace, name, labelsMap, annotationsMap)
+	base := NewGraphNodeBase("BHK_TLSRoute", namespace, name, labelsMap, annotationsMap)
 
 	core := CoreEntry{
 		Namespace: namespace,
@@ -99,7 +99,7 @@ func buildTLSRouteFromV1Alpha2(route *gatewayv1alpha2.TLSRoute) (BuildResult, bo
 		"backendRefKeys": backendRefKeys,
 	}
 
-	base := NewGraphNodeBase("TLSRoute", namespace, name, labelsMap, annotationsMap)
+	base := NewGraphNodeBase("BHK_TLSRoute", namespace, name, labelsMap, annotationsMap)
 
 	core := CoreEntry{
 		Namespace: namespace,

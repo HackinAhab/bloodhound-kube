@@ -52,7 +52,7 @@ func podMountServiceAccountNamespaced(ctx *framework.Context, namespace string, 
 		if serviceAccount == nil || serviceAccount.ID == "" {
 			continue
 		}
-		edges = append(edges, framework.CreateEdgeWithProperties(pod, serviceAccount, "mountSA", edgePropertiesPodMountServiceAccount))
+		edges = append(edges, framework.CreateEdgeWithProperties(pod, serviceAccount, "BHK_mountSA", edgePropertiesPodMountServiceAccount))
 	}
 	return edges
 }

@@ -1,0 +1,686 @@
+{
+  "schema": {
+    "name": "BHK",
+    "display_name": "Bloodhound-Kube",
+    "version": "v1.0.0",
+    "namespace": "BHK"
+  },
+  "node_kinds": [
+    {
+      "name": "BHK_Aggregate",
+      "display_name": "Aggregate",
+      "description": "Abstract kind shared by all aggregate nodes for unified querying.",
+      "is_display_kind": false,
+      "icon": "layer-group",
+      "color": "#60A5FA"
+    },
+    {
+      "name": "BHK_External",
+      "display_name": "External",
+      "description": "External network entity representing traffic originating outside the cluster boundary.",
+      "is_display_kind": true,
+      "icon": "globe",
+      "color": "#0E7490"
+    },
+    {
+      "name": "BHK_AllPods",
+      "display_name": "All Pods",
+      "description": "Aggregate node representing all Pods in a namespace or cluster scope.",
+      "is_display_kind": true,
+      "icon": "cubes",
+      "color": "#06B6D4"
+    },
+    {
+      "name": "BHK_AllDeployments",
+      "display_name": "All Deployments",
+      "description": "Aggregate node representing all Deployments in a namespace or cluster scope.",
+      "is_display_kind": true,
+      "icon": "layer-group",
+      "color": "#38BDF8"
+    },
+    {
+      "name": "BHK_AllDaemonSets",
+      "display_name": "All DaemonSets",
+      "description": "Aggregate node representing all DaemonSets in a namespace or cluster scope.",
+      "is_display_kind": true,
+      "icon": "arrows-rotate",
+      "color": "#0EA5E9"
+    },
+    {
+      "name": "BHK_AllStatefulSets",
+      "display_name": "All StatefulSets",
+      "description": "Aggregate node representing all StatefulSets in a namespace or cluster scope.",
+      "is_display_kind": true,
+      "icon": "server",
+      "color": "#0284C7"
+    },
+    {
+      "name": "BHK_AllCronJobs",
+      "display_name": "All CronJobs",
+      "description": "Aggregate node representing all CronJobs in a namespace or cluster scope.",
+      "is_display_kind": true,
+      "icon": "arrows-rotate",
+      "color": "#0EA5E9"
+    },
+    {
+      "name": "BHK_AllJobs",
+      "display_name": "All Jobs",
+      "description": "Aggregate node representing all Jobs in a namespace or cluster scope.",
+      "is_display_kind": true,
+      "icon": "arrows-rotate",
+      "color": "#0EA5E9"
+    },
+    {
+      "name": "BHK_AllSecrets",
+      "display_name": "All Secrets",
+      "description": "Aggregate node representing all Secrets in a namespace or cluster scope.",
+      "is_display_kind": true,
+      "icon": "key",
+      "color": "#D97706"
+    },
+    {
+      "name": "BHK_AllConfigMaps",
+      "display_name": "All ConfigMaps",
+      "description": "Aggregate node representing all ConfigMaps in a namespace or cluster scope.",
+      "is_display_kind": true,
+      "icon": "sliders",
+      "color": "#14B8A6"
+    },
+    {
+      "name": "BHK_AllNodes",
+      "display_name": "All Nodes",
+      "description": "Aggregate node representing all Nodes in the cluster.",
+      "is_display_kind": true,
+      "icon": "microchip",
+      "color": "#10B981"
+    },
+    {
+      "name": "BHK_AllServiceAccounts",
+      "display_name": "All Service Accounts",
+      "description": "Aggregate node representing all ServiceAccounts in a namespace or cluster scope.",
+      "is_display_kind": true,
+      "icon": "users",
+      "color": "#60A5FA"
+    },
+    {
+      "name": "BHK_AllUsers",
+      "display_name": "All Users",
+      "description": "Aggregate node representing all Users in the cluster.",
+      "is_display_kind": true,
+      "icon": "user",
+      "color": "#A78BFA"
+    },
+    {
+      "name": "BHK_AllGroups",
+      "display_name": "All Groups",
+      "description": "Aggregate node representing all Groups in the cluster.",
+      "is_display_kind": true,
+      "icon": "users",
+      "color": "#A78BFA"
+    },
+    {
+      "name": "BHK_AllRoles",
+      "display_name": "All Roles",
+      "description": "Aggregate node representing all Roles in a namespace or cluster scope.",
+      "is_display_kind": true,
+      "icon": "users",
+      "color": "#60A5FA"
+    },
+    {
+      "name": "BHK_AllClusterRoles",
+      "display_name": "All ClusterRoles",
+      "description": "Aggregate node representing all ClusterRoles in the cluster.",
+      "is_display_kind": true,
+      "icon": "users",
+      "color": "#60A5FA"
+    },
+    {
+      "name": "BHK_Node",
+      "display_name": "Kubernetes Node",
+      "description": "Kubernetes worker or control plane node.",
+      "is_display_kind": true,
+      "icon": "microchip",
+      "color": "#14B8A6"
+    },
+    {
+      "name": "BHK_Namespace",
+      "display_name": "Namespace",
+      "description": "Kubernetes namespace providing resource isolation boundary.",
+      "is_display_kind": true,
+      "icon": "world",
+      "color": "#0891B2"
+    },
+    {
+      "name": "BHK_Pod",
+      "display_name": "Pod",
+      "description": "Running Kubernetes pod instance.",
+      "is_display_kind": true,
+      "icon": "cube",
+      "color": "#0891B2"
+    },
+    {
+      "name": "BHK_Deployment",
+      "display_name": "Deployment",
+      "description": "Kubernetes Deployment workload controller.",
+      "is_display_kind": true,
+      "icon": "diagram-project",
+      "color": "#0EA5E9"
+    },
+    {
+      "name": "BHK_DaemonSet",
+      "display_name": "DaemonSet",
+      "description": "Kubernetes DaemonSet workload controller.",
+      "is_display_kind": true,
+      "icon": "arrows-rotate",
+      "color": "#0284C7"
+    },
+    {
+      "name": "BHK_StatefulSet",
+      "display_name": "StatefulSet",
+      "description": "Kubernetes StatefulSet workload controller.",
+      "is_display_kind": true,
+      "icon": "server",
+      "color": "#0369A1"
+    },
+    {
+      "name": "BHK_Job",
+      "display_name": "Job",
+      "description": "Kubernetes Job workload.",
+      "is_display_kind": true,
+      "icon": "arrows-rotate",
+      "color": "#0EA5E9"
+    },
+    {
+      "name": "BHK_CronJob",
+      "display_name": "CronJob",
+      "description": "Kubernetes CronJob scheduled workload.",
+      "is_display_kind": true,
+      "icon": "arrows-rotate",
+      "color": "#0EA5E9"
+    },
+    {
+      "name": "BHK_Service",
+      "display_name": "Service",
+      "description": "Kubernetes Service providing network access to a set of pods.",
+      "is_display_kind": true,
+      "icon": "share-nodes",
+      "color": "#0E7490"
+    },
+    {
+      "name": "BHK_HTTPRoute",
+      "display_name": "HTTP Route",
+      "description": "Gateway API HTTPRoute for HTTP/HTTPS traffic routing.",
+      "is_display_kind": true,
+      "icon": "route",
+      "color": "#E11D48"
+    },
+    {
+      "name": "BHK_GRPCRoute",
+      "display_name": "gRPC Route",
+      "description": "Gateway API GRPCRoute for gRPC traffic routing.",
+      "is_display_kind": true,
+      "icon": "code-branch",
+      "color": "#DB2777"
+    },
+    {
+      "name": "BHK_TCPRoute",
+      "display_name": "TCP Route",
+      "description": "Gateway API TCPRoute for raw TCP traffic routing.",
+      "is_display_kind": true,
+      "icon": "ethernet",
+      "color": "#F43F5E"
+    },
+    {
+      "name": "BHK_TLSRoute",
+      "display_name": "TLS Route",
+      "description": "Gateway API TLSRoute for TLS passthrough routing.",
+      "is_display_kind": true,
+      "icon": "lock",
+      "color": "#BE185D"
+    },
+    {
+      "name": "BHK_Gateway",
+      "display_name": "Gateway",
+      "description": "Gateway API Gateway resource managing network gateway instances.",
+      "is_display_kind": true,
+      "icon": "archway",
+      "color": "#BE123C"
+    },
+    {
+      "name": "BHK_Ingress",
+      "display_name": "Ingress",
+      "description": "Kubernetes Ingress exposing HTTP/HTTPS routes to services.",
+      "is_display_kind": true,
+      "icon": "signs-post",
+      "color": "#E11D48"
+    },
+    {
+      "name": "BHK_Secret",
+      "display_name": "Secret",
+      "description": "Kubernetes Secret storing sensitive data.",
+      "is_display_kind": true,
+      "icon": "key",
+      "color": "#EAB308"
+    },
+    {
+      "name": "BHK_ConfigMap",
+      "display_name": "ConfigMap",
+      "description": "Kubernetes ConfigMap storing non-sensitive configuration data.",
+      "is_display_kind": true,
+      "icon": "sliders",
+      "color": "#14B8A6"
+    },
+    {
+      "name": "BHK_Identity",
+      "display_name": "Identity",
+      "description": "Abstract principal kind shared by all identity types (ServiceAccount, User, Group, future cloud IAM).",
+      "is_display_kind": false,
+      "icon": "user",
+      "color": "#8B5CF6"
+    },
+    {
+      "name": "BHK_ServiceAccount",
+      "display_name": "Service Account",
+      "description": "Kubernetes ServiceAccount providing pod identity for API access.",
+      "is_display_kind": true,
+      "icon": "user",
+      "color": "#60A5FA"
+    },
+    {
+      "name": "BHK_User",
+      "display_name": "User",
+      "description": "Kubernetes User identity synthesized from RBAC binding subjects.",
+      "is_display_kind": true,
+      "icon": "user",
+      "color": "#8B5CF6"
+    },
+    {
+      "name": "BHK_Group",
+      "display_name": "Group",
+      "description": "Kubernetes Group identity synthesized from RBAC binding subjects.",
+      "is_display_kind": true,
+      "icon": "users",
+      "color": "#7C3AED"
+    },
+    {
+      "name": "BHK_Role",
+      "display_name": "Role",
+      "description": "Kubernetes namespaced RBAC Role defining permission rules.",
+      "is_display_kind": true,
+      "icon": "id-badge",
+      "color": "#3B82F6"
+    },
+    {
+      "name": "BHK_RoleBinding",
+      "display_name": "Role Binding",
+      "description": "Kubernetes RoleBinding granting a Role to subjects within a namespace.",
+      "is_display_kind": true,
+      "icon": "link",
+      "color": "#2563EB"
+    },
+    {
+      "name": "BHK_ClusterRole",
+      "display_name": "Cluster Role",
+      "description": "Kubernetes cluster-scoped RBAC ClusterRole defining permission rules.",
+      "is_display_kind": true,
+      "icon": "user-shield",
+      "color": "#1D4ED8"
+    },
+    {
+      "name": "BHK_ClusterRoleBinding",
+      "display_name": "Cluster Role Binding",
+      "description": "Kubernetes ClusterRoleBinding granting a ClusterRole to subjects cluster-wide.",
+      "is_display_kind": true,
+      "icon": "link",
+      "color": "#1E40AF"
+    },
+    {
+      "name": "BHK_PersistentVolume",
+      "display_name": "Persistent Volume",
+      "description": "Kubernetes PersistentVolume representing cluster-provisioned storage.",
+      "is_display_kind": true,
+      "icon": "database",
+      "color": "#F59E0B"
+    },
+    {
+      "name": "BHK_PersistentVolumeClaim",
+      "display_name": "Persistent Volume Claim",
+      "description": "Kubernetes PersistentVolumeClaim requesting storage from a PersistentVolume.",
+      "is_display_kind": true,
+      "icon": "hard-drive",
+      "color": "#D97706"
+    },
+    {
+      "name": "BHK_NetworkPolicy",
+      "display_name": "Network Policy",
+      "description": "Kubernetes NetworkPolicy controlling pod-level network traffic rules.",
+      "is_display_kind": true,
+      "icon": "shield-halved",
+      "color": "#22C55E"
+    },
+    {
+      "name": "BHK_SecurityContextConstraint",
+      "display_name": "Security Context Constraint",
+      "description": "OpenShift SecurityContextConstraint restricting pod security configurations.",
+      "is_display_kind": true,
+      "icon": "user-shield",
+      "color": "#16A34A"
+    },
+    {
+      "name": "BHK_ExternalSecret",
+      "display_name": "External Secret",
+      "description": "External Secrets Operator ExternalSecret syncing secrets from external providers.",
+      "is_display_kind": true,
+      "icon": "user-secret",
+      "color": "#D97706"
+    },
+    {
+      "name": "BHK_ClusterSecretStore",
+      "display_name": "Cluster Secret Store",
+      "description": "External Secrets Operator ClusterSecretStore defining a cluster-scoped secret backend.",
+      "is_display_kind": true,
+      "icon": "box-archive",
+      "color": "#EA580C"
+    },
+    {
+      "name": "BHK_SecretStore",
+      "display_name": "Secret Store",
+      "description": "External Secrets Operator SecretStore defining a namespaced secret backend.",
+      "is_display_kind": true,
+      "icon": "box-archive",
+      "color": "#F97316"
+    }
+  ],
+  "relationship_kinds": [
+    {
+      "name": "BHK_ScheduledOn",
+      "display_name": "Scheduled On",
+      "description": "Pod is scheduled on a specific Node.",
+      "is_traversable": false
+    },
+    {
+      "name": "BHK_ManagedBy",
+      "display_name": "Managed By",
+      "description": "Pod is managed by a workload controller (Deployment, DaemonSet, StatefulSet, Job, CronJob) or ExternalSecret manages a Secret.",
+      "is_traversable": false
+    },
+    {
+      "name": "BHK_MountedBy",
+      "display_name": "Mounted By",
+      "description": "Secret, ConfigMap, or PVC is mounted by a Pod.",
+      "is_traversable": false
+    },
+    {
+      "name": "BHK_BoundTo",
+      "display_name": "Bound To",
+      "description": "PersistentVolume is bound to a PersistentVolumeClaim.",
+      "is_traversable": false
+    },
+    {
+      "name": "BHK_Contains",
+      "display_name": "Contains",
+      "description": "Aggregate node contains individual resources or namespace-scoped aggregates.",
+      "is_traversable": false
+    },
+    {
+      "name": "BHK_AppliesTo",
+      "display_name": "Applies To",
+      "description": "NetworkPolicy applies to a Pod or aggregate.",
+      "is_traversable": false
+    },
+    {
+      "name": "BHK_RoleBound",
+      "display_name": "Role Bound",
+      "description": "Structural edge linking a RoleBinding or ClusterRoleBinding to the Role or ClusterRole it references.",
+      "is_traversable": false
+    },
+    {
+      "name": "BHK_EnforcedSCC",
+      "display_name": "Enforced SCC",
+      "description": "SecurityContextConstraint is enforced on a Pod.",
+      "is_traversable": false
+    },
+    {
+      "name": "BHK_RoutesTo",
+      "display_name": "Routes To",
+      "description": "Gateway, HTTPRoute, GRPCRoute, TCPRoute, TLSRoute, or Service routes traffic to a downstream target.",
+      "is_traversable": true
+    },
+    {
+      "name": "BHK_ExternalRoutesTo",
+      "display_name": "External Routes To",
+      "description": "External actor can reach a Service, Ingress, or Gateway from outside the cluster.",
+      "is_traversable": true
+    },
+    {
+      "name": "BHK_ExternalHostPort",
+      "display_name": "External Host Port",
+      "description": "External actor can reach a Node via an exposed hostPort on a Pod.",
+      "is_traversable": true
+    },
+    {
+      "name": "BHK_HostPort",
+      "display_name": "Host Port",
+      "description": "Pod exposes a hostPort on its scheduled Node.",
+      "is_traversable": true
+    },
+    {
+      "name": "BHK_EnvVars",
+      "display_name": "Environment Variables",
+      "description": "Secret or ConfigMap is injected into a Pod as environment variables.",
+      "is_traversable": false
+    },
+    {
+      "name": "BHK_SAToken",
+      "display_name": "SA Token",
+      "description": "Secret contains a ServiceAccount token, granting access to that identity.",
+      "is_traversable": true
+    },
+    {
+      "name": "BHK_mountSA",
+      "display_name": "Mounts Service Account",
+      "description": "Pod mounts a ServiceAccount token, allowing an attacker who controls the pod to use that identity.",
+      "is_traversable": true
+    },
+    {
+      "name": "BHK_CE_NSENTER",
+      "display_name": "Container Escape: nsenter",
+      "description": "Privileged pod with SYS_ADMIN capability can use nsenter to escape to the host Node.",
+      "is_traversable": true
+    },
+    {
+      "name": "BHK_CE_PRIV_MOUNT",
+      "display_name": "Container Escape: Privileged Mount",
+      "description": "Privileged pod can mount the host filesystem and escape to the Node.",
+      "is_traversable": true
+    },
+    {
+      "name": "BHK_CE_SYS_PTRACE",
+      "display_name": "Container Escape: SYS_PTRACE",
+      "description": "Pod with SYS_PTRACE capability and shareProcessNamespace can inject into host processes.",
+      "is_traversable": true
+    },
+    {
+      "name": "BHK_CE_UMH_CORE_PATTERN",
+      "display_name": "Container Escape: Core Pattern",
+      "description": "Pod can abuse usermode helper core_pattern to execute code on the Node.",
+      "is_traversable": true
+    },
+    {
+      "name": "BHK_CE_HOST_IPC",
+      "display_name": "Container Escape: Host IPC",
+      "description": "Pod shares the host IPC namespace, enabling access to host shared memory segments.",
+      "is_traversable": true
+    },
+    {
+      "name": "BHK_CE_HOST_NETWORK",
+      "display_name": "Container Escape: Host Network",
+      "description": "Pod shares the host network namespace, enabling traffic sniffing and network policy bypass.",
+      "is_traversable": true
+    },
+    {
+      "name": "BHK_CE_SHARE_PROC_NS",
+      "display_name": "Container Escape: Shared Process Namespace",
+      "description": "Pod shares process namespace with other containers, enabling credential harvesting from /proc.",
+      "is_traversable": true
+    },
+    {
+      "name": "BHK_CE_VAR_LOG_SYMLINK",
+      "display_name": "Container Escape: Var Log Symlink",
+      "description": "Pod can exploit /var/log symlink following to read arbitrary host files.",
+      "is_traversable": true
+    },
+    {
+      "name": "BHK_MOUNT_CONTAINER_SOCKET",
+      "display_name": "Mount Container Socket",
+      "description": "Pod mounts a container runtime socket, enabling full container management on the Node.",
+      "is_traversable": true
+    },
+    {
+      "name": "BHK_hostMountSensitive",
+      "display_name": "Host Mount Sensitive",
+      "description": "Pod has a host mount of sensitive directories, enabling lateral movement and information disclosure.",
+      "is_traversable": true
+    },
+    {
+      "name": "BHK_mountedKubelet",
+      "display_name": "Mounted Kubelet",
+      "description": "Pod mounts the kubelet credential directory, enabling Node-level API access.",
+      "is_traversable": true
+    },
+    {
+      "name": "BHK_PodExec",
+      "display_name": "Pod Exec",
+      "description": "Identity has RBAC permissions to exec into pods, enabling direct command execution.",
+      "is_traversable": true
+    },
+    {
+      "name": "BHK_PodAttach",
+      "display_name": "Pod Attach",
+      "description": "Identity has RBAC permissions to attach to running container processes.",
+      "is_traversable": true
+    },
+    {
+      "name": "BHK_PodDebug",
+      "display_name": "Pod Debug",
+      "description": "Identity has RBAC permissions to create ephemeral debug containers in pods.",
+      "is_traversable": true
+    },
+    {
+      "name": "BHK_PodPortForward",
+      "display_name": "Pod Port Forward",
+      "description": "Identity has RBAC permissions to port-forward into pods for lateral movement.",
+      "is_traversable": true
+    },
+    {
+      "name": "BHK_WorkloadCreate",
+      "display_name": "Workload Create",
+      "description": "Identity can create Pods or pod-creating workload controllers, enabling deployment of arbitrary pod specs.",
+      "is_traversable": true
+    },
+    {
+      "name": "BHK_WorkloadPatch",
+      "display_name": "Workload Patch",
+      "description": "Identity has patch/update permissions on Pods or workload controllers, enabling image replacement or spec modification.",
+      "is_traversable": true
+    },
+    {
+      "name": "BHK_RBACCreate",
+      "display_name": "RBAC Create",
+      "description": "Identity can create RoleBindings or ClusterRoleBindings, enabling privilege assignment.",
+      "is_traversable": true
+    },
+    {
+      "name": "BHK_RBACEscalate",
+      "display_name": "RBAC Escalate",
+      "description": "Identity has the escalate verb, allowing creation of roles with permissions beyond their own.",
+      "is_traversable": true
+    },
+    {
+      "name": "BHK_RBACBind",
+      "display_name": "RBAC Bind",
+      "description": "Identity has the bind verb, allowing binding to roles with permissions beyond their own.",
+      "is_traversable": true
+    },
+    {
+      "name": "BHK_Impersonate",
+      "display_name": "Impersonate",
+      "description": "Principal has RBAC permissions to impersonate another principal (User, Group, or ServiceAccount) via the Kubernetes impersonation API.",
+      "is_traversable": true
+    },
+    {
+      "name": "BHK_ReadSecret",
+      "display_name": "Read Secret",
+      "description": "Identity has get or list permissions on Secrets, exposing full secret values.",
+      "is_traversable": true
+    },
+    {
+      "name": "BHK_ReadConfigMap",
+      "display_name": "Read ConfigMap",
+      "description": "Identity has get or list permissions on ConfigMaps.",
+      "is_traversable": true
+    },
+    {
+      "name": "BHK_SATokenRequest",
+      "display_name": "SA Token Request",
+      "description": "Identity can mint tokens for ServiceAccounts via the TokenRequest API.",
+      "is_traversable": true
+    },
+    {
+      "name": "BHK_NodeProxy",
+      "display_name": "Node Proxy",
+      "description": "Identity has nodes/proxy permission, enabling proxied requests to the Kubelet API.",
+      "is_traversable": true
+    },
+    {
+      "name": "BHK_NodeProxyRCE",
+      "display_name": "Node Proxy RCE",
+      "description": "Identity has nodes/proxy GET permission, enabling remote code execution on any node via the Kubelet API.",
+      "is_traversable": true
+    },
+    {
+      "name": "BHK_ReadLogs",
+      "display_name": "Read Logs",
+      "description": "Identity has pods/log permissions, enabling access to container logs which may contain sensitive data.",
+      "is_traversable": true
+    },
+    {
+      "name": "BHK_SCCUse",
+      "display_name": "SCC Use",
+      "description": "Identity can use a SecurityContextConstraint via RBAC, enabling privileged pod creation under that SCC.",
+      "is_traversable": true
+    },
+    {
+      "name": "BHK_CAP_SYS_ADMIN",
+      "display_name": "CAP_SYS_ADMIN",
+      "description": "Container has CAP_SYS_ADMIN capability enabling privilege escalation and container escape.",
+      "is_traversable": true
+    },
+    {
+      "name": "BHK_CAP_NET_ADMIN",
+      "display_name": "CAP_NET_ADMIN",
+      "description": "Container has CAP_NET_ADMIN capability enabling network interception and modification.",
+      "is_traversable": true
+    },
+    {
+      "name": "BHK_CAP_SYS_MODULE",
+      "display_name": "CAP_SYS_MODULE",
+      "description": "Container has CAP_SYS_MODULE capability enabling kernel module loading.",
+      "is_traversable": true
+    },
+    {
+      "name": "BHK_CAP_SYS_PTRACE",
+      "display_name": "CAP_SYS_PTRACE",
+      "description": "Container has CAP_SYS_PTRACE capability enabling process tracing and code injection.",
+      "is_traversable": true
+    },
+    {
+      "name": "BHK_CAP_SYS_RAWIO",
+      "display_name": "CAP_SYS_RAWIO",
+      "description": "Container has CAP_SYS_RAWIO capability enabling raw I/O operations bypassing security controls.",
+      "is_traversable": true
+    }
+  ],
+  "environments": [],
+  "relationship_findings": []
+}

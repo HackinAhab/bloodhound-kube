@@ -22,8 +22,8 @@ func BuildNamespaceNode(resource map[string]any) (fw.BuildResult, bool) {
 
 	return fw.BuildResult{
 		Node: fw.NodeResult{
-			ID:         fw.BuildID("Namespace", "", name),
-			Kinds:      []string{"Namespace"},
+			ID:         fw.BuildID("BHK_Namespace", "", name),
+			Kinds:      []string{"BHK_Namespace"},
 			Properties: properties,
 		},
 	}, true

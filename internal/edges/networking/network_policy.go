@@ -23,14 +23,14 @@ func (r networkPolicyEdgesRule) Apply(ctx *framework.Context) []model.BloodHound
 			netpol := &space.NetworkPolicies[i]
 			if len(netpol.PodSelectorLabels) == 0 {
 				if agg := nsAllPods(space.AllPods); agg != nil {
-					edges = append(edges, framework.CreateEdge(netpol, agg, "AppliesTo"))
+					edges = append(edges, framework.CreateEdge(netpol, agg, "BHK_AppliesTo"))
 				}
 				continue
 			}
 			for j := range space.Pods {
 				pod := &space.Pods[j]
 				if framework.LabelsMatchOnly(pod.LabelsMap, netpol.PodSelectorLabels) {
-					edges = append(edges, framework.CreateEdge(netpol, pod, "AppliesTo"))
+					edges = append(edges, framework.CreateEdge(netpol, pod, "BHK_AppliesTo"))
 				}
 			}
 		}

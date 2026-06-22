@@ -49,7 +49,7 @@ func buildGatewayFromV1(gateway *gatewayv1.Gateway) (BuildResult, bool) {
 		"addresses":        summarizeGatewayAddresses(gateway.Status.Addresses),
 	}
 
-	base := NewGraphNodeBase("Gateway", namespace, name, labelsMap, annotationsMap)
+	base := NewGraphNodeBase("BHK_Gateway", namespace, name, labelsMap, annotationsMap)
 
 	core := CoreEntry{
 		Namespace: namespace,

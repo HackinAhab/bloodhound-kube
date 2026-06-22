@@ -30,12 +30,12 @@ func (r externalSecretsEdgesRule) Apply(ctx *framework.Context) []model.BloodHou
 				}
 				if storeKind == "secretstore" {
 					if store := secretStores[es.StoreName]; store != nil {
-						edges = append(edges, framework.CreateEdge(es, store, "ManagedBy"))
+						edges = append(edges, framework.CreateEdge(es, store, "BHK_ManagedBy"))
 					}
 				}
 				if storeKind == "clustersecretstore" {
 					if store := ctx.Index.ClusterSecretStoresByName[es.StoreName]; store != nil {
-						edges = append(edges, framework.CreateEdge(es, store, "ManagedBy"))
+						edges = append(edges, framework.CreateEdge(es, store, "BHK_ManagedBy"))
 					}
 				}
 			}
@@ -44,12 +44,12 @@ func (r externalSecretsEdgesRule) Apply(ctx *framework.Context) []model.BloodHou
 				secret := &space.Secrets[j]
 				if es.TargetName != "" {
 					if secret.Name == es.TargetName {
-						edges = append(edges, framework.CreateEdge(secret, es, "ManagedBy"))
+						edges = append(edges, framework.CreateEdge(secret, es, "BHK_ManagedBy"))
 					}
 					continue
 				}
 				if secret.Name == es.Name {
-					edges = append(edges, framework.CreateEdge(secret, es, "ManagedBy"))
+					edges = append(edges, framework.CreateEdge(secret, es, "BHK_ManagedBy"))
 				}
 			}
 		}

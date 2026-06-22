@@ -40,7 +40,7 @@ func BuildIngressNode(obj runtime.Object) (BuildResult, bool) {
 		"backendRefKeys": backendRefKeys,
 	}
 
-	base := NewGraphNodeBase("Ingress", namespace, name, labelsMap, annotationsMap)
+	base := NewGraphNodeBase("BHK_Ingress", namespace, name, labelsMap, annotationsMap)
 
 	core := CoreEntry{
 		Namespace: namespace,

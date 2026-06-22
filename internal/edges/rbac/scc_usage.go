@@ -10,7 +10,7 @@ type rbacSCCUsageEdgesRule struct{}
 func (r rbacSCCUsageEdgesRule) Name() string { return "rbac_scc_usage" }
 
 var edgePropertiesRBACSCCUsage = map[string]any{
-	"Description": "ServiceAccount has RBAC permission to use this SecurityContextConstraints.",
+	"Description": "Identity has RBAC permission to use this SecurityContextConstraint.",
 	"Reference":   "https://docs.openshift.com/container-platform/latest/authentication/managing-security-context-constraints.html",
 }
 
@@ -45,14 +45,14 @@ func sccUsageCluster(ctx *framework.Context) []model.BloodHoundEdge {
 			continue
 		}
 		for _, subject := range binding.Subjects {
-			sa := resolveClusterSubjectSA(ctx, subject.Kind, subject.Namespace, subject.Name)
-			if sa == nil {
+			principal := resolveClusterSubject(ctx, subject)
+			if principal == nil {
 				continue
 			}
 			if all {
 				for i := range ctx.Core.Cluster.SecurityContextConstraints {
 					scc := &ctx.Core.Cluster.SecurityContextConstraints[i]
-					edges = append(edges, framework.CreateEdgeWithProperties(sa, scc, "SCCUse", edgePropertiesRBACSCCUsage))
+					edges = append(edges, framework.CreateEdgeWithProperties(principal, scc, "BHK_SCCUse", edgePropertiesRBACSCCUsage))
 				}
 				continue
 			}
@@ -61,7 +61,7 @@ func sccUsageCluster(ctx *framework.Context) []model.BloodHoundEdge {
 				if scc == nil {
 					continue
 				}
-				edges = append(edges, framework.CreateEdgeWithProperties(sa, scc, "SCCUse", edgePropertiesRBACSCCUsage))
+				edges = append(edges, framework.CreateEdgeWithProperties(principal, scc, "BHK_SCCUse", edgePropertiesRBACSCCUsage))
 			}
 		}
 	}

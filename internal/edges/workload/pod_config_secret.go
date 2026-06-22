@@ -38,7 +38,7 @@ func (r podEdgesRule) Apply(ctx *framework.Context) []model.BloodHoundEdge {
 			pod := &space.Pods[i]
 			if pod.NodeName != "" {
 				if node := ctx.Index.NodesByName[pod.NodeName]; node != nil {
-					edges = append(edges, framework.CreateEdge(pod, node, "ScheduledOn"))
+					edges = append(edges, framework.CreateEdge(pod, node, "BHK_ScheduledOn"))
 				}
 			}
 
@@ -47,7 +47,7 @@ func (r podEdgesRule) Apply(ctx *framework.Context) []model.BloodHoundEdge {
 					continue
 				}
 				if secret := secretIndex[volume.SecretName]; secret != nil {
-					edges = append(edges, framework.CreateEdge(secret, pod, "MountedBy"))
+					edges = append(edges, framework.CreateEdge(secret, pod, "BHK_MountedBy"))
 				}
 			}
 
@@ -86,7 +86,7 @@ func (r podEdgesRule) Apply(ctx *framework.Context) []model.BloodHoundEdge {
 					containers = append(containers, name)
 				}
 				sort.Strings(containers)
-				edges = append(edges, framework.CreateEdgeWithProperties(entry.source, pod, "EnvVars", map[string]any{
+				edges = append(edges, framework.CreateEdgeWithProperties(entry.source, pod, "BHK_EnvVars", map[string]any{
 					"SourceType": k.sourceType,
 					"Containers": containers,
 				}))
@@ -120,7 +120,7 @@ func (r configMapEdgesRule) Apply(ctx *framework.Context) []model.BloodHoundEdge
 					continue
 				}
 				if cm := cmIndex[volume.ConfigMapName]; cm != nil {
-					edges = append(edges, framework.CreateEdge(cm, pod, "MountedBy"))
+					edges = append(edges, framework.CreateEdge(cm, pod, "BHK_MountedBy"))
 				}
 			}
 
@@ -159,7 +159,7 @@ func (r configMapEdgesRule) Apply(ctx *framework.Context) []model.BloodHoundEdge
 					containers = append(containers, name)
 				}
 				sort.Strings(containers)
-				edges = append(edges, framework.CreateEdgeWithProperties(entry.source, pod, "EnvVars", map[string]any{
+				edges = append(edges, framework.CreateEdgeWithProperties(entry.source, pod, "BHK_EnvVars", map[string]any{
 					"SourceType": k.sourceType,
 					"Containers": containers,
 				}))
@@ -195,7 +195,7 @@ func (r secretEdgesRule) Apply(ctx *framework.Context) []model.BloodHoundEdge {
 			for _, sa := range serviceAccounts {
 				for _, secretName := range sa.Secrets {
 					if secretName == secret.Name {
-						edges = append(edges, framework.CreateEdgeWithProperties(secret, sa, "SAToken", edgePropertiesServiceAccountToken))
+						edges = append(edges, framework.CreateEdgeWithProperties(secret, sa, "BHK_SAToken", edgePropertiesServiceAccountToken))
 					}
 				}
 			}

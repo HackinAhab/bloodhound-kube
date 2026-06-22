@@ -10,7 +10,7 @@ type rbacCreateEdgesRule struct{}
 func (r rbacCreateEdgesRule) Name() string { return "rbac_create" }
 
 var edgePropertiesRBACCreate = map[string]any{
-	"Description": "ServiceAccount has RBAC permissions to create RoleBindings or ClusterRoleBindings",
+	"Description": "Identity has RBAC permissions to create RoleBindings or ClusterRoleBindings",
 	"Reference":   "",
 }
 
@@ -48,17 +48,17 @@ func rbacCreateNamespaced(ctx *framework.Context, namespace string, space *model
 			continue
 		}
 		for _, subject := range binding.Subjects {
-			sa := resolveNamespacedSubjectSA(ctx, namespace, binding.Namespace, subject.Kind, subject.Namespace, subject.Name)
-			if sa == nil {
+			principal := resolveNamespacedSubject(ctx, namespace, binding.Namespace, subject)
+			if principal == nil {
 				continue
 			}
 			for i := range space.Roles {
 				role := &space.Roles[i]
-				edges = append(edges, framework.CreateEdgeWithProperties(sa, role, "RBACCreate", edgePropertiesRBACCreate))
+				edges = append(edges, framework.CreateEdgeWithProperties(principal, role, "BHK_RBACCreate", edgePropertiesRBACCreate))
 			}
 			for _, clusterRole := range ctx.Core.Cluster.ClusterRoles {
 				cr := clusterRole
-				edges = append(edges, framework.CreateEdgeWithProperties(sa, &cr, "RBACCreate", edgePropertiesRBACCreate))
+				edges = append(edges, framework.CreateEdgeWithProperties(principal, &cr, "BHK_RBACCreate", edgePropertiesRBACCreate))
 			}
 		}
 	}
@@ -86,13 +86,13 @@ func rbacCreateCluster(ctx *framework.Context) []model.BloodHoundEdge {
 			continue
 		}
 		for _, subject := range binding.Subjects {
-			sa := resolveClusterSubjectSA(ctx, subject.Kind, subject.Namespace, subject.Name)
-			if sa == nil {
+			principal := resolveClusterSubject(ctx, subject)
+			if principal == nil {
 				continue
 			}
 			for _, clusterRole := range ctx.Core.Cluster.ClusterRoles {
 				cr := clusterRole
-				edges = append(edges, framework.CreateEdgeWithProperties(sa, &cr, "RBACCreate", edgePropertiesRBACCreate))
+				edges = append(edges, framework.CreateEdgeWithProperties(principal, &cr, "BHK_RBACCreate", edgePropertiesRBACCreate))
 			}
 			// Cluster-scoped clusterrolebindings can also bind ClusterRoles into
 			// namespaces via RoleBindings, so namespaced Roles are reachable too.
@@ -102,7 +102,7 @@ func rbacCreateCluster(ctx *framework.Context) []model.BloodHoundEdge {
 				}
 				for i := range space.Roles {
 					role := &space.Roles[i]
-					edges = append(edges, framework.CreateEdgeWithProperties(sa, role, "RBACCreate", edgePropertiesRBACCreate))
+					edges = append(edges, framework.CreateEdgeWithProperties(principal, role, "BHK_RBACCreate", edgePropertiesRBACCreate))
 				}
 			}
 		}
@@ -115,7 +115,7 @@ type rbacCreateWorkloadEdgesRule struct{}
 func (r rbacCreateWorkloadEdgesRule) Name() string { return "rbac_create_workload" }
 
 var edgePropertiesRBACWorkloadCreate = map[string]any{
-	"Description": "ServiceAccount has RBAC permissions to create workloads",
+	"Description": "Identity has RBAC permissions to create workloads",
 	"Reference":   "https://kubernetes.io/docs/reference/access-authn-authz/rbac/#referring-to-resources",
 }
 
@@ -153,13 +153,13 @@ func workloadCreateNamespaced(ctx *framework.Context, namespace string) []model.
 			continue
 		}
 		for _, subject := range binding.Subjects {
-			sa := resolveNamespacedSubjectSA(ctx, namespace, binding.Namespace, subject.Kind, subject.Namespace, subject.Name)
-			if sa == nil {
+			principal := resolveNamespacedSubject(ctx, namespace, binding.Namespace, subject)
+			if principal == nil {
 				continue
 			}
 			for i := range ctx.Core.Cluster.Nodes {
 				node := &ctx.Core.Cluster.Nodes[i]
-				edges = append(edges, framework.CreateEdgeWithProperties(sa, node, "WorkloadCreate", edgePropertiesRBACWorkloadCreate))
+				edges = append(edges, framework.CreateEdgeWithProperties(principal, node, "BHK_WorkloadCreate", edgePropertiesRBACWorkloadCreate))
 			}
 		}
 	}
@@ -187,13 +187,13 @@ func workloadCreateCluster(ctx *framework.Context) []model.BloodHoundEdge {
 			continue
 		}
 		for _, subject := range binding.Subjects {
-			sa := resolveClusterSubjectSA(ctx, subject.Kind, subject.Namespace, subject.Name)
-			if sa == nil {
+			principal := resolveClusterSubject(ctx, subject)
+			if principal == nil {
 				continue
 			}
 			for i := range ctx.Core.Cluster.Nodes {
 				node := &ctx.Core.Cluster.Nodes[i]
-				edges = append(edges, framework.CreateEdgeWithProperties(sa, node, "WorkloadCreate", edgePropertiesRBACWorkloadCreate))
+				edges = append(edges, framework.CreateEdgeWithProperties(principal, node, "BHK_WorkloadCreate", edgePropertiesRBACWorkloadCreate))
 			}
 		}
 	}

@@ -35,7 +35,7 @@ func BuildConfigMapNode(obj runtime.Object) (BuildResult, bool) {
 	properties["dataKeysCount"] = len(keys)
 	properties["dataEntries"] = entries
 
-	base := NewGraphNodeBase("ConfigMap", namespace, name, labelsMap, annotationsMap)
+	base := NewGraphNodeBase("BHK_ConfigMap", namespace, name, labelsMap, annotationsMap)
 
 	core := CoreEntry{
 		Namespace: namespace,

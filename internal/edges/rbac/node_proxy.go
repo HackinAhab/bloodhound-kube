@@ -48,8 +48,8 @@ func rbacNodeProxyToPodNamespaced(ctx *framework.Context, namespace string) []mo
 			continue
 		}
 		for _, subject := range binding.Subjects {
-			sa := resolveNamespacedSubjectSA(ctx, namespace, binding.Namespace, subject.Kind, subject.Namespace, subject.Name)
-			if sa == nil {
+			principal := resolveNamespacedSubject(ctx, namespace, binding.Namespace, subject)
+			if principal == nil {
 				continue
 			}
 			for _, space := range ctx.Core.Namespaces {
@@ -62,11 +62,11 @@ func rbacNodeProxyToPodNamespaced(ctx *framework.Context, namespace string) []mo
 						continue
 					}
 					if all {
-						edges = append(edges, framework.CreateEdge(sa, pod, "NodeProxy"))
+						edges = append(edges, framework.CreateEdge(principal, pod, "BHK_NodeProxy"))
 						continue
 					}
 					if _, ok := names[pod.NodeName]; ok {
-						edges = append(edges, framework.CreateEdgeWithProperties(sa, pod, "NodeProxy", edgePropertiesRBACNodeProxy))
+						edges = append(edges, framework.CreateEdgeWithProperties(principal, pod, "BHK_NodeProxy", edgePropertiesRBACNodeProxy))
 					}
 				}
 			}
@@ -96,8 +96,8 @@ func rbacNodeProxyToPodCluster(ctx *framework.Context) []model.BloodHoundEdge {
 			continue
 		}
 		for _, subject := range binding.Subjects {
-			sa := resolveClusterSubjectSA(ctx, subject.Kind, subject.Namespace, subject.Name)
-			if sa == nil {
+			principal := resolveClusterSubject(ctx, subject)
+			if principal == nil {
 				continue
 			}
 			for _, space := range ctx.Core.Namespaces {
@@ -110,7 +110,7 @@ func rbacNodeProxyToPodCluster(ctx *framework.Context) []model.BloodHoundEdge {
 						continue
 					}
 					if all || hasName(names, pod.NodeName) {
-						edges = append(edges, framework.CreateEdge(sa, pod, "NodeProxyRCE"))
+						edges = append(edges, framework.CreateEdge(principal, pod, "BHK_NodeProxyRCE"))
 					}
 				}
 			}
@@ -119,13 +119,13 @@ func rbacNodeProxyToPodCluster(ctx *framework.Context) []model.BloodHoundEdge {
 			if all {
 				if len(ctx.Core.Cluster.AllNodes) > 0 {
 					agg := &ctx.Core.Cluster.AllNodes[0]
-					edges = append(edges, framework.CreateEdgeWithProperties(sa, agg, "NodeProxyRCE", edgePropertiesRBACNodeProxy))
+					edges = append(edges, framework.CreateEdgeWithProperties(principal, agg, "BHK_NodeProxyRCE", edgePropertiesRBACNodeProxy))
 				}
 			} else {
 				for i := range ctx.Core.Cluster.Nodes {
 					node := &ctx.Core.Cluster.Nodes[i]
 					if hasName(names, node.Name) {
-						edges = append(edges, framework.CreateEdgeWithProperties(sa, node, "NodeProxyRCE", edgePropertiesRBACNodeProxy))
+						edges = append(edges, framework.CreateEdgeWithProperties(principal, node, "BHK_NodeProxyRCE", edgePropertiesRBACNodeProxy))
 					}
 				}
 			}

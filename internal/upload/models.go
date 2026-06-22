@@ -4,18 +4,17 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 	"os"
 )
 
-func (c *Client) customNodesURL() string {
-	return c.baseURL + "/api/v2/custom-nodes"
+func (c *Client) extensionsURL() string {
+	return c.baseURL + "/api/v2/extensions"
 }
 
-func (c *Client) UploadModel(ctx context.Context, modelFile string) error {
-	c.log.Info("Uploading model", "file", modelFile)
+func (c *Client) UploadExtension(ctx context.Context, modelFile string) error {
+	c.log.Info("Uploading extension schema", "file", modelFile)
 	data, err := os.ReadFile(modelFile)
 	if err != nil {
 		return fmt.Errorf("read model file %s: %w", modelFile, err)
@@ -25,71 +24,63 @@ func (c *Client) UploadModel(ctx context.Context, modelFile string) error {
 		return fmt.Errorf("invalid JSON in %s: %w", modelFile, err)
 	}
 
-	resp, err := c.doRequest(ctx, http.MethodPost, c.customNodesURL(), "upload model", bytes.NewReader(data), http.StatusCreated)
+	resp, err := c.doRequest(ctx, http.MethodPut, c.extensionsURL(), "upload extension", bytes.NewReader(data), http.StatusOK, http.StatusCreated)
 	if err != nil {
 		return err
 	}
 	defer resp.Body.Close()
 
-	c.log.Info("Model upload completed", "file", modelFile)
-
+	c.log.Info("Extension schema upload completed", "file", modelFile)
 	return nil
 }
 
-func (c *Client) DeleteCustomNode(ctx context.Context, nodeName string) error {
-	if nodeName == "" {
-		return errors.New("custom node name is required")
-	}
+func (c *Client) DeleteExtension(ctx context.Context, extensionID int) error {
+	c.log.Debug("Deleting extension", "id", extensionID)
 
-	c.log.Debug("Deleting custom node", "node", nodeName)
-
-	url := fmt.Sprintf("%s/%s", c.customNodesURL(), nodeName)
-	resp, err := c.doRequest(ctx, http.MethodDelete, url, "delete custom node", nil, http.StatusOK)
+	url := fmt.Sprintf("%s/%d", c.extensionsURL(), extensionID)
+	resp, err := c.doRequest(ctx, http.MethodDelete, url, "delete extension", nil, http.StatusNoContent)
 	if err != nil {
 		return err
 	}
 	defer resp.Body.Close()
 
-	c.log.Debug("Custom node deleted", "node", nodeName)
-
+	c.log.Debug("Extension deleted", "id", extensionID)
 	return nil
 }
 
-func (c *Client) GetCustomNodes(ctx context.Context) ([]CustomNode, error) {
-	c.log.Debug("Fetching custom nodes")
-	resp, err := c.doRequest(ctx, http.MethodGet, c.customNodesURL(), "get custom nodes", nil, http.StatusOK)
+func (c *Client) GetExtensions(ctx context.Context) ([]Extension, error) {
+	c.log.Debug("Fetching extensions")
+	resp, err := c.doRequest(ctx, http.MethodGet, c.extensionsURL(), "get extensions", nil, http.StatusOK)
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
 
-	var payload customNodesResponse
+	var payload extensionsResponse
 	if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
-		return nil, fmt.Errorf("decode custom nodes response: %w", err)
+		return nil, fmt.Errorf("decode extensions response: %w", err)
 	}
 
-	if payload.Data == nil {
-		return nil, errors.New("custom nodes response missing data")
-	}
-
-	c.log.Debug("Fetched custom nodes", "count", len(payload.Data))
-	return payload.Data, nil
+	c.log.Debug("Fetched extensions", "count", len(payload.Data.Extensions))
+	return payload.Data.Extensions, nil
 }
 
-func (c *Client) ResetCustomNodes(ctx context.Context) error {
-	c.log.Info("Resetting custom nodes")
-	nodes, err := c.GetCustomNodes(ctx)
+func (c *Client) ResetExtensions(ctx context.Context) error {
+	c.log.Info("Resetting extensions")
+	extensions, err := c.GetExtensions(ctx)
 	if err != nil {
 		return err
 	}
 
-	for _, node := range nodes {
-		if err := c.DeleteCustomNode(ctx, node.KindName); err != nil {
+	for _, ext := range extensions {
+		if ext.IsBuiltin {
+			continue
+		}
+		if err := c.DeleteExtension(ctx, ext.ID); err != nil {
 			return err
 		}
 	}
 
-	c.log.Info("Custom nodes reset completed")
-
+	c.log.Info("Extensions reset completed")
 	return nil
 }

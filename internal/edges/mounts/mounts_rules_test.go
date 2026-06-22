@@ -48,8 +48,8 @@ func TestHostMountReadEdgeRuleSensitivePath(t *testing.T) {
 	ns := ensureNamespace(core, "ns1")
 	ns.Pods = append(ns.Pods, workload.Pod{
 		GraphNodeBase: nodefw.GraphNodeBase{
-			ID:        nodefw.BuildID("Pod", "ns1", "my-pod"),
-			Kinds:     []string{"Pod"},
+			ID:        nodefw.BuildID("BHK_Pod", "ns1", "my-pod"),
+			Kinds:     []string{"BHK_Pod"},
 			Name:      "my-pod",
 			Namespace: "ns1",
 		},
@@ -63,15 +63,15 @@ func TestHostMountReadEdgeRuleSensitivePath(t *testing.T) {
 	})
 	core.Cluster.Nodes = append(core.Cluster.Nodes,
 		platform.Node{GraphNodeBase: nodefw.GraphNodeBase{
-			ID:    nodefw.BuildID("Node", "", "node-1"),
-			Kinds: []string{"Node"},
+			ID:    nodefw.BuildID("BHK_Node", "", "node-1"),
+			Kinds: []string{"BHK_Node"},
 			Name:  "node-1",
 		}},
 	)
 
 	ctx := framework.NewContext(core)
 	edges := HostMountReadEdgeRule{}.Apply(ctx)
-	if !hasEdge(edges, nodefw.BuildID("Pod", "ns1", "my-pod"), nodefw.BuildID("Node", "", "node-1"), "hostMountSensitive") {
+	if !hasEdge(edges, nodefw.BuildID("BHK_Pod", "ns1", "my-pod"), nodefw.BuildID("BHK_Node", "", "node-1"), "BHK_hostMountSensitive") {
 		t.Fatalf("missing hostMountSensitive edge from pod to node")
 	}
 }
@@ -81,8 +81,8 @@ func TestHostMountReadEdgeRulePodWithoutNode(t *testing.T) {
 	ns := ensureNamespace(core, "ns1")
 	ns.Pods = append(ns.Pods, workload.Pod{
 		GraphNodeBase: nodefw.GraphNodeBase{
-			ID:        nodefw.BuildID("Pod", "ns1", "orphan-pod"),
-			Kinds:     []string{"Pod"},
+			ID:        nodefw.BuildID("BHK_Pod", "ns1", "orphan-pod"),
+			Kinds:     []string{"BHK_Pod"},
 			Name:      "orphan-pod",
 			Namespace: "ns1",
 		},
@@ -107,8 +107,8 @@ func TestHostMountReadEdgeRuleNonSensitivePath(t *testing.T) {
 	ns := ensureNamespace(core, "ns1")
 	ns.Pods = append(ns.Pods, workload.Pod{
 		GraphNodeBase: nodefw.GraphNodeBase{
-			ID:        nodefw.BuildID("Pod", "ns1", "my-pod"),
-			Kinds:     []string{"Pod"},
+			ID:        nodefw.BuildID("BHK_Pod", "ns1", "my-pod"),
+			Kinds:     []string{"BHK_Pod"},
 			Name:      "my-pod",
 			Namespace: "ns1",
 		},
@@ -122,8 +122,8 @@ func TestHostMountReadEdgeRuleNonSensitivePath(t *testing.T) {
 	})
 	core.Cluster.Nodes = append(core.Cluster.Nodes,
 		platform.Node{GraphNodeBase: nodefw.GraphNodeBase{
-			ID:    nodefw.BuildID("Node", "", "node-1"),
-			Kinds: []string{"Node"},
+			ID:    nodefw.BuildID("BHK_Node", "", "node-1"),
+			Kinds: []string{"BHK_Node"},
 			Name:  "node-1",
 		}},
 	)
@@ -142,8 +142,8 @@ func TestHostMountReadEdgeRuleSkipsSocketPath(t *testing.T) {
 	ns := ensureNamespace(core, "ns1")
 	ns.Pods = append(ns.Pods, workload.Pod{
 		GraphNodeBase: nodefw.GraphNodeBase{
-			ID:        nodefw.BuildID("Pod", "ns1", "sock-pod"),
-			Kinds:     []string{"Pod"},
+			ID:        nodefw.BuildID("BHK_Pod", "ns1", "sock-pod"),
+			Kinds:     []string{"BHK_Pod"},
 			Name:      "sock-pod",
 			Namespace: "ns1",
 		},
@@ -157,8 +157,8 @@ func TestHostMountReadEdgeRuleSkipsSocketPath(t *testing.T) {
 	})
 	core.Cluster.Nodes = append(core.Cluster.Nodes,
 		platform.Node{GraphNodeBase: nodefw.GraphNodeBase{
-			ID:    nodefw.BuildID("Node", "", "node-1"),
-			Kinds: []string{"Node"},
+			ID:    nodefw.BuildID("BHK_Node", "", "node-1"),
+			Kinds: []string{"BHK_Node"},
 			Name:  "node-1",
 		}},
 	)
@@ -179,8 +179,8 @@ func TestHostMountKubeletEdgeRuleKubeletPath(t *testing.T) {
 	ns := ensureNamespace(core, "ns1")
 	ns.Pods = append(ns.Pods, workload.Pod{
 		GraphNodeBase: nodefw.GraphNodeBase{
-			ID:        nodefw.BuildID("Pod", "ns1", "my-pod"),
-			Kinds:     []string{"Pod"},
+			ID:        nodefw.BuildID("BHK_Pod", "ns1", "my-pod"),
+			Kinds:     []string{"BHK_Pod"},
 			Name:      "my-pod",
 			Namespace: "ns1",
 		},
@@ -194,15 +194,15 @@ func TestHostMountKubeletEdgeRuleKubeletPath(t *testing.T) {
 	})
 	core.Cluster.Nodes = append(core.Cluster.Nodes,
 		platform.Node{GraphNodeBase: nodefw.GraphNodeBase{
-			ID:    nodefw.BuildID("Node", "", "node-1"),
-			Kinds: []string{"Node"},
+			ID:    nodefw.BuildID("BHK_Node", "", "node-1"),
+			Kinds: []string{"BHK_Node"},
 			Name:  "node-1",
 		}},
 	)
 
 	ctx := framework.NewContext(core)
 	edges := HostMountKubeletEdgeRule{}.Apply(ctx)
-	if !hasEdge(edges, nodefw.BuildID("Pod", "ns1", "my-pod"), nodefw.BuildID("Node", "", "node-1"), "mountedKubelet") {
+	if !hasEdge(edges, nodefw.BuildID("BHK_Pod", "ns1", "my-pod"), nodefw.BuildID("BHK_Node", "", "node-1"), "BHK_mountedKubelet") {
 		t.Fatalf("missing mountedKubelet edge from pod to node")
 	}
 }
@@ -212,8 +212,8 @@ func TestHostMountKubeletEdgeRulePodWithoutNode(t *testing.T) {
 	ns := ensureNamespace(core, "ns1")
 	ns.Pods = append(ns.Pods, workload.Pod{
 		GraphNodeBase: nodefw.GraphNodeBase{
-			ID:        nodefw.BuildID("Pod", "ns1", "orphan-pod"),
-			Kinds:     []string{"Pod"},
+			ID:        nodefw.BuildID("BHK_Pod", "ns1", "orphan-pod"),
+			Kinds:     []string{"BHK_Pod"},
 			Name:      "orphan-pod",
 			Namespace: "ns1",
 		},
@@ -241,17 +241,17 @@ func TestPodMountServiceAccountNonDefaultMountsToken(t *testing.T) {
 	core := newCore()
 	ns := ensureNamespace(core, "ns1")
 	ns.ServiceAccounts = append(ns.ServiceAccounts,
-		rbacnodes.ServiceAccount{GraphNodeBase: base("ServiceAccount", "ns1", "myapp-sa")},
+		rbacnodes.ServiceAccount{GraphNodeBase: base("BHK_ServiceAccount", "ns1", "myapp-sa")},
 	)
 	ns.Pods = append(ns.Pods, workload.Pod{
-		GraphNodeBase:    base("Pod", "ns1", "my-pod"),
+		GraphNodeBase:    base("BHK_Pod", "ns1", "my-pod"),
 		ServiceAccount:   "myapp-sa",
 		AutomountSAToken: nil, // non-default SA: nil → mounted
 	})
 
 	ctx := framework.NewContext(core)
 	edges := PodMountServiceAccountEdgeRule{}.Apply(ctx)
-	if !hasEdge(edges, nodefw.BuildID("Pod", "ns1", "my-pod"), nodefw.BuildID("ServiceAccount", "ns1", "myapp-sa"), "mountSA") {
+	if !hasEdge(edges, nodefw.BuildID("BHK_Pod", "ns1", "my-pod"), nodefw.BuildID("BHK_ServiceAccount", "ns1", "myapp-sa"), "BHK_mountSA") {
 		t.Fatalf("missing mountSA edge for non-default SA")
 	}
 }
@@ -260,10 +260,10 @@ func TestPodMountServiceAccountDefaultNoAutomount(t *testing.T) {
 	core := newCore()
 	ns := ensureNamespace(core, "ns1")
 	ns.ServiceAccounts = append(ns.ServiceAccounts,
-		rbacnodes.ServiceAccount{GraphNodeBase: base("ServiceAccount", "ns1", "default")},
+		rbacnodes.ServiceAccount{GraphNodeBase: base("BHK_ServiceAccount", "ns1", "default")},
 	)
 	ns.Pods = append(ns.Pods, workload.Pod{
-		GraphNodeBase:    base("Pod", "ns1", "my-pod"),
+		GraphNodeBase:    base("BHK_Pod", "ns1", "my-pod"),
 		ServiceAccount:   "default",
 		AutomountSAToken: nil, // default SA: nil → NOT mounted
 	})
@@ -280,7 +280,7 @@ func TestPodMountServiceAccountSANotInIndex(t *testing.T) {
 	ns := ensureNamespace(core, "ns1")
 	// No SA registered for "missing-sa"
 	ns.Pods = append(ns.Pods, workload.Pod{
-		GraphNodeBase:  base("Pod", "ns1", "my-pod"),
+		GraphNodeBase:  base("BHK_Pod", "ns1", "my-pod"),
 		ServiceAccount: "missing-sa",
 	})
 
@@ -299,10 +299,10 @@ func TestPersistentVolumesEdgesRulePVCMountedByPod(t *testing.T) {
 	core := newCore()
 	ns := ensureNamespace(core, "ns1")
 	ns.PersistentVolumeClaims = append(ns.PersistentVolumeClaims,
-		mountnodes.PersistentVolumeClaim{GraphNodeBase: base("PersistentVolumeClaim", "ns1", "my-pvc")},
+		mountnodes.PersistentVolumeClaim{GraphNodeBase: base("BHK_PersistentVolumeClaim", "ns1", "my-pvc")},
 	)
 	ns.Pods = append(ns.Pods, workload.Pod{
-		GraphNodeBase: base("Pod", "ns1", "my-pod"),
+		GraphNodeBase: base("BHK_Pod", "ns1", "my-pod"),
 		Volumes: []workload.VolumeDetail{
 			{Name: "pvc-vol", PVCName: "my-pvc"},
 		},
@@ -310,7 +310,7 @@ func TestPersistentVolumesEdgesRulePVCMountedByPod(t *testing.T) {
 
 	ctx := framework.NewContext(core)
 	edges := PersistentVolumesEdgesRule{}.Apply(ctx)
-	if !hasEdge(edges, nodefw.BuildID("PersistentVolumeClaim", "ns1", "my-pvc"), nodefw.BuildID("Pod", "ns1", "my-pod"), "MountedBy") {
+	if !hasEdge(edges, nodefw.BuildID("BHK_PersistentVolumeClaim", "ns1", "my-pvc"), nodefw.BuildID("BHK_Pod", "ns1", "my-pod"), "BHK_MountedBy") {
 		t.Fatalf("missing MountedBy edge from PVC to pod")
 	}
 }
@@ -319,18 +319,18 @@ func TestPersistentVolumesEdgesRulePVBoundToPVC(t *testing.T) {
 	core := newCore()
 	ns := ensureNamespace(core, "ns1")
 	ns.PersistentVolumeClaims = append(ns.PersistentVolumeClaims,
-		mountnodes.PersistentVolumeClaim{GraphNodeBase: base("PersistentVolumeClaim", "ns1", "my-pvc")},
+		mountnodes.PersistentVolumeClaim{GraphNodeBase: base("BHK_PersistentVolumeClaim", "ns1", "my-pvc")},
 	)
 	core.Cluster.PersistentVolumes = append(core.Cluster.PersistentVolumes,
 		mountnodes.PersistentVolume{
-			GraphNodeBase: base("PersistentVolume", "", "my-pv"),
+			GraphNodeBase: base("BHK_PersistentVolume", "", "my-pv"),
 			ClaimRef:      &mountnodes.ClaimRef{Name: "my-pvc", Namespace: "ns1"},
 		},
 	)
 
 	ctx := framework.NewContext(core)
 	edges := PersistentVolumesEdgesRule{}.Apply(ctx)
-	if !hasEdge(edges, nodefw.BuildID("PersistentVolume", "", "my-pv"), nodefw.BuildID("PersistentVolumeClaim", "ns1", "my-pvc"), "BoundTo") {
+	if !hasEdge(edges, nodefw.BuildID("BHK_PersistentVolume", "", "my-pv"), nodefw.BuildID("BHK_PersistentVolumeClaim", "ns1", "my-pvc"), "BHK_BoundTo") {
 		t.Fatalf("missing BoundTo edge from PV to PVC")
 	}
 }
@@ -339,7 +339,7 @@ func TestPersistentVolumesEdgesRulePVWithNoClaimRefSkipped(t *testing.T) {
 	core := newCore()
 	core.Cluster.PersistentVolumes = append(core.Cluster.PersistentVolumes,
 		mountnodes.PersistentVolume{
-			GraphNodeBase: base("PersistentVolume", "", "unbound-pv"),
+			GraphNodeBase: base("BHK_PersistentVolume", "", "unbound-pv"),
 			ClaimRef:      nil,
 		},
 	)

@@ -43,7 +43,7 @@ func BuildPVNode(obj runtime.Object) (BuildResult, bool) {
 		"annotations": MapToSortedList(annotationsMap),
 	}
 
-	base := NewGraphNodeBase("PersistentVolume", "", name, labelsMap, annotationsMap)
+	base := NewGraphNodeBase("BHK_PersistentVolume", "", name, labelsMap, annotationsMap)
 
 	core := CoreEntry{
 		Cluster: true,

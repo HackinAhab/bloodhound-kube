@@ -51,10 +51,10 @@ func (r rbacEdgesRule) Apply(ctx *framework.Context) []model.BloodHoundEdge {
 		if space == nil {
 			continue
 		}
-		accumulateRoleToSAFromRoleBinding(ctx, ns, acc)
-		accumulateClusterRoleToSAFromRoleBinding(ctx, ns, acc)
+		accumulateRoleToIdentityFromRoleBinding(ctx, ns, acc)
+		accumulateClusterRoleToIdentityFromRoleBinding(ctx, ns, acc)
 	}
-	accumulateClusterRoleToSAFromClusterRoleBinding(ctx, acc)
+	accumulateClusterRoleToIdentityFromClusterRoleBinding(ctx, acc)
 	return makeRoleBoundEdges(acc)
 }
 
@@ -69,14 +69,13 @@ func recordBinding(acc map[roleBoundEdgeKey]*roleBoundAccumulator, start, end no
 	entry.bindings = append(entry.bindings, prov)
 }
 
-func accumulateRoleToSAFromRoleBinding(ctx *framework.Context, namespace string, acc map[roleBoundEdgeKey]*roleBoundAccumulator) {
+func accumulateRoleToIdentityFromRoleBinding(ctx *framework.Context, namespace string, acc map[roleBoundEdgeKey]*roleBoundAccumulator) {
 	if ctx == nil {
 		return
 	}
-	serviceAccounts := ctx.Index.ServiceAccountsByNamespace[namespace]
 	roleIndex := ctx.Index.RolesByNamespace[namespace]
 	bindingIndex := ctx.Index.RoleBindingsByNamespace[namespace]
-	if len(bindingIndex) == 0 || len(roleIndex) == 0 || len(serviceAccounts) == 0 {
+	if len(bindingIndex) == 0 || len(roleIndex) == 0 {
 		return
 	}
 	for _, binding := range bindingIndex {
@@ -88,21 +87,11 @@ func accumulateRoleToSAFromRoleBinding(ctx *framework.Context, namespace string,
 			continue
 		}
 		for _, subject := range binding.Subjects {
-			if subject.Kind != "ServiceAccount" {
+			principal := resolveNamespacedSubject(ctx, namespace, binding.Namespace, subject)
+			if principal == nil {
 				continue
 			}
-			subjectNS := subject.Namespace
-			if subjectNS == "" {
-				subjectNS = binding.Namespace
-			}
-			if subjectNS != namespace {
-				continue
-			}
-			sa := serviceAccounts[subject.Name]
-			if sa == nil {
-				continue
-			}
-			recordBinding(acc, role, sa, bindingProvenance{
+			recordBinding(acc, role, principal, bindingProvenance{
 				BindingKind:      "RoleBinding",
 				BindingName:      binding.Name,
 				BindingNamespace: binding.Namespace,
@@ -113,7 +102,7 @@ func accumulateRoleToSAFromRoleBinding(ctx *framework.Context, namespace string,
 	}
 }
 
-func accumulateClusterRoleToSAFromRoleBinding(ctx *framework.Context, namespace string, acc map[roleBoundEdgeKey]*roleBoundAccumulator) {
+func accumulateClusterRoleToIdentityFromRoleBinding(ctx *framework.Context, namespace string, acc map[roleBoundEdgeKey]*roleBoundAccumulator) {
 	if ctx == nil || ctx.Core == nil {
 		return
 	}
@@ -127,22 +116,11 @@ func accumulateClusterRoleToSAFromRoleBinding(ctx *framework.Context, namespace 
 			continue
 		}
 		for _, subject := range binding.Subjects {
-			if subject.Kind != "ServiceAccount" {
+			principal := resolveNamespacedSubject(ctx, namespace, binding.Namespace, subject)
+			if principal == nil {
 				continue
 			}
-			subjectNS := subject.Namespace
-			if subjectNS == "" {
-				subjectNS = binding.Namespace
-			}
-			saIndex := ctx.Index.ServiceAccountsByNamespace[subjectNS]
-			if saIndex == nil {
-				continue
-			}
-			sa := saIndex[subject.Name]
-			if sa == nil {
-				continue
-			}
-			recordBinding(acc, clusterRole, sa, bindingProvenance{
+			recordBinding(acc, clusterRole, principal, bindingProvenance{
 				BindingKind:      "RoleBinding",
 				BindingName:      binding.Name,
 				BindingNamespace: binding.Namespace,
@@ -153,7 +131,7 @@ func accumulateClusterRoleToSAFromRoleBinding(ctx *framework.Context, namespace 
 	}
 }
 
-func accumulateClusterRoleToSAFromClusterRoleBinding(ctx *framework.Context, acc map[roleBoundEdgeKey]*roleBoundAccumulator) {
+func accumulateClusterRoleToIdentityFromClusterRoleBinding(ctx *framework.Context, acc map[roleBoundEdgeKey]*roleBoundAccumulator) {
 	if ctx == nil {
 		return
 	}
@@ -166,18 +144,11 @@ func accumulateClusterRoleToSAFromClusterRoleBinding(ctx *framework.Context, acc
 			continue
 		}
 		for _, subject := range binding.Subjects {
-			if subject.Kind != "ServiceAccount" || subject.Namespace == "" {
+			principal := resolveClusterSubject(ctx, subject)
+			if principal == nil {
 				continue
 			}
-			saIndex := ctx.Index.ServiceAccountsByNamespace[subject.Namespace]
-			if saIndex == nil {
-				continue
-			}
-			sa := saIndex[subject.Name]
-			if sa == nil {
-				continue
-			}
-			recordBinding(acc, clusterRole, sa, bindingProvenance{
+			recordBinding(acc, clusterRole, principal, bindingProvenance{
 				BindingKind:      "ClusterRoleBinding",
 				BindingName:      binding.Name,
 				BindingNamespace: "",
@@ -247,7 +218,7 @@ func makeRoleBoundEdges(acc map[roleBoundEdgeKey]*roleBoundAccumulator) []model.
 			"bindings":         bindingsList,
 			"bindingCount":     len(entry.bindings),
 		}
-		edges = append(edges, framework.CreateEdgeWithProperties(entry.end, entry.start, "RoleBound", props))
+		edges = append(edges, framework.CreateEdgeWithProperties(entry.end, entry.start, "BHK_RoleBound", props))
 	}
 	return edges
 }

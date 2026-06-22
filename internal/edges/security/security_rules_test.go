@@ -42,8 +42,8 @@ func hasEdge(edges []model.BloodHoundEdge, startID, endID, kind string) bool {
 func podWithNode(namespace, podName, nodeName string, mutateFn func(*workload.Pod)) workload.Pod {
 	pod := workload.Pod{
 		GraphNodeBase: nodefw.GraphNodeBase{
-			ID:        nodefw.BuildID("Pod", namespace, podName),
-			Kinds:     []string{"Pod"},
+			ID:        nodefw.BuildID("BHK_Pod", namespace, podName),
+			Kinds:     []string{"BHK_Pod"},
 			Name:      podName,
 			Namespace: namespace,
 		},
@@ -58,8 +58,8 @@ func podWithNode(namespace, podName, nodeName string, mutateFn func(*workload.Po
 func addNode(core *model.CoreFacts, name string) {
 	core.Cluster.Nodes = append(core.Cluster.Nodes,
 		platform.Node{GraphNodeBase: nodefw.GraphNodeBase{
-			ID:    nodefw.BuildID("Node", "", name),
-			Kinds: []string{"Node"},
+			ID:    nodefw.BuildID("BHK_Node", "", name),
+			Kinds: []string{"BHK_Node"},
 			Name:  name,
 		}},
 	)
@@ -79,7 +79,7 @@ func TestContainerEscapeRulePrivMount(t *testing.T) {
 
 	ctx := framework.NewContext(core)
 	edges := containerEscapeRule{}.Apply(ctx)
-	if !hasEdge(edges, nodefw.BuildID("Pod", "ns1", "priv-pod"), nodefw.BuildID("Node", "", "node-1"), "CE_PRIV_MOUNT") {
+	if !hasEdge(edges, nodefw.BuildID("BHK_Pod", "ns1", "priv-pod"), nodefw.BuildID("BHK_Node", "", "node-1"), "BHK_CE_PRIV_MOUNT") {
 		t.Fatalf("missing CE_PRIV_MOUNT edge")
 	}
 }
@@ -95,7 +95,7 @@ func TestContainerEscapeRuleNsEnter(t *testing.T) {
 
 	ctx := framework.NewContext(core)
 	edges := containerEscapeRule{}.Apply(ctx)
-	if !hasEdge(edges, nodefw.BuildID("Pod", "ns1", "nsenter-pod"), nodefw.BuildID("Node", "", "node-1"), "CE_NSENTER") {
+	if !hasEdge(edges, nodefw.BuildID("BHK_Pod", "ns1", "nsenter-pod"), nodefw.BuildID("BHK_Node", "", "node-1"), "BHK_CE_NSENTER") {
 		t.Fatalf("missing CE_NSENTER edge")
 	}
 }
@@ -110,7 +110,7 @@ func TestContainerEscapeRuleSysPtrace(t *testing.T) {
 
 	ctx := framework.NewContext(core)
 	edges := containerEscapeRule{}.Apply(ctx)
-	if !hasEdge(edges, nodefw.BuildID("Pod", "ns1", "ptrace-pod"), nodefw.BuildID("Node", "", "node-1"), "CE_SYS_PTRACE") {
+	if !hasEdge(edges, nodefw.BuildID("BHK_Pod", "ns1", "ptrace-pod"), nodefw.BuildID("BHK_Node", "", "node-1"), "BHK_CE_SYS_PTRACE") {
 		t.Fatalf("missing CE_SYS_PTRACE edge (privileged shortcut)")
 	}
 }
@@ -128,7 +128,7 @@ func TestContainerEscapeRuleUmhCorePattern(t *testing.T) {
 
 	ctx := framework.NewContext(core)
 	edges := containerEscapeRule{}.Apply(ctx)
-	if !hasEdge(edges, nodefw.BuildID("Pod", "ns1", "umh-pod"), nodefw.BuildID("Node", "", "node-1"), "CE_UMH_CORE_PATTERN") {
+	if !hasEdge(edges, nodefw.BuildID("BHK_Pod", "ns1", "umh-pod"), nodefw.BuildID("BHK_Node", "", "node-1"), "BHK_CE_UMH_CORE_PATTERN") {
 		t.Fatalf("missing CE_UMH_CORE_PATTERN edge")
 	}
 }
@@ -143,7 +143,7 @@ func TestContainerEscapeRuleMountContainerSocket(t *testing.T) {
 
 	ctx := framework.NewContext(core)
 	edges := containerEscapeRule{}.Apply(ctx)
-	if !hasEdge(edges, nodefw.BuildID("Pod", "ns1", "sock-pod"), nodefw.BuildID("Node", "", "node-1"), "MOUNT_CONTAINER_SOCKET") {
+	if !hasEdge(edges, nodefw.BuildID("BHK_Pod", "ns1", "sock-pod"), nodefw.BuildID("BHK_Node", "", "node-1"), "BHK_MOUNT_CONTAINER_SOCKET") {
 		t.Fatalf("missing MOUNT_CONTAINER_SOCKET edge")
 	}
 }
@@ -159,7 +159,7 @@ func TestContainerEscapeRuleVarLogSymlink(t *testing.T) {
 
 	ctx := framework.NewContext(core)
 	edges := containerEscapeRule{}.Apply(ctx)
-	if !hasEdge(edges, nodefw.BuildID("Pod", "ns1", "varlog-pod"), nodefw.BuildID("Node", "", "node-1"), "CE_VAR_LOG_SYMLINK") {
+	if !hasEdge(edges, nodefw.BuildID("BHK_Pod", "ns1", "varlog-pod"), nodefw.BuildID("BHK_Node", "", "node-1"), "BHK_CE_VAR_LOG_SYMLINK") {
 		t.Fatalf("missing CE_VAR_LOG_SYMLINK edge")
 	}
 }
@@ -175,7 +175,7 @@ func TestContainerEscapeRuleHostIPC(t *testing.T) {
 
 	ctx := framework.NewContext(core)
 	edges := containerEscapeRule{}.Apply(ctx)
-	if !hasEdge(edges, nodefw.BuildID("Pod", "ns1", "ipc-pod"), nodefw.BuildID("Node", "", "node-1"), "CE_HOST_IPC") {
+	if !hasEdge(edges, nodefw.BuildID("BHK_Pod", "ns1", "ipc-pod"), nodefw.BuildID("BHK_Node", "", "node-1"), "BHK_CE_HOST_IPC") {
 		t.Fatalf("missing CE_HOST_IPC edge")
 	}
 }
@@ -191,7 +191,7 @@ func TestContainerEscapeRuleHostNetwork(t *testing.T) {
 
 	ctx := framework.NewContext(core)
 	edges := containerEscapeRule{}.Apply(ctx)
-	if !hasEdge(edges, nodefw.BuildID("Pod", "ns1", "net-pod"), nodefw.BuildID("Node", "", "node-1"), "CE_HOST_NETWORK") {
+	if !hasEdge(edges, nodefw.BuildID("BHK_Pod", "ns1", "net-pod"), nodefw.BuildID("BHK_Node", "", "node-1"), "BHK_CE_HOST_NETWORK") {
 		t.Fatalf("missing CE_HOST_NETWORK edge")
 	}
 }
@@ -208,7 +208,7 @@ func TestContainerEscapeRuleShareProcNs(t *testing.T) {
 
 	ctx := framework.NewContext(core)
 	edges := containerEscapeRule{}.Apply(ctx)
-	if !hasEdge(edges, nodefw.BuildID("Pod", "ns1", "procns-pod"), nodefw.BuildID("Node", "", "node-1"), "CE_SHARE_PROC_NS") {
+	if !hasEdge(edges, nodefw.BuildID("BHK_Pod", "ns1", "procns-pod"), nodefw.BuildID("BHK_Node", "", "node-1"), "BHK_CE_SHARE_PROC_NS") {
 		t.Fatalf("missing CE_SHARE_PROC_NS edge")
 	}
 }
@@ -219,8 +219,8 @@ func TestContainerEscapeRulePodWithoutNodeSkipped(t *testing.T) {
 	// Pod has ID but no NodeName (and no node in cluster)
 	ns.Pods = append(ns.Pods, workload.Pod{
 		GraphNodeBase: nodefw.GraphNodeBase{
-			ID:    nodefw.BuildID("Pod", "ns1", "orphan"),
-			Kinds: []string{"Pod"},
+			ID:    nodefw.BuildID("BHK_Pod", "ns1", "orphan"),
+			Kinds: []string{"BHK_Pod"},
 			Name:  "orphan",
 		},
 		NodeName:   "",
@@ -240,7 +240,7 @@ func TestContainerEscapeRulePodWithoutNodeSkipped(t *testing.T) {
 
 func TestCapabilityEdgesRuleKnownCaps(t *testing.T) {
 	knownCaps := []string{"SYS_ADMIN", "NET_ADMIN", "SYS_MODULE", "SYS_PTRACE", "SYS_RAWIO"}
-	expectedKinds := []string{"CAP_SYS_ADMIN", "CAP_NET_ADMIN", "CAP_SYS_MODULE", "CAP_SYS_PTRACE", "CAP_SYS_RAWIO"}
+	expectedKinds := []string{"BHK_CAP_SYS_ADMIN", "BHK_CAP_NET_ADMIN", "BHK_CAP_SYS_MODULE", "BHK_CAP_SYS_PTRACE", "BHK_CAP_SYS_RAWIO"}
 
 	for i, cap := range knownCaps {
 		t.Run(cap, func(t *testing.T) {
@@ -248,8 +248,8 @@ func TestCapabilityEdgesRuleKnownCaps(t *testing.T) {
 			ns := ensureNamespace(core, "ns1")
 			ns.Pods = append(ns.Pods, workload.Pod{
 				GraphNodeBase: nodefw.GraphNodeBase{
-					ID:    nodefw.BuildID("Pod", "ns1", "cap-pod"),
-					Kinds: []string{"Pod"},
+					ID:    nodefw.BuildID("BHK_Pod", "ns1", "cap-pod"),
+					Kinds: []string{"BHK_Pod"},
 					Name:  "cap-pod",
 				},
 				NodeName:        "node-1",
@@ -259,7 +259,7 @@ func TestCapabilityEdgesRuleKnownCaps(t *testing.T) {
 
 			ctx := framework.NewContext(core)
 			edges := capabilityEdgesRule{}.Apply(ctx)
-			if !hasEdge(edges, nodefw.BuildID("Pod", "ns1", "cap-pod"), nodefw.BuildID("Node", "", "node-1"), expectedKinds[i]) {
+			if !hasEdge(edges, nodefw.BuildID("BHK_Pod", "ns1", "cap-pod"), nodefw.BuildID("BHK_Node", "", "node-1"), expectedKinds[i]) {
 				t.Fatalf("missing %s edge", expectedKinds[i])
 			}
 		})
@@ -271,8 +271,8 @@ func TestCapabilityEdgesRuleUnknownCapSkipped(t *testing.T) {
 	ns := ensureNamespace(core, "ns1")
 	ns.Pods = append(ns.Pods, workload.Pod{
 		GraphNodeBase: nodefw.GraphNodeBase{
-			ID:    nodefw.BuildID("Pod", "ns1", "cap-pod"),
-			Kinds: []string{"Pod"},
+			ID:    nodefw.BuildID("BHK_Pod", "ns1", "cap-pod"),
+			Kinds: []string{"BHK_Pod"},
 			Name:  "cap-pod",
 		},
 		NodeName:        "node-1",
@@ -292,8 +292,8 @@ func TestCapabilityEdgesRulePodWithoutNodeSkipped(t *testing.T) {
 	ns := ensureNamespace(core, "ns1")
 	ns.Pods = append(ns.Pods, workload.Pod{
 		GraphNodeBase: nodefw.GraphNodeBase{
-			ID:    nodefw.BuildID("Pod", "ns1", "cap-pod"),
-			Kinds: []string{"Pod"},
+			ID:    nodefw.BuildID("BHK_Pod", "ns1", "cap-pod"),
+			Kinds: []string{"BHK_Pod"},
 			Name:  "cap-pod",
 		},
 		NodeName:        "", // no node
@@ -316,7 +316,7 @@ func TestSCCEdgesRuleEnforcedSCC(t *testing.T) {
 	ns := ensureNamespace(core, "ns1")
 	ns.Pods = append(ns.Pods, workload.Pod{
 		GraphNodeBase: nodefw.NewGraphNodeBase(
-			"Pod", "ns1", "annotated-pod",
+			"BHK_Pod", "ns1", "annotated-pod",
 			nil,
 			map[string]any{"openshift.io/scc": "restricted"},
 		),
@@ -324,8 +324,8 @@ func TestSCCEdgesRuleEnforcedSCC(t *testing.T) {
 	core.Cluster.SecurityContextConstraints = append(core.Cluster.SecurityContextConstraints,
 		addonsnodes.SecurityContextConstraints{
 			GraphNodeBase: nodefw.GraphNodeBase{
-				ID:    nodefw.BuildID("SecurityContextConstraints", "", "restricted"),
-				Kinds: []string{"SecurityContextConstraints"},
+				ID:    nodefw.BuildID("BHK_SecurityContextConstraints", "", "restricted"),
+				Kinds: []string{"BHK_SecurityContextConstraints"},
 				Name:  "restricted",
 			},
 		},
@@ -334,9 +334,9 @@ func TestSCCEdgesRuleEnforcedSCC(t *testing.T) {
 	ctx := framework.NewContext(core)
 	edges := sccEdgesRule{}.Apply(ctx)
 	if !hasEdge(edges,
-		nodefw.BuildID("SecurityContextConstraints", "", "restricted"),
-		nodefw.BuildID("Pod", "ns1", "annotated-pod"),
-		"EnforcedSCC",
+		nodefw.BuildID("BHK_SecurityContextConstraints", "", "restricted"),
+		nodefw.BuildID("BHK_Pod", "ns1", "annotated-pod"),
+		"BHK_EnforcedSCC",
 	) {
 		t.Fatalf("missing EnforcedSCC edge from SCC to pod")
 	}
@@ -346,13 +346,13 @@ func TestSCCEdgesRuleNoAnnotationSkipped(t *testing.T) {
 	core := newCore()
 	ns := ensureNamespace(core, "ns1")
 	ns.Pods = append(ns.Pods, workload.Pod{
-		GraphNodeBase: base("Pod", "ns1", "unannotated-pod"),
+		GraphNodeBase: base("BHK_Pod", "ns1", "unannotated-pod"),
 	})
 	core.Cluster.SecurityContextConstraints = append(core.Cluster.SecurityContextConstraints,
 		addonsnodes.SecurityContextConstraints{
 			GraphNodeBase: nodefw.GraphNodeBase{
-				ID:    nodefw.BuildID("SecurityContextConstraints", "", "restricted"),
-				Kinds: []string{"SecurityContextConstraints"},
+				ID:    nodefw.BuildID("BHK_SecurityContextConstraints", "", "restricted"),
+				Kinds: []string{"BHK_SecurityContextConstraints"},
 				Name:  "restricted",
 			},
 		},
@@ -374,8 +374,8 @@ func TestHostPortsEdgesRuleHostPortEdge(t *testing.T) {
 	ns := ensureNamespace(core, "ns1")
 	ns.Pods = append(ns.Pods, workload.Pod{
 		GraphNodeBase: nodefw.GraphNodeBase{
-			ID:    nodefw.BuildID("Pod", "ns1", "hostport-pod"),
-			Kinds: []string{"Pod"},
+			ID:    nodefw.BuildID("BHK_Pod", "ns1", "hostport-pod"),
+			Kinds: []string{"BHK_Pod"},
 			Name:  "hostport-pod",
 		},
 		NodeName: "node-1",
@@ -387,7 +387,7 @@ func TestHostPortsEdgesRuleHostPortEdge(t *testing.T) {
 
 	ctx := framework.NewContext(core)
 	edges := hostPortsEdgesRule{}.Apply(ctx)
-	if !hasEdge(edges, nodefw.BuildID("Node", "", "node-1"), nodefw.BuildID("Pod", "ns1", "hostport-pod"), "HostPort") {
+	if !hasEdge(edges, nodefw.BuildID("BHK_Node", "", "node-1"), nodefw.BuildID("BHK_Pod", "ns1", "hostport-pod"), "BHK_HostPort") {
 		t.Fatalf("missing HostPort edge from node to pod")
 	}
 }
@@ -397,8 +397,8 @@ func TestHostPortsEdgesRuleExternalHostPort(t *testing.T) {
 	ns := ensureNamespace(core, "ns1")
 	ns.Pods = append(ns.Pods, workload.Pod{
 		GraphNodeBase: nodefw.GraphNodeBase{
-			ID:    nodefw.BuildID("Pod", "ns1", "hostport-pod"),
-			Kinds: []string{"Pod"},
+			ID:    nodefw.BuildID("BHK_Pod", "ns1", "hostport-pod"),
+			Kinds: []string{"BHK_Pod"},
 			Name:  "hostport-pod",
 		},
 		NodeName: "node-1",
@@ -413,8 +413,8 @@ func TestHostPortsEdgesRuleExternalHostPort(t *testing.T) {
 
 	ctx := framework.NewContext(core)
 	edges := hostPortsEdgesRule{}.Apply(ctx)
-	externalID := nodefw.BuildID("External", "", "external")
-	if !hasEdge(edges, externalID, nodefw.BuildID("Node", "", "node-1"), "ExternalHostPort") {
+	externalID := nodefw.BuildID("BHK_External", "", "external")
+	if !hasEdge(edges, externalID, nodefw.BuildID("BHK_Node", "", "node-1"), "BHK_ExternalHostPort") {
 		t.Fatalf("missing ExternalHostPort edge from External to node")
 	}
 }
@@ -424,8 +424,8 @@ func TestHostPortsEdgesRuleZeroHostPortSkipped(t *testing.T) {
 	ns := ensureNamespace(core, "ns1")
 	ns.Pods = append(ns.Pods, workload.Pod{
 		GraphNodeBase: nodefw.GraphNodeBase{
-			ID:    nodefw.BuildID("Pod", "ns1", "no-hostport-pod"),
-			Kinds: []string{"Pod"},
+			ID:    nodefw.BuildID("BHK_Pod", "ns1", "no-hostport-pod"),
+			Kinds: []string{"BHK_Pod"},
 			Name:  "no-hostport-pod",
 		},
 		NodeName: "node-1",
@@ -446,7 +446,7 @@ func TestHostPortsEdgesRulePodWithoutNodeSkipped(t *testing.T) {
 	core := newCore()
 	ns := ensureNamespace(core, "ns1")
 	ns.Pods = append(ns.Pods, workload.Pod{
-		GraphNodeBase: base("Pod", "ns1", "orphan-pod"),
+		GraphNodeBase: base("BHK_Pod", "ns1", "orphan-pod"),
 		NodeName:      "",
 		Containers: []workload.Container{
 			{HostPorts: []workload.HostPort{{HostPort: 9090}}},

@@ -12,6 +12,7 @@ import (
 	"bloodhound-kube/internal/model"
 	"bloodhound-kube/internal/nodes"
 	"bloodhound-kube/internal/nodes/platform"
+	"bloodhound-kube/internal/nodes/rbac"
 	"bloodhound-kube/internal/utils"
 
 	"github.com/TheManticoreProject/gopengraph"
@@ -166,6 +167,7 @@ func createNodesAndCoreFactsFromReader(reader io.Reader, parseUndefinedNodes boo
 	enrichPodNodesWithControllerEnv(nodeList, coreFacts)
 
 	addAggregateNodes(&nodeList, coreFacts)
+	synthesizeUsersAndGroups(&nodeList, coreFacts)
 
 	external := platform.ExternalNode()
 	nodeList = append(nodeList, model.BloodHoundNode{
@@ -193,6 +195,8 @@ func addAggregateNodes(nodeList *[]model.BloodHoundNode, coreFacts *model.CoreFa
 	appendBuildResult(nodeList, coreFacts, platform.BuildAllJobs())
 	appendBuildResult(nodeList, coreFacts, platform.BuildAllCronJobs())
 	appendBuildResult(nodeList, coreFacts, platform.BuildAllClusterRoles())
+	appendBuildResult(nodeList, coreFacts, platform.BuildAllUsers())
+	appendBuildResult(nodeList, coreFacts, platform.BuildAllGroups())
 
 	// Per-namespace aggregates: emitted only when the namespace has at least one
 	// resource of that kind. AllNodes and AllClusterRoles are excluded —
@@ -282,4 +286,53 @@ func buildNodeFromMap(resource map[string]any, parseUndefinedNodes bool) (nodes.
 		result, ok = platform.BuildGenericNode(resource)
 	}
 	return result, ok, nil
+}
+
+func synthesizeUsersAndGroups(nodeList *[]model.BloodHoundNode, coreFacts *model.CoreFacts) {
+	if nodeList == nil || coreFacts == nil {
+		return
+	}
+	seen := map[string]struct{}{}
+
+	for _, space := range coreFacts.Namespaces {
+		if space == nil {
+			continue
+		}
+		for i := range space.RoleBindings {
+			for _, subject := range space.RoleBindings[i].Subjects {
+				synthesizeSubject(nodeList, coreFacts, seen, subject.Kind, subject.Name)
+			}
+		}
+	}
+
+	for i := range coreFacts.Cluster.ClusterRoleBindings {
+		for _, subject := range coreFacts.Cluster.ClusterRoleBindings[i].Subjects {
+			synthesizeSubject(nodeList, coreFacts, seen, subject.Kind, subject.Name)
+		}
+	}
+}
+
+func synthesizeSubject(nodeList *[]model.BloodHoundNode, coreFacts *model.CoreFacts, seen map[string]struct{}, kind, name string) {
+	if name == "" {
+		return
+	}
+
+	var result nodes.BuildResult
+	var ok bool
+	switch kind {
+	case "User":
+		result, ok = rbac.BuildUserNode(name)
+	case "Group":
+		result, ok = rbac.BuildGroupNode(name)
+	default:
+		return
+	}
+	if !ok {
+		return
+	}
+	if _, exists := seen[result.Node.ID]; exists {
+		return
+	}
+	seen[result.Node.ID] = struct{}{}
+	appendBuildResult(nodeList, coreFacts, result)
 }

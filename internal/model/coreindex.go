@@ -14,6 +14,8 @@ type EdgeIndex struct {
 	ClusterRoleBindingsByName    map[string]*rbac.ClusterRoleBinding
 	ClusterSecretStoresByName    map[string]*addons.ClusterSecretStore
 	SecurityContextConstraintsBy map[string]*addons.SecurityContextConstraints
+	UsersByName                  map[string]*rbac.User
+	GroupsByName                 map[string]*rbac.Group
 	External                     *platform.External
 
 	PodsByNamespace            map[string]map[string]*workload.Pod
@@ -38,6 +40,8 @@ func NewEdgeIndex(core *CoreFacts) EdgeIndex {
 		ClusterRoleBindingsByName:    map[string]*rbac.ClusterRoleBinding{},
 		ClusterSecretStoresByName:    map[string]*addons.ClusterSecretStore{},
 		SecurityContextConstraintsBy: map[string]*addons.SecurityContextConstraints{},
+		UsersByName:                  map[string]*rbac.User{},
+		GroupsByName:                 map[string]*rbac.Group{},
 		PodsByNamespace:              map[string]map[string]*workload.Pod{},
 		ServiceAccountsByNamespace:   map[string]map[string]*rbac.ServiceAccount{},
 		SecretsByNamespace:           map[string]map[string]*workload.Secret{},
@@ -89,6 +93,18 @@ func NewEdgeIndex(core *CoreFacts) EdgeIndex {
 	}
 	if len(core.Cluster.External) > 0 {
 		index.External = &core.Cluster.External[0]
+	}
+	for i := range core.Cluster.Users {
+		user := &core.Cluster.Users[i]
+		if user.Name != "" {
+			index.UsersByName[user.Name] = user
+		}
+	}
+	for i := range core.Cluster.Groups {
+		group := &core.Cluster.Groups[i]
+		if group.Name != "" {
+			index.GroupsByName[group.Name] = group
+		}
 	}
 
 	for ns, space := range core.Namespaces {

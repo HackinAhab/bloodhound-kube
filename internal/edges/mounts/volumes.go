@@ -35,7 +35,7 @@ func pvcMountedByPod(namespace string, space *model.Namespace) []model.BloodHoun
 			pod := &space.Pods[j]
 			for _, volume := range pod.Volumes {
 				if volume.PVCName == pvc.Name {
-					edges = append(edges, framework.CreateEdge(pvc, pod, "MountedBy"))
+					edges = append(edges, framework.CreateEdge(pvc, pod, "BHK_MountedBy"))
 				}
 			}
 		}
@@ -61,7 +61,7 @@ func pvBoundToPVC(ctx *framework.Context) []model.BloodHoundEdge {
 		for j := range space.PersistentVolumeClaims {
 			pvc := &space.PersistentVolumeClaims[j]
 			if pvc.Name == claimRef.Name {
-				edges = append(edges, framework.CreateEdge(pv, pvc, "BoundTo"))
+				edges = append(edges, framework.CreateEdge(pv, pvc, "BHK_BoundTo"))
 			}
 		}
 	}

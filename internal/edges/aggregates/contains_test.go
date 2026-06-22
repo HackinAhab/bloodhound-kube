@@ -48,24 +48,24 @@ func TestAggregateContainsNamespacedSecrets(t *testing.T) {
 	ns1 := ensureNamespace(core, "ns1")
 
 	ns1.Secrets = []workload.Secret{
-		{GraphNodeBase: base("Secret", "ns1", "alpha")},
-		{GraphNodeBase: base("Secret", "ns1", "beta")},
-		{GraphNodeBase: base("Secret", "ns1", "gamma")},
+		{GraphNodeBase: base("BHK_Secret", "ns1", "alpha")},
+		{GraphNodeBase: base("BHK_Secret", "ns1", "beta")},
+		{GraphNodeBase: base("BHK_Secret", "ns1", "gamma")},
 	}
 	ns1.AllSecrets = []platform.AllSecrets{
-		{GraphNodeBase: base("AllSecrets", "ns1", "AllSecrets")},
+		{GraphNodeBase: base("BHK_AllSecrets", "ns1", "BHK_AllSecrets")},
 	}
 
 	ctx := framework.NewContext(core)
 	edges := aggregateContainsRule{}.Apply(ctx)
 
-	aggID := nodefw.BuildID("AllSecrets", "ns1", "AllSecrets")
-	if got := countEdges(edges, aggID, "Contains"); got != 3 {
+	aggID := nodefw.BuildID("BHK_AllSecrets", "ns1", "BHK_AllSecrets")
+	if got := countEdges(edges, aggID, "BHK_Contains"); got != 3 {
 		t.Fatalf("expected 3 Contains edges from ns1 AllSecrets, got %d", got)
 	}
 	for _, name := range []string{"alpha", "beta", "gamma"} {
-		secretID := nodefw.BuildID("Secret", "ns1", name)
-		if !hasEdge(edges, aggID, secretID, "Contains") {
+		secretID := nodefw.BuildID("BHK_Secret", "ns1", name)
+		if !hasEdge(edges, aggID, secretID, "BHK_Contains") {
 			t.Errorf("missing Contains edge %s -> %s", aggID, secretID)
 		}
 	}
@@ -80,23 +80,23 @@ func TestAggregateContainsClusterToNamespaceAggregate(t *testing.T) {
 	ns2 := ensureNamespace(core, "ns2")
 
 	core.Cluster.AllSecrets = []platform.AllSecrets{
-		{GraphNodeBase: base("AllSecrets", "", "AllSecrets")},
+		{GraphNodeBase: base("BHK_AllSecrets", "", "BHK_AllSecrets")},
 	}
 	ns1.AllSecrets = []platform.AllSecrets{
-		{GraphNodeBase: base("AllSecrets", "ns1", "AllSecrets")},
+		{GraphNodeBase: base("BHK_AllSecrets", "ns1", "BHK_AllSecrets")},
 	}
 	ns2.AllSecrets = []platform.AllSecrets{
-		{GraphNodeBase: base("AllSecrets", "ns2", "AllSecrets")},
+		{GraphNodeBase: base("BHK_AllSecrets", "ns2", "BHK_AllSecrets")},
 	}
 
 	ctx := framework.NewContext(core)
 	edges := aggregateContainsRule{}.Apply(ctx)
 
-	clusterID := nodefw.BuildID("AllSecrets", "", "AllSecrets")
-	if !hasEdge(edges, clusterID, nodefw.BuildID("AllSecrets", "ns1", "AllSecrets"), "Contains") {
+	clusterID := nodefw.BuildID("BHK_AllSecrets", "", "BHK_AllSecrets")
+	if !hasEdge(edges, clusterID, nodefw.BuildID("BHK_AllSecrets", "ns1", "BHK_AllSecrets"), "BHK_Contains") {
 		t.Errorf("missing Contains edge: cluster AllSecrets -> ns1 AllSecrets")
 	}
-	if !hasEdge(edges, clusterID, nodefw.BuildID("AllSecrets", "ns2", "AllSecrets"), "Contains") {
+	if !hasEdge(edges, clusterID, nodefw.BuildID("BHK_AllSecrets", "ns2", "BHK_AllSecrets"), "BHK_Contains") {
 		t.Errorf("missing Contains edge: cluster AllSecrets -> ns2 AllSecrets")
 	}
 }
@@ -109,23 +109,23 @@ func TestAggregateContainsEmptyNamespace(t *testing.T) {
 	empty := ensureNamespace(core, "empty-ns")
 
 	core.Cluster.AllSecrets = []platform.AllSecrets{
-		{GraphNodeBase: base("AllSecrets", "", "AllSecrets")},
+		{GraphNodeBase: base("BHK_AllSecrets", "", "BHK_AllSecrets")},
 	}
 	empty.AllSecrets = []platform.AllSecrets{
-		{GraphNodeBase: base("AllSecrets", "empty-ns", "AllSecrets")},
+		{GraphNodeBase: base("BHK_AllSecrets", "empty-ns", "BHK_AllSecrets")},
 	}
 	// Note: empty.Secrets is empty.
 
 	ctx := framework.NewContext(core)
 	edges := aggregateContainsRule{}.Apply(ctx)
 
-	clusterID := nodefw.BuildID("AllSecrets", "", "AllSecrets")
-	nsAggID := nodefw.BuildID("AllSecrets", "empty-ns", "AllSecrets")
+	clusterID := nodefw.BuildID("BHK_AllSecrets", "", "BHK_AllSecrets")
+	nsAggID := nodefw.BuildID("BHK_AllSecrets", "empty-ns", "BHK_AllSecrets")
 
-	if !hasEdge(edges, clusterID, nsAggID, "Contains") {
+	if !hasEdge(edges, clusterID, nsAggID, "BHK_Contains") {
 		t.Errorf("missing cluster -> ns Contains edge for empty namespace")
 	}
-	if got := countEdges(edges, nsAggID, "Contains"); got != 0 {
+	if got := countEdges(edges, nsAggID, "BHK_Contains"); got != 0 {
 		t.Errorf("expected 0 Contains edges from empty-ns AllSecrets, got %d", got)
 	}
 }
@@ -137,24 +137,24 @@ func TestAggregateContainsAllKinds(t *testing.T) {
 	core := model.NewCoreFacts()
 	ns := ensureNamespace(core, "ns1")
 
-	ns.Pods = []workload.Pod{{GraphNodeBase: base("Pod", "ns1", "p1")}}
-	ns.Secrets = []workload.Secret{{GraphNodeBase: base("Secret", "ns1", "s1")}}
-	ns.ConfigMaps = []workload.ConfigMap{{GraphNodeBase: base("ConfigMap", "ns1", "c1")}}
+	ns.Pods = []workload.Pod{{GraphNodeBase: base("BHK_Pod", "ns1", "p1")}}
+	ns.Secrets = []workload.Secret{{GraphNodeBase: base("BHK_Secret", "ns1", "s1")}}
+	ns.ConfigMaps = []workload.ConfigMap{{GraphNodeBase: base("BHK_ConfigMap", "ns1", "c1")}}
 	// (rbac.ServiceAccount is exercised in nsAggregate via space.AllServiceAccounts)
-	ns.Deployments = []workload.Deployment{{GraphNodeBase: base("Deployment", "ns1", "d1")}}
-	ns.DaemonSets = []workload.DaemonSetCore{{GraphNodeBase: base("DaemonSet", "ns1", "ds1")}}
-	ns.StatefulSets = []workload.StatefulSetCore{{GraphNodeBase: base("StatefulSet", "ns1", "ss1")}}
-	ns.Jobs = []workload.Job{{GraphNodeBase: base("Job", "ns1", "j1")}}
-	ns.CronJobs = []workload.CronJob{{GraphNodeBase: base("CronJob", "ns1", "cj1")}}
+	ns.Deployments = []workload.Deployment{{GraphNodeBase: base("BHK_Deployment", "ns1", "d1")}}
+	ns.DaemonSets = []workload.DaemonSetCore{{GraphNodeBase: base("BHK_DaemonSet", "ns1", "ds1")}}
+	ns.StatefulSets = []workload.StatefulSetCore{{GraphNodeBase: base("BHK_StatefulSet", "ns1", "ss1")}}
+	ns.Jobs = []workload.Job{{GraphNodeBase: base("BHK_Job", "ns1", "j1")}}
+	ns.CronJobs = []workload.CronJob{{GraphNodeBase: base("BHK_CronJob", "ns1", "cj1")}}
 
-	ns.AllPods = []platform.AllPods{{GraphNodeBase: base("AllPods", "ns1", "AllPods")}}
-	ns.AllSecrets = []platform.AllSecrets{{GraphNodeBase: base("AllSecrets", "ns1", "AllSecrets")}}
-	ns.AllConfigMaps = []platform.AllConfigMaps{{GraphNodeBase: base("AllConfigMaps", "ns1", "AllConfigMaps")}}
-	ns.AllDeployments = []platform.AllDeployments{{GraphNodeBase: base("AllDeployments", "ns1", "AllDeployments")}}
-	ns.AllDaemonSets = []platform.AllDaemonSets{{GraphNodeBase: base("AllDaemonSets", "ns1", "AllDaemonSets")}}
-	ns.AllStatefulSets = []platform.AllStatefulSets{{GraphNodeBase: base("AllStatefulSets", "ns1", "AllStatefulSets")}}
-	ns.AllJobs = []platform.AllJobs{{GraphNodeBase: base("AllJobs", "ns1", "AllJobs")}}
-	ns.AllCronJobs = []platform.AllCronJobs{{GraphNodeBase: base("AllCronJobs", "ns1", "AllCronJobs")}}
+	ns.AllPods = []platform.AllPods{{GraphNodeBase: base("BHK_AllPods", "ns1", "BHK_AllPods")}}
+	ns.AllSecrets = []platform.AllSecrets{{GraphNodeBase: base("BHK_AllSecrets", "ns1", "BHK_AllSecrets")}}
+	ns.AllConfigMaps = []platform.AllConfigMaps{{GraphNodeBase: base("BHK_AllConfigMaps", "ns1", "BHK_AllConfigMaps")}}
+	ns.AllDeployments = []platform.AllDeployments{{GraphNodeBase: base("BHK_AllDeployments", "ns1", "BHK_AllDeployments")}}
+	ns.AllDaemonSets = []platform.AllDaemonSets{{GraphNodeBase: base("BHK_AllDaemonSets", "ns1", "BHK_AllDaemonSets")}}
+	ns.AllStatefulSets = []platform.AllStatefulSets{{GraphNodeBase: base("BHK_AllStatefulSets", "ns1", "BHK_AllStatefulSets")}}
+	ns.AllJobs = []platform.AllJobs{{GraphNodeBase: base("BHK_AllJobs", "ns1", "BHK_AllJobs")}}
+	ns.AllCronJobs = []platform.AllCronJobs{{GraphNodeBase: base("BHK_AllCronJobs", "ns1", "BHK_AllCronJobs")}}
 
 	ctx := framework.NewContext(core)
 	edges := aggregateContainsRule{}.Apply(ctx)
@@ -163,18 +163,18 @@ func TestAggregateContainsAllKinds(t *testing.T) {
 		aggKind  string
 		resource string
 	}{
-		{"AllPods", "Pod"},
-		{"AllSecrets", "Secret"},
-		{"AllConfigMaps", "ConfigMap"},
-		{"AllDeployments", "Deployment"},
-		{"AllDaemonSets", "DaemonSet"},
-		{"AllStatefulSets", "StatefulSet"},
-		{"AllJobs", "Job"},
-		{"AllCronJobs", "CronJob"},
+		{"BHK_AllPods", "BHK_Pod"},
+		{"BHK_AllSecrets", "BHK_Secret"},
+		{"BHK_AllConfigMaps", "BHK_ConfigMap"},
+		{"BHK_AllDeployments", "BHK_Deployment"},
+		{"BHK_AllDaemonSets", "BHK_DaemonSet"},
+		{"BHK_AllStatefulSets", "BHK_StatefulSet"},
+		{"BHK_AllJobs", "BHK_Job"},
+		{"BHK_AllCronJobs", "BHK_CronJob"},
 	}
 	for _, tc := range cases {
 		aggID := nodefw.BuildID(tc.aggKind, "ns1", tc.aggKind)
-		if got := countEdges(edges, aggID, "Contains"); got != 1 {
+		if got := countEdges(edges, aggID, "BHK_Contains"); got != 1 {
 			t.Errorf("%s: expected 1 Contains edge, got %d", tc.aggKind, got)
 		}
 	}
@@ -188,7 +188,7 @@ func TestAggregateContainsNoEdgeWithoutAggregate(t *testing.T) {
 	core := model.NewCoreFacts()
 	ns := ensureNamespace(core, "ns1")
 	ns.Secrets = []workload.Secret{
-		{GraphNodeBase: base("Secret", "ns1", "alpha")},
+		{GraphNodeBase: base("BHK_Secret", "ns1", "alpha")},
 	}
 	// No ns.AllSecrets entry.
 
@@ -196,7 +196,7 @@ func TestAggregateContainsNoEdgeWithoutAggregate(t *testing.T) {
 	edges := aggregateContainsRule{}.Apply(ctx)
 
 	for _, e := range edges {
-		if e.Kind == "Contains" && e.End.Value == nodefw.BuildID("Secret", "ns1", "alpha") {
+		if e.Kind == "BHK_Contains" && e.End.Value == nodefw.BuildID("BHK_Secret", "ns1", "alpha") {
 			t.Fatalf("unexpected Contains edge to Secret when ns aggregate is absent: %+v", e)
 		}
 	}

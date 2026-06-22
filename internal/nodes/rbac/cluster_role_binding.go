@@ -44,8 +44,8 @@ func BuildClusterRoleBindingNode(obj runtime.Object) (BuildResult, bool) {
 		Cluster: true,
 		Data: ClusterRoleBinding{
 			GraphNodeBase: GraphNodeBase{
-				ID:             BuildID("ClusterRoleBinding", "", name),
-				Kinds:          []string{"ClusterRoleBinding"},
+				ID:             BuildID("BHK_ClusterRoleBinding", "", name),
+				Kinds:          []string{"BHK_ClusterRoleBinding"},
 				Name:           name,
 				Namespace:      "",
 				LabelsMap:      labelsMap,
@@ -59,8 +59,8 @@ func BuildClusterRoleBindingNode(obj runtime.Object) (BuildResult, bool) {
 
 	return BuildResult{
 		Node: NodeResult{
-			ID:         BuildID("ClusterRoleBinding", "", name),
-			Kinds:      []string{"ClusterRoleBinding"},
+			ID:         BuildID("BHK_ClusterRoleBinding", "", name),
+			Kinds:      []string{"BHK_ClusterRoleBinding"},
 			Properties: properties,
 		},
 		Core: []CoreEntry{core},

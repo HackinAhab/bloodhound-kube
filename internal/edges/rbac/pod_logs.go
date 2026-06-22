@@ -10,7 +10,7 @@ type rbacReadLogsEdgesRule struct{}
 func (r rbacReadLogsEdgesRule) Name() string { return "rbac_read_logs" }
 
 var edgePropertiesRBACReadLogs = map[string]any{
-	"Description": "ServiceAccount has RBAC permissions to read pod logs.",
+	"Description": "Identity has RBAC permissions to read pod logs.",
 }
 
 func (r rbacReadLogsEdgesRule) Apply(ctx *framework.Context) []model.BloodHoundEdge {
@@ -47,18 +47,18 @@ func readLogsNamespaced(ctx *framework.Context, namespace string, space *model.N
 			continue
 		}
 		for _, subject := range binding.Subjects {
-			sa := resolveNamespacedSubjectSA(ctx, namespace, binding.Namespace, subject.Kind, subject.Namespace, subject.Name)
-			if sa == nil {
+			principal := resolveNamespacedSubject(ctx, namespace, binding.Namespace, subject)
+			if principal == nil {
 				continue
 			}
 			for i := range space.Pods {
 				pod := &space.Pods[i]
 				if all {
-					edges = append(edges, framework.CreateEdgeWithProperties(sa, pod, "ReadLogs", edgePropertiesRBACReadLogs))
+					edges = append(edges, framework.CreateEdgeWithProperties(principal, pod, "BHK_ReadLogs", edgePropertiesRBACReadLogs))
 					continue
 				}
 				if _, ok := names[pod.Name]; ok {
-					edges = append(edges, framework.CreateEdgeWithProperties(sa, pod, "ReadLogs", edgePropertiesRBACReadLogs))
+					edges = append(edges, framework.CreateEdgeWithProperties(principal, pod, "BHK_ReadLogs", edgePropertiesRBACReadLogs))
 				}
 			}
 		}
@@ -87,14 +87,14 @@ func readLogsCluster(ctx *framework.Context) []model.BloodHoundEdge {
 			continue
 		}
 		for _, subject := range binding.Subjects {
-			sa := resolveClusterSubjectSA(ctx, subject.Kind, subject.Namespace, subject.Name)
-			if sa == nil {
+			principal := resolveClusterSubject(ctx, subject)
+			if principal == nil {
 				continue
 			}
 			if all {
 				if len(ctx.Core.Cluster.AllPods) > 0 {
 					agg := &ctx.Core.Cluster.AllPods[0]
-					edges = append(edges, framework.CreateEdgeWithProperties(sa, agg, "ReadLogs", edgePropertiesRBACReadLogs))
+					edges = append(edges, framework.CreateEdgeWithProperties(principal, agg, "BHK_ReadLogs", edgePropertiesRBACReadLogs))
 				}
 				continue
 			}
@@ -105,7 +105,7 @@ func readLogsCluster(ctx *framework.Context) []model.BloodHoundEdge {
 				for i := range space.Pods {
 					pod := &space.Pods[i]
 					if _, ok := names[pod.Name]; ok {
-						edges = append(edges, framework.CreateEdgeWithProperties(sa, pod, "ReadLogs", edgePropertiesRBACReadLogs))
+						edges = append(edges, framework.CreateEdgeWithProperties(principal, pod, "BHK_ReadLogs", edgePropertiesRBACReadLogs))
 					}
 				}
 			}

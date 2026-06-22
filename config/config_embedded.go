@@ -7,8 +7,8 @@ import _ "embed"
 //go:embed custom_queries.json
 var embeddedQueriesJSON []byte
 
-//go:embed custom_types.json
-var embeddedTypesJSON []byte
+//go:embed schema.json
+var embeddedSchemaJSON []byte
 
 // GetEmbeddedQueries returns the embedded queries JSON data.
 // Returns nil if no embedded data is available.
@@ -19,13 +19,13 @@ func GetEmbeddedQueries() ([]byte, error) {
 	return embeddedQueriesJSON, nil
 }
 
-// GetEmbeddedTypes returns the embedded custom types JSON data.
+// GetEmbeddedSchema returns the embedded schema JSON data.
 // Returns nil if no embedded data is available.
-func GetEmbeddedTypes() ([]byte, error) {
-	if len(embeddedTypesJSON) == 0 {
+func GetEmbeddedSchema() ([]byte, error) {
+	if len(embeddedSchemaJSON) == 0 {
 		return nil, nil
 	}
-	return embeddedTypesJSON, nil
+	return embeddedSchemaJSON, nil
 }
 
 // HasEmbeddedQueries returns true if embedded queries are available.
@@ -33,7 +33,7 @@ func HasEmbeddedQueries() bool {
 	return len(embeddedQueriesJSON) > 0
 }
 
-// HasEmbeddedTypes returns true if embedded custom types are available.
-func HasEmbeddedTypes() bool {
-	return len(embeddedTypesJSON) > 0
+// HasEmbeddedSchema returns true if embedded schema is available.
+func HasEmbeddedSchema() bool {
+	return len(embeddedSchemaJSON) > 0
 }

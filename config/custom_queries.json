@@ -12,23 +12,23 @@
         },
         {
             "name": "All Paths From Secrets",
-            "description": "Retrieves all paths starting from nodes labeled 'Secret",
-            "query": "MATCH p=(s:Secret)-[]->(t)\nWHERE s.cluster = '{{.Cluster}}' and not s.isTlsSecret=true\nRETURN p\nLIMIT 1000"
+            "description": "Retrieves all paths starting from nodes labeled 'BHK_Secret'",
+            "query": "MATCH p=(s:BHK_Secret)-[]->(t)\nWHERE s.cluster = '{{.Cluster}}' and not s.isTlsSecret=true\nRETURN p\nLIMIT 1000"
         },
         {
             "name": "All Paths from Pods running as root",
-            "description": "Retrieves all paths starting from nodes labeled 'Pod' that have the property 'runAsRoot' set to true.",
-            "query": "MATCH p=(s:Pod)-[]->()\nWHERE s.cluster = '{{.Cluster}}' AND s.runAsNonRoot = FALSE AND s.runAsUser = 0\nRETURN p\nLIMIT 1000"
+            "description": "Retrieves all paths starting from Pods that run as root.",
+            "query": "MATCH p=(s:BHK_Pod)-[]->()\nWHERE s.cluster = '{{.Cluster}}' AND s.runAsNonRoot = FALSE AND s.runAsUser = 0\nRETURN p\nLIMIT 1000"
         },
         {
             "name": "All Paths from Pods running as root, exclude ScheduledOn Edge",
-            "description": "Retrieves all paths starting from nodes labeled 'Pod' that have the property 'runAsRoot' set to true.",
-            "query": "MATCH p=(s:Pod)-[r]->(t)\nWHERE s.cluster = '{{.Cluster}}' AND s.runAsNonRoot = FALSE AND s.runAsUser = 0 AND NOT type(r) = 'ScheduledOn'\nRETURN p\nLIMIT 1000"
+            "description": "Retrieves all paths starting from Pods that run as root, excluding scheduling edges.",
+            "query": "MATCH p=(s:BHK_Pod)-[r]->(t)\nWHERE s.cluster = '{{.Cluster}}' AND s.runAsNonRoot = FALSE AND s.runAsUser = 0 AND NOT type(r) = 'BHK_ScheduledOn'\nRETURN p\nLIMIT 1000"
         },
         {
             "name": "All Paths to Nodes with External IPs",
-            "description": "Retrieves all paths from HTTPRoute nodes to Nodes.",
-            "query": "MATCH p=(s:External)-[*1..3]->(t:K8s_Node)\nWHERE s.cluster = '{{.Cluster}}'\nRETURN p\nLIMIT 1000"
+            "description": "Retrieves all paths from External to Kubernetes Nodes.",
+            "query": "MATCH p=(s:BHK_External)-[*1..3]->(t:BHK_Node)\nWHERE s.cluster = '{{.Cluster}}'\nRETURN p\nLIMIT 1000"
         },
         {
             "name": "All Aggregate Nodes",
@@ -38,27 +38,52 @@
         {
             "name": "Paths to AllSecrets",
             "description": "Retrieves all paths to the AllSecrets aggregate node.",
-            "query": "MATCH p=(s)-[]->(t:AllSecrets)\nWHERE s.cluster = '{{.Cluster}}'\nRETURN p\nLIMIT 1000"
+            "query": "MATCH p=(s)-[]->(t:BHK_AllSecrets)\nWHERE s.cluster = '{{.Cluster}}'\nRETURN p\nLIMIT 1000"
         },
         {
             "name": "Paths to AllPods",
             "description": "Retrieves all paths to the AllPods aggregate node.",
-            "query": "MATCH p=(s)-[]->(t:AllPods)\nWHERE s.cluster = '{{.Cluster}}' AND t.name STARTS WITH 'ALL'\nRETURN p\nLIMIT 1000"
+            "query": "MATCH p=(s)-[]->(t:BHK_AllPods)\nWHERE s.cluster = '{{.Cluster}}'\nRETURN p\nLIMIT 1000"
         },
         {
             "name": "Pods Sharing Process Namespace",
             "description": "Retrieves all pods with shareProcessNamespace enabled.",
-            "query": "MATCH (p:Pod)\nWHERE p.cluster = '{{.Cluster}}' AND p.shareProcessNamespace = TRUE\nRETURN p\nLIMIT 1000"
+            "query": "MATCH (p:BHK_Pod)\nWHERE p.cluster = '{{.Cluster}}' AND p.shareProcessNamespace = TRUE\nRETURN p\nLIMIT 1000"
         },
         {
             "name": "Full External Attack Paths",
             "description": "All paths reachable from the External node up to 6 hops deep.",
-            "query": "MATCH p=(s:External)-[*1..6]->(t)\nWHERE s.cluster = '{{.Cluster}}'\nRETURN p\nLIMIT 500"
+            "query": "MATCH p=(s:BHK_External)-[*1..6]->(t)\nWHERE s.cluster = '{{.Cluster}}'\nRETURN p\nLIMIT 500"
         },
         {
             "name": "External to Pod via Service",
             "description": "Paths where an externally-exposed Service routes to a pod.",
-            "query": "MATCH p=(s:External)-[:ExternalRoutesTo]->(svc)-[:RoutesTo]->(pod:Pod)\nWHERE s.cluster = '{{.Cluster}}'\nRETURN p\nLIMIT 500"
+            "query": "MATCH p=(s:BHK_External)-[:BHK_ExternalRoutesTo]->(svc)-[:BHK_RoutesTo]->(pod:BHK_Pod)\nWHERE s.cluster = '{{.Cluster}}'\nRETURN p\nLIMIT 500"
+        },
+        {
+            "name": "All Identity Nodes",
+            "description": "All principals in the cluster: ServiceAccounts, Users, and Groups.",
+            "query": "MATCH (i:BHK_Identity)\nWHERE i.cluster = '{{.Cluster}}'\nRETURN i\nLIMIT 1000"
+        },
+        {
+            "name": "Impersonation Paths",
+            "description": "All impersonation relationships between principals.",
+            "query": "MATCH p=(src:BHK_Identity)-[:BHK_Impersonate]->(target)\nWHERE src.cluster = '{{.Cluster}}'\nRETURN p\nLIMIT 500"
+        },
+        {
+            "name": "Identity to Secrets",
+            "description": "Attack paths from any identity to secrets within 4 hops.",
+            "query": "MATCH p=(i:BHK_Identity)-[*1..4]->(s:BHK_Secret)\nWHERE i.cluster = '{{.Cluster}}'\nRETURN p\nLIMIT 500"
+        },
+        {
+            "name": "User and Group RBAC Bindings",
+            "description": "All RoleBound edges originating from Users and Groups.",
+            "query": "MATCH p=(principal)-[:BHK_RoleBound]->(role)\nWHERE principal.cluster = '{{.Cluster}}' AND (principal:BHK_User OR principal:BHK_Group)\nRETURN p\nLIMIT 1000"
+        },
+        {
+            "name": "Full Identity Attack Paths",
+            "description": "Variable-length paths from Users or Groups to critical targets.",
+            "query": "MATCH p=(src)-[*1..6]->(target)\nWHERE src.cluster = '{{.Cluster}}' AND (src:BHK_User OR src:BHK_Group) AND (target:BHK_Pod OR target:BHK_Secret OR target:BHK_Node)\nRETURN p\nLIMIT 500"
         }
     ]
 }

@@ -43,7 +43,7 @@ func BuildTCPRouteNode(obj runtime.Object) (BuildResult, bool) {
 		"backendRefKeys": backendRefKeys,
 	}
 
-	base := NewGraphNodeBase("TCPRoute", namespace, name, labelsMap, annotationsMap)
+	base := NewGraphNodeBase("BHK_TCPRoute", namespace, name, labelsMap, annotationsMap)
 
 	core := CoreEntry{
 		Namespace: namespace,

@@ -22,7 +22,7 @@ func (r ingressEdgesRule) Apply(ctx *framework.Context) []model.BloodHoundEdge {
 			ingress := &space.Ingresses[i]
 			edges = append(edges, routeBackendsToServices(ctx, ingress, ns, ingress.BackendRefs)...)
 			if ctx.Index.External != nil {
-				edges = append(edges, framework.CreateEdge(ctx.Index.External, ingress, "ExternalRoutesTo"))
+				edges = append(edges, framework.CreateEdge(ctx.Index.External, ingress, "BHK_ExternalRoutesTo"))
 			}
 		}
 	}

@@ -100,59 +100,59 @@ func TestMergeQueries(t *testing.T) {
 	}
 }
 
-func TestMergeCustomTypes(t *testing.T) {
+func TestMergeSchema(t *testing.T) {
 	tests := []struct {
 		name          string
 		embedded      string
 		user          string
 		expectedCount int
-		expectedTypes []string
+		expectedNames []string
 		expectError   bool
 	}{
 		{
 			name:          "no overlap",
-			embedded:      `{"custom_types":{"Type1":{"icon":{"type":"font-awesome","name":"icon1","color":"#000000"}}}}`,
-			user:          `{"custom_types":{"Type2":{"icon":{"type":"font-awesome","name":"icon2","color":"#FFFFFF"}}}}`,
+			embedded:      `{"node_kinds":[{"name":"BHK_Type1","icon":"icon1","color":"#000000"}],"relationship_kinds":[]}`,
+			user:          `{"node_kinds":[{"name":"BHK_Type2","icon":"icon2","color":"#FFFFFF"}],"relationship_kinds":[]}`,
 			expectedCount: 2,
-			expectedTypes: []string{"Type1", "Type2"},
+			expectedNames: []string{"BHK_Type1", "BHK_Type2"},
 		},
 		{
 			name:          "user overrides embedded",
-			embedded:      `{"custom_types":{"Type1":{"icon":{"type":"font-awesome","name":"icon1","color":"#000000"}}}}`,
-			user:          `{"custom_types":{"Type1":{"icon":{"type":"font-awesome","name":"icon1-override","color":"#FFFFFF"}}}}`,
+			embedded:      `{"node_kinds":[{"name":"BHK_Type1","icon":"icon1","color":"#000000"}],"relationship_kinds":[]}`,
+			user:          `{"node_kinds":[{"name":"BHK_Type1","icon":"icon1-override","color":"#FFFFFF"}],"relationship_kinds":[]}`,
 			expectedCount: 1,
-			expectedTypes: []string{"Type1"},
+			expectedNames: []string{"BHK_Type1"},
 		},
 		{
 			name:          "empty user",
-			embedded:      `{"custom_types":{"Type1":{"icon":{"type":"font-awesome","name":"icon1","color":"#000000"}}}}`,
-			user:          `{"custom_types":{}}`,
+			embedded:      `{"node_kinds":[{"name":"BHK_Type1","icon":"icon1","color":"#000000"}],"relationship_kinds":[]}`,
+			user:          `{"node_kinds":[],"relationship_kinds":[]}`,
 			expectedCount: 1,
-			expectedTypes: []string{"Type1"},
+			expectedNames: []string{"BHK_Type1"},
 		},
 		{
 			name:          "empty embedded",
-			embedded:      `{"custom_types":{}}`,
-			user:          `{"custom_types":{"Type1":{"icon":{"type":"font-awesome","name":"icon1","color":"#000000"}}}}`,
+			embedded:      `{"node_kinds":[],"relationship_kinds":[]}`,
+			user:          `{"node_kinds":[{"name":"BHK_Type1","icon":"icon1","color":"#000000"}],"relationship_kinds":[]}`,
 			expectedCount: 1,
-			expectedTypes: []string{"Type1"},
+			expectedNames: []string{"BHK_Type1"},
 		},
 		{
 			name:          "multiple types with partial overlap",
-			embedded:      `{"custom_types":{"Type1":{"icon":{"type":"font-awesome","name":"icon1","color":"#000000"}},"Type2":{"icon":{"type":"font-awesome","name":"icon2","color":"#111111"}}}}`,
-			user:          `{"custom_types":{"Type2":{"icon":{"type":"font-awesome","name":"icon2-override","color":"#FFFFFF"}},"Type3":{"icon":{"type":"font-awesome","name":"icon3","color":"#222222"}}}}`,
+			embedded:      `{"node_kinds":[{"name":"BHK_Type1","icon":"icon1","color":"#000000"},{"name":"BHK_Type2","icon":"icon2","color":"#111111"}],"relationship_kinds":[]}`,
+			user:          `{"node_kinds":[{"name":"BHK_Type2","icon":"icon2-override","color":"#FFFFFF"},{"name":"BHK_Type3","icon":"icon3","color":"#222222"}],"relationship_kinds":[]}`,
 			expectedCount: 3,
-			expectedTypes: []string{"Type1", "Type2", "Type3"},
+			expectedNames: []string{"BHK_Type1", "BHK_Type2", "BHK_Type3"},
 		},
 		{
 			name:        "invalid embedded JSON",
 			embedded:    `{invalid json}`,
-			user:        `{"custom_types":{}}`,
+			user:        `{"node_kinds":[],"relationship_kinds":[]}`,
 			expectError: true,
 		},
 		{
 			name:        "invalid user JSON",
-			embedded:    `{"custom_types":{}}`,
+			embedded:    `{"node_kinds":[],"relationship_kinds":[]}`,
 			user:        `{invalid json}`,
 			expectError: true,
 		},
@@ -160,17 +160,17 @@ func TestMergeCustomTypes(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := MergeCustomTypes([]byte(tt.embedded), []byte(tt.user))
-			
+			result, err := MergeSchema([]byte(tt.embedded), []byte(tt.user))
+
 			if tt.expectError {
 				if err == nil {
 					t.Fatalf("Expected error but got none")
 				}
 				return
 			}
-			
+
 			if err != nil {
-				t.Fatalf("MergeCustomTypes failed: %v", err)
+				t.Fatalf("MergeSchema failed: %v", err)
 			}
 
 			var config CustomTypesConfig
@@ -178,13 +178,17 @@ func TestMergeCustomTypes(t *testing.T) {
 				t.Fatalf("Unmarshal result failed: %v", err)
 			}
 
-			if len(config.CustomTypes) != tt.expectedCount {
-				t.Errorf("Expected %d custom types, got %d", tt.expectedCount, len(config.CustomTypes))
+			if len(config.NodeKinds) != tt.expectedCount {
+				t.Errorf("Expected %d node kinds, got %d", tt.expectedCount, len(config.NodeKinds))
 			}
 
-			for _, typeName := range tt.expectedTypes {
-				if _, exists := config.CustomTypes[typeName]; !exists {
-					t.Errorf("Expected custom type %s to exist, but it doesn't", typeName)
+			nameSet := map[string]bool{}
+			for _, nk := range config.NodeKinds {
+				nameSet[nk.Name] = true
+			}
+			for _, name := range tt.expectedNames {
+				if !nameSet[name] {
+					t.Errorf("Expected node kind %s to exist, but it doesn't", name)
 				}
 			}
 		})
@@ -218,13 +222,13 @@ func TestMergeQueriesUserPrecedence(t *testing.T) {
 	}
 }
 
-func TestMergeCustomTypesUserPrecedence(t *testing.T) {
-	embedded := `{"custom_types":{"Test":{"icon":{"type":"font-awesome","name":"embedded","color":"#000000"}}}}`
-	user := `{"custom_types":{"Test":{"icon":{"type":"font-awesome","name":"user","color":"#FFFFFF"}}}}`
+func TestMergeSchemaUserPrecedence(t *testing.T) {
+	embedded := `{"node_kinds":[{"name":"BHK_Test","icon":"embedded","color":"#000000"}],"relationship_kinds":[]}`
+	user := `{"node_kinds":[{"name":"BHK_Test","icon":"user","color":"#FFFFFF"}],"relationship_kinds":[]}`
 
-	result, err := MergeCustomTypes([]byte(embedded), []byte(user))
+	result, err := MergeSchema([]byte(embedded), []byte(user))
 	if err != nil {
-		t.Fatalf("MergeCustomTypes failed: %v", err)
+		t.Fatalf("MergeSchema failed: %v", err)
 	}
 
 	var config CustomTypesConfig
@@ -232,20 +236,15 @@ func TestMergeCustomTypesUserPrecedence(t *testing.T) {
 		t.Fatalf("Unmarshal result failed: %v", err)
 	}
 
-	if len(config.CustomTypes) != 1 {
-		t.Fatalf("Expected 1 custom type, got %d", len(config.CustomTypes))
+	if len(config.NodeKinds) != 1 {
+		t.Fatalf("Expected 1 node kind, got %d", len(config.NodeKinds))
 	}
 
-	testType, exists := config.CustomTypes["Test"]
-	if !exists {
-		t.Fatalf("Expected 'Test' type to exist")
+	if config.NodeKinds[0].Icon != "user" {
+		t.Errorf("Expected user type to take precedence, got icon: %s", config.NodeKinds[0].Icon)
 	}
 
-	if testType.Icon.Name != "user" {
-		t.Errorf("Expected user type to take precedence, got icon name: %s", testType.Icon.Name)
-	}
-
-	if testType.Icon.Color != "#FFFFFF" {
-		t.Errorf("Expected user type to take precedence, got color: %s", testType.Icon.Color)
+	if config.NodeKinds[0].Color != "#FFFFFF" {
+		t.Errorf("Expected user type to take precedence, got color: %s", config.NodeKinds[0].Color)
 	}
 }

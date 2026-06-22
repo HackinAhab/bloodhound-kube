@@ -122,16 +122,16 @@ func (s stubNode) EdgeName() string      { return "" }
 func (s stubNode) EdgeNamespace() string { return "" }
 
 func TestCreateEdge_BasicFields(t *testing.T) {
-	a := stubNode{id: "Pod:ns:p1", kind: "Pod"}
-	b := stubNode{id: "Node::n1", kind: "Node"}
-	e := CreateEdge(a, b, "ScheduledOn")
-	if e.Kind != "ScheduledOn" {
+	a := stubNode{id: "Pod:ns:p1", kind: "BHK_Pod"}
+	b := stubNode{id: "Node::n1", kind: "BHK_Node"}
+	e := CreateEdge(a, b, "BHK_ScheduledOn")
+	if e.Kind != "BHK_ScheduledOn" {
 		t.Fatalf("kind: got %q", e.Kind)
 	}
-	if e.Start.Value != "Pod:ns:p1" || e.Start.Kind != "Pod" || e.Start.MatchBy != "id" {
+	if e.Start.Value != "Pod:ns:p1" || e.Start.Kind != "BHK_Pod" || e.Start.MatchBy != "id" {
 		t.Fatalf("start: %+v", e.Start)
 	}
-	if e.End.Value != "Node::n1" || e.End.Kind != "Node" || e.End.MatchBy != "id" {
+	if e.End.Value != "Node::n1" || e.End.Kind != "BHK_Node" || e.End.MatchBy != "id" {
 		t.Fatalf("end: %+v", e.End)
 	}
 	if e.Properties != nil {

@@ -49,6 +49,8 @@ type Cluster struct {
 	AllNodes                   []platform.AllNodes
 	ClusterRoles               []rbac.ClusterRole
 	ClusterRoleBindings        []rbac.ClusterRoleBinding
+	Users                      []rbac.User
+	Groups                     []rbac.Group
 	PersistentVolumes          []mounts.PersistentVolume
 	ClusterSecretStores        []addons.ClusterSecretStore
 	SecurityContextConstraints []addons.SecurityContextConstraints
@@ -57,6 +59,8 @@ type Cluster struct {
 	AllSecrets                 []platform.AllSecrets
 	AllConfigMaps              []platform.AllConfigMaps
 	AllServiceAccounts         []platform.AllServiceAccounts
+	AllUsers                   []platform.AllUsers
+	AllGroups                  []platform.AllGroups
 	AllDeployments             []platform.AllDeployments
 	AllDaemonSets              []platform.AllDaemonSets
 	AllStatefulSets            []platform.AllStatefulSets

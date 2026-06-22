@@ -41,7 +41,7 @@ func BuildDeploymentNode(obj runtime.Object) (BuildResult, bool) {
 	properties["selector"] = MapToSortedList(selectorMap)
 	properties["envDefinitions"] = envDefinitions
 
-	base := NewGraphNodeBase("Deployment", namespace, name, labelsMap, annotationsMap)
+	base := NewGraphNodeBase("BHK_Deployment", namespace, name, labelsMap, annotationsMap)
 
 	core := CoreEntry{
 		Namespace: namespace,

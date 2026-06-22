@@ -47,7 +47,7 @@ func BuildCronJobNode(obj runtime.Object) (BuildResult, bool) {
 	properties["concurrencyPolicy"] = string(cronJob.Spec.ConcurrencyPolicy)
 	properties["envDefinitions"] = envDefinitions
 
-	base := NewGraphNodeBase("CronJob", namespace, name, labelsMap, annotationsMap)
+	base := NewGraphNodeBase("BHK_CronJob", namespace, name, labelsMap, annotationsMap)
 
 	core := CoreEntry{
 		Namespace: namespace,

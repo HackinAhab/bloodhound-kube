@@ -80,17 +80,17 @@ func TestRBACBaseBindingsRule(t *testing.T) {
 	core := newCore()
 	ns := ensureNamespace(core, "team-a")
 
-	ns.ServiceAccounts = append(ns.ServiceAccounts, rbac.ServiceAccount{GraphNodeBase: base("ServiceAccount", "team-a", "sa-1")})
-	ns.Roles = append(ns.Roles, rbac.Role{GraphNodeBase: base("Role", "team-a", "read-role")})
+	ns.ServiceAccounts = append(ns.ServiceAccounts, rbac.ServiceAccount{GraphNodeBase: base("BHK_ServiceAccount", "team-a", "sa-1")})
+	ns.Roles = append(ns.Roles, rbac.Role{GraphNodeBase: base("BHK_Role", "team-a", "read-role")})
 	ns.RoleBindings = append(ns.RoleBindings,
 		rbac.RoleBinding{
-			GraphNodeBase: base("RoleBinding", "team-a", "rb-role"),
+			GraphNodeBase: base("BHK_RoleBinding", "team-a", "rb-role"),
 			RoleKind:      "Role",
 			RoleName:      "read-role",
 			Subjects:      []nodefw.Subject{{Kind: "ServiceAccount", Name: "sa-1"}},
 		},
 		rbac.RoleBinding{
-			GraphNodeBase: base("RoleBinding", "team-a", "rb-cluster-role"),
+			GraphNodeBase: base("BHK_RoleBinding", "team-a", "rb-cluster-role"),
 			RoleKind:      "ClusterRole",
 			RoleName:      "cluster-admin-lite",
 			Subjects:      []nodefw.Subject{{Kind: "ServiceAccount", Name: "sa-1"}},
@@ -98,11 +98,11 @@ func TestRBACBaseBindingsRule(t *testing.T) {
 	)
 
 	core.Cluster.ClusterRoles = append(core.Cluster.ClusterRoles,
-		rbac.ClusterRole{GraphNodeBase: base("ClusterRole", "", "cluster-admin-lite")},
+		rbac.ClusterRole{GraphNodeBase: base("BHK_ClusterRole", "", "cluster-admin-lite")},
 	)
 	core.Cluster.ClusterRoleBindings = append(core.Cluster.ClusterRoleBindings,
 		rbac.ClusterRoleBinding{
-			GraphNodeBase: base("ClusterRoleBinding", "", "crb-1"),
+			GraphNodeBase: base("BHK_ClusterRoleBinding", "", "crb-1"),
 			RoleKind:      "ClusterRole",
 			RoleName:      "cluster-admin-lite",
 			Subjects:      []nodefw.Subject{{Kind: "ServiceAccount", Name: "sa-1", Namespace: "team-a"}},
@@ -119,8 +119,8 @@ func TestRBACBaseBindingsRule(t *testing.T) {
 		t.Fatalf("expected 2 RoleBound edges (with binding merge), got %d", len(edges))
 	}
 
-	saID := nodefw.BuildID("ServiceAccount", "team-a", "sa-1")
-	roleEdge, ok := findEdge(edges, saID, nodefw.BuildID("Role", "team-a", "read-role"), "RoleBound")
+	saID := nodefw.BuildID("BHK_ServiceAccount", "team-a", "sa-1")
+	roleEdge, ok := findEdge(edges, saID, nodefw.BuildID("BHK_Role", "team-a", "read-role"), "BHK_RoleBound")
 	if !ok {
 		t.Fatalf("missing serviceaccount->role edge")
 	}
@@ -150,7 +150,7 @@ func TestRBACBaseBindingsRule(t *testing.T) {
 		t.Fatalf("role edge bindings[0] = %#v", roleBindings[0])
 	}
 
-	crEdge, ok := findEdge(edges, saID, nodefw.BuildID("ClusterRole", "", "cluster-admin-lite"), "RoleBound")
+	crEdge, ok := findEdge(edges, saID, nodefw.BuildID("BHK_ClusterRole", "", "cluster-admin-lite"), "BHK_RoleBound")
 	if !ok {
 		t.Fatalf("missing serviceaccount->clusterrole edge")
 	}
@@ -181,21 +181,21 @@ func TestRBACBaseBindingsMergesMultipleClusterRoleBindings(t *testing.T) {
 	core := newCore()
 	ns := ensureNamespace(core, "team-a")
 	ns.ServiceAccounts = append(ns.ServiceAccounts,
-		rbac.ServiceAccount{GraphNodeBase: base("ServiceAccount", "team-a", "sa-1")},
+		rbac.ServiceAccount{GraphNodeBase: base("BHK_ServiceAccount", "team-a", "sa-1")},
 	)
 	core.Cluster.ClusterRoles = append(core.Cluster.ClusterRoles,
-		rbac.ClusterRole{GraphNodeBase: base("ClusterRole", "", "cluster-admin")},
+		rbac.ClusterRole{GraphNodeBase: base("BHK_ClusterRole", "", "cluster-admin")},
 	)
 	// Insert in reverse-alpha order to verify sort happens at materialize time.
 	core.Cluster.ClusterRoleBindings = append(core.Cluster.ClusterRoleBindings,
 		rbac.ClusterRoleBinding{
-			GraphNodeBase: base("ClusterRoleBinding", "", "crb-b"),
+			GraphNodeBase: base("BHK_ClusterRoleBinding", "", "crb-b"),
 			RoleKind:      "ClusterRole",
 			RoleName:      "cluster-admin",
 			Subjects:      []nodefw.Subject{{Kind: "ServiceAccount", Name: "sa-1", Namespace: "team-a"}},
 		},
 		rbac.ClusterRoleBinding{
-			GraphNodeBase: base("ClusterRoleBinding", "", "crb-a"),
+			GraphNodeBase: base("BHK_ClusterRoleBinding", "", "crb-a"),
 			RoleKind:      "ClusterRole",
 			RoleName:      "cluster-admin",
 			Subjects:      []nodefw.Subject{{Kind: "ServiceAccount", Name: "sa-1", Namespace: "team-a"}},
@@ -230,12 +230,12 @@ func TestRBACBaseBindingsRoleBindingProperties(t *testing.T) {
 	core := newCore()
 	ns := ensureNamespace(core, "ns1")
 	ns.ServiceAccounts = append(ns.ServiceAccounts,
-		rbac.ServiceAccount{GraphNodeBase: base("ServiceAccount", "ns1", "reader")},
+		rbac.ServiceAccount{GraphNodeBase: base("BHK_ServiceAccount", "ns1", "reader")},
 	)
-	ns.Roles = append(ns.Roles, rbac.Role{GraphNodeBase: base("Role", "ns1", "reader-role")})
+	ns.Roles = append(ns.Roles, rbac.Role{GraphNodeBase: base("BHK_Role", "ns1", "reader-role")})
 	ns.RoleBindings = append(ns.RoleBindings,
 		rbac.RoleBinding{
-			GraphNodeBase: base("RoleBinding", "ns1", "rb-reader"),
+			GraphNodeBase: base("BHK_RoleBinding", "ns1", "rb-reader"),
 			RoleKind:      "Role",
 			RoleName:      "reader-role",
 			Subjects:      []nodefw.Subject{{Kind: "ServiceAccount", Name: "reader"}},
@@ -270,16 +270,16 @@ func TestRBACBaseBindingsDeterministicOrdering(t *testing.T) {
 	core := newCore()
 	ns := ensureNamespace(core, "team-a")
 	ns.ServiceAccounts = append(ns.ServiceAccounts,
-		rbac.ServiceAccount{GraphNodeBase: base("ServiceAccount", "team-a", "sa-1")},
+		rbac.ServiceAccount{GraphNodeBase: base("BHK_ServiceAccount", "team-a", "sa-1")},
 	)
 	core.Cluster.ClusterRoles = append(core.Cluster.ClusterRoles,
-		rbac.ClusterRole{GraphNodeBase: base("ClusterRole", "", "cluster-role")},
+		rbac.ClusterRole{GraphNodeBase: base("BHK_ClusterRole", "", "cluster-role")},
 	)
 	// Mix RoleBinding (namespace=team-a) and ClusterRoleBinding (namespace="")
 	// — sort should place the ClusterRoleBinding first since "" < "team-a".
 	ns.RoleBindings = append(ns.RoleBindings,
 		rbac.RoleBinding{
-			GraphNodeBase: base("RoleBinding", "team-a", "rb-zeta"),
+			GraphNodeBase: base("BHK_RoleBinding", "team-a", "rb-zeta"),
 			RoleKind:      "ClusterRole",
 			RoleName:      "cluster-role",
 			Subjects:      []nodefw.Subject{{Kind: "ServiceAccount", Name: "sa-1"}},
@@ -287,7 +287,7 @@ func TestRBACBaseBindingsDeterministicOrdering(t *testing.T) {
 	)
 	core.Cluster.ClusterRoleBindings = append(core.Cluster.ClusterRoleBindings,
 		rbac.ClusterRoleBinding{
-			GraphNodeBase: base("ClusterRoleBinding", "", "crb-zeta"),
+			GraphNodeBase: base("BHK_ClusterRoleBinding", "", "crb-zeta"),
 			RoleKind:      "ClusterRole",
 			RoleName:      "cluster-role",
 			Subjects:      []nodefw.Subject{{Kind: "ServiceAccount", Name: "sa-1", Namespace: "team-a"}},
@@ -314,20 +314,20 @@ func TestRBACBaseBindingsDeterministicOrdering(t *testing.T) {
 func TestRBACReadSecretsRule(t *testing.T) {
 	core := newCore()
 	ns := ensureNamespace(core, "ns1")
-	ns.ServiceAccounts = append(ns.ServiceAccounts, rbac.ServiceAccount{GraphNodeBase: base("ServiceAccount", "ns1", "reader")})
+	ns.ServiceAccounts = append(ns.ServiceAccounts, rbac.ServiceAccount{GraphNodeBase: base("BHK_ServiceAccount", "ns1", "reader")})
 	ns.Secrets = append(ns.Secrets,
-		workload.Secret{GraphNodeBase: base("Secret", "ns1", "target-secret")},
-		workload.Secret{GraphNodeBase: base("Secret", "ns1", "other-secret")},
+		workload.Secret{GraphNodeBase: base("BHK_Secret", "ns1", "target-secret")},
+		workload.Secret{GraphNodeBase: base("BHK_Secret", "ns1", "other-secret")},
 	)
 	ns.Roles = append(ns.Roles,
 		rbac.Role{
-			GraphNodeBase: base("Role", "ns1", "secret-role"),
+			GraphNodeBase: base("BHK_Role", "ns1", "secret-role"),
 			PermsDisplay:  []string{"secrets/target-secret: get"},
 		},
 	)
 	ns.RoleBindings = append(ns.RoleBindings,
 		rbac.RoleBinding{
-			GraphNodeBase: base("RoleBinding", "ns1", "rb-secret"),
+			GraphNodeBase: base("BHK_RoleBinding", "ns1", "rb-secret"),
 			RoleKind:      "Role",
 			RoleName:      "secret-role",
 			Subjects:      []nodefw.Subject{{Kind: "ServiceAccount", Name: "reader"}},
@@ -341,9 +341,9 @@ func TestRBACReadSecretsRule(t *testing.T) {
 	}
 
 	if !hasEdge(edges,
-		nodefw.BuildID("ServiceAccount", "ns1", "reader"),
-		nodefw.BuildID("Secret", "ns1", "target-secret"),
-		"SAReadSecret",
+		nodefw.BuildID("BHK_ServiceAccount", "ns1", "reader"),
+		nodefw.BuildID("BHK_Secret", "ns1", "target-secret"),
+		"BHK_ReadSecret",
 	) {
 		t.Fatalf("missing reader->target-secret edge")
 	}
@@ -352,16 +352,16 @@ func TestRBACReadSecretsRule(t *testing.T) {
 func TestRBACReadSecretsClusterAggregate(t *testing.T) {
 	core := newCore()
 	ns := ensureNamespace(core, "ns1")
-	ns.ServiceAccounts = append(ns.ServiceAccounts, rbac.ServiceAccount{GraphNodeBase: base("ServiceAccount", "ns1", "cluster-reader")})
+	ns.ServiceAccounts = append(ns.ServiceAccounts, rbac.ServiceAccount{GraphNodeBase: base("BHK_ServiceAccount", "ns1", "cluster-reader")})
 	core.Cluster.AllSecrets = append(core.Cluster.AllSecrets,
-		platform.AllSecrets{GraphNodeBase: base("AllSecrets", "", "AllSecrets")},
+		platform.AllSecrets{GraphNodeBase: base("BHK_AllSecrets", "", "BHK_AllSecrets")},
 	)
 	core.Cluster.ClusterRoles = append(core.Cluster.ClusterRoles,
-		rbac.ClusterRole{GraphNodeBase: base("ClusterRole", "", "secret-cluster-role"), PermsDisplay: []string{"secrets: get"}},
+		rbac.ClusterRole{GraphNodeBase: base("BHK_ClusterRole", "", "secret-cluster-role"), PermsDisplay: []string{"secrets: get"}},
 	)
 	core.Cluster.ClusterRoleBindings = append(core.Cluster.ClusterRoleBindings,
 		rbac.ClusterRoleBinding{
-			GraphNodeBase: base("ClusterRoleBinding", "", "crb-secret"),
+			GraphNodeBase: base("BHK_ClusterRoleBinding", "", "crb-secret"),
 			RoleKind:      "ClusterRole",
 			RoleName:      "secret-cluster-role",
 			Subjects:      []nodefw.Subject{{Kind: "ServiceAccount", Name: "cluster-reader", Namespace: "ns1"}},
@@ -374,9 +374,9 @@ func TestRBACReadSecretsClusterAggregate(t *testing.T) {
 		t.Fatalf("expected 1 aggregate SAReadSecret edge, got %d", len(edges))
 	}
 	if !hasEdge(edges,
-		nodefw.BuildID("ServiceAccount", "ns1", "cluster-reader"),
-		nodefw.BuildID("AllSecrets", "", "AllSecrets"),
-		"SAReadSecret",
+		nodefw.BuildID("BHK_ServiceAccount", "ns1", "cluster-reader"),
+		nodefw.BuildID("BHK_AllSecrets", "", "BHK_AllSecrets"),
+		"BHK_ReadSecret",
 	) {
 		t.Fatalf("missing cluster-reader->AllSecrets edge")
 	}
@@ -385,25 +385,25 @@ func TestRBACReadSecretsNamespacedAggregate(t *testing.T) {
 	core := newCore()
 	ns := ensureNamespace(core, "ns1")
 	ns.ServiceAccounts = append(ns.ServiceAccounts,
-		rbac.ServiceAccount{GraphNodeBase: base("ServiceAccount", "ns1", "ns-reader")},
+		rbac.ServiceAccount{GraphNodeBase: base("BHK_ServiceAccount", "ns1", "ns-reader")},
 	)
 	ns.Secrets = append(ns.Secrets,
-		workload.Secret{GraphNodeBase: base("Secret", "ns1", "alpha")},
-		workload.Secret{GraphNodeBase: base("Secret", "ns1", "beta")},
-		workload.Secret{GraphNodeBase: base("Secret", "ns1", "gamma")},
+		workload.Secret{GraphNodeBase: base("BHK_Secret", "ns1", "alpha")},
+		workload.Secret{GraphNodeBase: base("BHK_Secret", "ns1", "beta")},
+		workload.Secret{GraphNodeBase: base("BHK_Secret", "ns1", "gamma")},
 	)
 	ns.AllSecrets = append(ns.AllSecrets,
-		platform.AllSecrets{GraphNodeBase: base("AllSecrets", "ns1", "AllSecrets")},
+		platform.AllSecrets{GraphNodeBase: base("BHK_AllSecrets", "ns1", "BHK_AllSecrets")},
 	)
 	ns.Roles = append(ns.Roles,
 		rbac.Role{
-			GraphNodeBase: base("Role", "ns1", "secret-wildcard"),
+			GraphNodeBase: base("BHK_Role", "ns1", "secret-wildcard"),
 			PermsDisplay:  []string{"secrets: get, list, watch"},
 		},
 	)
 	ns.RoleBindings = append(ns.RoleBindings,
 		rbac.RoleBinding{
-			GraphNodeBase: base("RoleBinding", "ns1", "rb-wildcard"),
+			GraphNodeBase: base("BHK_RoleBinding", "ns1", "rb-wildcard"),
 			RoleKind:      "Role",
 			RoleName:      "secret-wildcard",
 			Subjects:      []nodefw.Subject{{Kind: "ServiceAccount", Name: "ns-reader"}},
@@ -416,14 +416,14 @@ func TestRBACReadSecretsNamespacedAggregate(t *testing.T) {
 		t.Fatalf("expected 1 namespaced aggregate SAReadSecret edge, got %d", len(edges))
 	}
 
-	saID := nodefw.BuildID("ServiceAccount", "ns1", "ns-reader")
-	aggID := nodefw.BuildID("AllSecrets", "ns1", "AllSecrets")
-	if !hasEdge(edges, saID, aggID, "SAReadSecret") {
+	saID := nodefw.BuildID("BHK_ServiceAccount", "ns1", "ns-reader")
+	aggID := nodefw.BuildID("BHK_AllSecrets", "ns1", "BHK_AllSecrets")
+	if !hasEdge(edges, saID, aggID, "BHK_ReadSecret") {
 		t.Fatalf("missing ns-reader -> AllSecrets:ns1 SAReadSecret edge")
 	}
 	for _, name := range []string{"alpha", "beta", "gamma"} {
-		secretID := nodefw.BuildID("Secret", "ns1", name)
-		if hasEdge(edges, saID, secretID, "SAReadSecret") {
+		secretID := nodefw.BuildID("BHK_Secret", "ns1", name)
+		if hasEdge(edges, saID, secretID, "BHK_ReadSecret") {
 			t.Fatalf("unexpected per-secret SAReadSecret edge to %s when aggregate should be used", secretID)
 		}
 	}
@@ -433,24 +433,24 @@ func TestRBACReadConfigMapsNamespacedAggregate(t *testing.T) {
 	core := newCore()
 	ns := ensureNamespace(core, "ns1")
 	ns.ServiceAccounts = append(ns.ServiceAccounts,
-		rbac.ServiceAccount{GraphNodeBase: base("ServiceAccount", "ns1", "cm-reader")},
+		rbac.ServiceAccount{GraphNodeBase: base("BHK_ServiceAccount", "ns1", "cm-reader")},
 	)
 	ns.ConfigMaps = append(ns.ConfigMaps,
-		workload.ConfigMap{GraphNodeBase: base("ConfigMap", "ns1", "alpha")},
-		workload.ConfigMap{GraphNodeBase: base("ConfigMap", "ns1", "beta")},
+		workload.ConfigMap{GraphNodeBase: base("BHK_ConfigMap", "ns1", "alpha")},
+		workload.ConfigMap{GraphNodeBase: base("BHK_ConfigMap", "ns1", "beta")},
 	)
 	ns.AllConfigMaps = append(ns.AllConfigMaps,
-		platform.AllConfigMaps{GraphNodeBase: base("AllConfigMaps", "ns1", "AllConfigMaps")},
+		platform.AllConfigMaps{GraphNodeBase: base("BHK_AllConfigMaps", "ns1", "BHK_AllConfigMaps")},
 	)
 	ns.Roles = append(ns.Roles,
 		rbac.Role{
-			GraphNodeBase: base("Role", "ns1", "cm-wildcard"),
+			GraphNodeBase: base("BHK_Role", "ns1", "cm-wildcard"),
 			PermsDisplay:  []string{"configmaps: get, list, watch"},
 		},
 	)
 	ns.RoleBindings = append(ns.RoleBindings,
 		rbac.RoleBinding{
-			GraphNodeBase: base("RoleBinding", "ns1", "rb-cm-wildcard"),
+			GraphNodeBase: base("BHK_RoleBinding", "ns1", "rb-cm-wildcard"),
 			RoleKind:      "Role",
 			RoleName:      "cm-wildcard",
 			Subjects:      []nodefw.Subject{{Kind: "ServiceAccount", Name: "cm-reader"}},
@@ -463,14 +463,14 @@ func TestRBACReadConfigMapsNamespacedAggregate(t *testing.T) {
 		t.Fatalf("expected 1 namespaced aggregate ReadConfigMap edge, got %d", len(edges))
 	}
 
-	saID := nodefw.BuildID("ServiceAccount", "ns1", "cm-reader")
-	aggID := nodefw.BuildID("AllConfigMaps", "ns1", "AllConfigMaps")
-	if !hasEdge(edges, saID, aggID, "ReadConfigMap") {
+	saID := nodefw.BuildID("BHK_ServiceAccount", "ns1", "cm-reader")
+	aggID := nodefw.BuildID("BHK_AllConfigMaps", "ns1", "BHK_AllConfigMaps")
+	if !hasEdge(edges, saID, aggID, "BHK_ReadConfigMap") {
 		t.Fatalf("missing cm-reader -> AllConfigMaps:ns1 ReadConfigMap edge")
 	}
 	for _, name := range []string{"alpha", "beta"} {
-		cmID := nodefw.BuildID("ConfigMap", "ns1", name)
-		if hasEdge(edges, saID, cmID, "ReadConfigMap") {
+		cmID := nodefw.BuildID("BHK_ConfigMap", "ns1", name)
+		if hasEdge(edges, saID, cmID, "BHK_ReadConfigMap") {
 			t.Fatalf("unexpected per-configmap ReadConfigMap edge to %s when aggregate should be used", cmID)
 		}
 	}
@@ -483,24 +483,24 @@ func TestRBACReadConfigMapsNamespacedNamed(t *testing.T) {
 	core := newCore()
 	ns := ensureNamespace(core, "ns1")
 	ns.ServiceAccounts = append(ns.ServiceAccounts,
-		rbac.ServiceAccount{GraphNodeBase: base("ServiceAccount", "ns1", "scoped-reader")},
+		rbac.ServiceAccount{GraphNodeBase: base("BHK_ServiceAccount", "ns1", "scoped-reader")},
 	)
 	ns.ConfigMaps = append(ns.ConfigMaps,
-		workload.ConfigMap{GraphNodeBase: base("ConfigMap", "ns1", "target")},
-		workload.ConfigMap{GraphNodeBase: base("ConfigMap", "ns1", "other")},
+		workload.ConfigMap{GraphNodeBase: base("BHK_ConfigMap", "ns1", "target")},
+		workload.ConfigMap{GraphNodeBase: base("BHK_ConfigMap", "ns1", "other")},
 	)
 	ns.AllConfigMaps = append(ns.AllConfigMaps,
-		platform.AllConfigMaps{GraphNodeBase: base("AllConfigMaps", "ns1", "AllConfigMaps")},
+		platform.AllConfigMaps{GraphNodeBase: base("BHK_AllConfigMaps", "ns1", "BHK_AllConfigMaps")},
 	)
 	ns.Roles = append(ns.Roles,
 		rbac.Role{
-			GraphNodeBase: base("Role", "ns1", "scoped-cm"),
+			GraphNodeBase: base("BHK_Role", "ns1", "scoped-cm"),
 			PermsDisplay:  []string{"configmaps/target: get"},
 		},
 	)
 	ns.RoleBindings = append(ns.RoleBindings,
 		rbac.RoleBinding{
-			GraphNodeBase: base("RoleBinding", "ns1", "rb-scoped-cm"),
+			GraphNodeBase: base("BHK_RoleBinding", "ns1", "rb-scoped-cm"),
 			RoleKind:      "Role",
 			RoleName:      "scoped-cm",
 			Subjects:      []nodefw.Subject{{Kind: "ServiceAccount", Name: "scoped-reader"}},
@@ -512,14 +512,14 @@ func TestRBACReadConfigMapsNamespacedNamed(t *testing.T) {
 	if len(edges) != 1 {
 		t.Fatalf("expected 1 named ReadConfigMap edge, got %d", len(edges))
 	}
-	saID := nodefw.BuildID("ServiceAccount", "ns1", "scoped-reader")
-	if !hasEdge(edges, saID, nodefw.BuildID("ConfigMap", "ns1", "target"), "ReadConfigMap") {
+	saID := nodefw.BuildID("BHK_ServiceAccount", "ns1", "scoped-reader")
+	if !hasEdge(edges, saID, nodefw.BuildID("BHK_ConfigMap", "ns1", "target"), "BHK_ReadConfigMap") {
 		t.Fatalf("missing scoped-reader -> target ReadConfigMap edge")
 	}
-	if hasEdge(edges, saID, nodefw.BuildID("AllConfigMaps", "ns1", "AllConfigMaps"), "ReadConfigMap") {
+	if hasEdge(edges, saID, nodefw.BuildID("BHK_AllConfigMaps", "ns1", "BHK_AllConfigMaps"), "BHK_ReadConfigMap") {
 		t.Fatalf("unexpected ReadConfigMap edge to aggregate when only named perm is granted")
 	}
-	if hasEdge(edges, saID, nodefw.BuildID("ConfigMap", "ns1", "other"), "ReadConfigMap") {
+	if hasEdge(edges, saID, nodefw.BuildID("BHK_ConfigMap", "ns1", "other"), "BHK_ReadConfigMap") {
 		t.Fatalf("unexpected ReadConfigMap edge to non-targeted ConfigMap")
 	}
 }
@@ -527,17 +527,17 @@ func TestRBACReadConfigMapsNamespacedNamed(t *testing.T) {
 func TestRBACNodeProxyRule(t *testing.T) {
 	core := newCore()
 	ns := ensureNamespace(core, "ns1")
-	ns.ServiceAccounts = append(ns.ServiceAccounts, rbac.ServiceAccount{GraphNodeBase: base("ServiceAccount", "ns1", "proxy-sa")})
+	ns.ServiceAccounts = append(ns.ServiceAccounts, rbac.ServiceAccount{GraphNodeBase: base("BHK_ServiceAccount", "ns1", "proxy-sa")})
 	ns.Pods = append(ns.Pods,
-		workload.Pod{GraphNodeBase: base("Pod", "ns1", "pod-on-node1"), NodeName: "node1"},
-		workload.Pod{GraphNodeBase: base("Pod", "ns1", "pod-on-node2"), NodeName: "node2"},
+		workload.Pod{GraphNodeBase: base("BHK_Pod", "ns1", "pod-on-node1"), NodeName: "node1"},
+		workload.Pod{GraphNodeBase: base("BHK_Pod", "ns1", "pod-on-node2"), NodeName: "node2"},
 	)
 	ns.Roles = append(ns.Roles,
-		rbac.Role{GraphNodeBase: base("Role", "ns1", "node-proxy-role"), PermsDisplay: []string{"nodes/proxy/node1: get"}},
+		rbac.Role{GraphNodeBase: base("BHK_Role", "ns1", "node-proxy-role"), PermsDisplay: []string{"nodes/proxy/node1: get"}},
 	)
 	ns.RoleBindings = append(ns.RoleBindings,
 		rbac.RoleBinding{
-			GraphNodeBase: base("RoleBinding", "ns1", "rb-node-proxy"),
+			GraphNodeBase: base("BHK_RoleBinding", "ns1", "rb-node-proxy"),
 			RoleKind:      "Role",
 			RoleName:      "node-proxy-role",
 			Subjects:      []nodefw.Subject{{Kind: "ServiceAccount", Name: "proxy-sa"}},
@@ -550,9 +550,9 @@ func TestRBACNodeProxyRule(t *testing.T) {
 		t.Fatalf("expected 1 NodeProxy edge, got %d", len(edges))
 	}
 	if !hasEdge(edges,
-		nodefw.BuildID("ServiceAccount", "ns1", "proxy-sa"),
-		nodefw.BuildID("Pod", "ns1", "pod-on-node1"),
-		"NodeProxy",
+		nodefw.BuildID("BHK_ServiceAccount", "ns1", "proxy-sa"),
+		nodefw.BuildID("BHK_Pod", "ns1", "pod-on-node1"),
+		"BHK_NodeProxy",
 	) {
 		t.Fatalf("missing proxy-sa->pod-on-node1 NodeProxy edge")
 	}
@@ -563,19 +563,19 @@ func TestRBACWorkloadPatchClusterNamedPods(t *testing.T) {
 	ns1 := ensureNamespace(core, "ns1")
 	ns2 := ensureNamespace(core, "ns2")
 
-	ns1.ServiceAccounts = append(ns1.ServiceAccounts, rbac.ServiceAccount{GraphNodeBase: base("ServiceAccount", "ns1", "patcher")})
-	ns1.Pods = append(ns1.Pods, workload.Pod{GraphNodeBase: base("Pod", "ns1", "shared-pod")})
-	ns2.Pods = append(ns2.Pods, workload.Pod{GraphNodeBase: base("Pod", "ns2", "shared-pod")})
+	ns1.ServiceAccounts = append(ns1.ServiceAccounts, rbac.ServiceAccount{GraphNodeBase: base("BHK_ServiceAccount", "ns1", "patcher")})
+	ns1.Pods = append(ns1.Pods, workload.Pod{GraphNodeBase: base("BHK_Pod", "ns1", "shared-pod")})
+	ns2.Pods = append(ns2.Pods, workload.Pod{GraphNodeBase: base("BHK_Pod", "ns2", "shared-pod")})
 
 	core.Cluster.ClusterRoles = append(core.Cluster.ClusterRoles,
 		rbac.ClusterRole{
-			GraphNodeBase: base("ClusterRole", "", "patch-pods"),
+			GraphNodeBase: base("BHK_ClusterRole", "", "patch-pods"),
 			PermsDisplay:  []string{"pods/shared-pod: patch"},
 		},
 	)
 	core.Cluster.ClusterRoleBindings = append(core.Cluster.ClusterRoleBindings,
 		rbac.ClusterRoleBinding{
-			GraphNodeBase: base("ClusterRoleBinding", "", "crb-patch"),
+			GraphNodeBase: base("BHK_ClusterRoleBinding", "", "crb-patch"),
 			RoleKind:      "ClusterRole",
 			RoleName:      "patch-pods",
 			Subjects:      []nodefw.Subject{{Kind: "ServiceAccount", Name: "patcher", Namespace: "ns1"}},
@@ -588,11 +588,11 @@ func TestRBACWorkloadPatchClusterNamedPods(t *testing.T) {
 		t.Fatalf("expected 2 WorkloadPatch edges across namespaces, got %d", len(edges))
 	}
 
-	start := nodefw.BuildID("ServiceAccount", "ns1", "patcher")
-	if !hasEdge(edges, start, nodefw.BuildID("Pod", "ns1", "shared-pod"), "WorkloadPatch") {
+	start := nodefw.BuildID("BHK_ServiceAccount", "ns1", "patcher")
+	if !hasEdge(edges, start, nodefw.BuildID("BHK_Pod", "ns1", "shared-pod"), "BHK_WorkloadPatch") {
 		t.Fatalf("missing edge to ns1/shared-pod")
 	}
-	if !hasEdge(edges, start, nodefw.BuildID("Pod", "ns2", "shared-pod"), "WorkloadPatch") {
+	if !hasEdge(edges, start, nodefw.BuildID("BHK_Pod", "ns2", "shared-pod"), "BHK_WorkloadPatch") {
 		t.Fatalf("missing edge to ns2/shared-pod")
 	}
 }
@@ -600,15 +600,15 @@ func TestRBACWorkloadPatchClusterNamedPods(t *testing.T) {
 func TestRBACCreateAndWorkloadCreateRules(t *testing.T) {
 	core := newCore()
 	ns := ensureNamespace(core, "ns1")
-	ns.ServiceAccounts = append(ns.ServiceAccounts, rbac.ServiceAccount{GraphNodeBase: base("ServiceAccount", "ns1", "creator")})
+	ns.ServiceAccounts = append(ns.ServiceAccounts, rbac.ServiceAccount{GraphNodeBase: base("BHK_ServiceAccount", "ns1", "creator")})
 	ns.Roles = append(ns.Roles,
-		rbac.Role{GraphNodeBase: base("Role", "ns1", "role-a")},
-		rbac.Role{GraphNodeBase: base("Role", "ns1", "role-b")},
-		rbac.Role{GraphNodeBase: base("Role", "ns1", "rbac-create-role"), PermsDisplay: []string{"rolebindings: create"}},
+		rbac.Role{GraphNodeBase: base("BHK_Role", "ns1", "role-a")},
+		rbac.Role{GraphNodeBase: base("BHK_Role", "ns1", "role-b")},
+		rbac.Role{GraphNodeBase: base("BHK_Role", "ns1", "rbac-create-role"), PermsDisplay: []string{"rolebindings: create"}},
 	)
 	ns.RoleBindings = append(ns.RoleBindings,
 		rbac.RoleBinding{
-			GraphNodeBase: base("RoleBinding", "ns1", "rb-rbac-create"),
+			GraphNodeBase: base("BHK_RoleBinding", "ns1", "rb-rbac-create"),
 			RoleKind:      "Role",
 			RoleName:      "rbac-create-role",
 			Subjects:      []nodefw.Subject{{Kind: "ServiceAccount", Name: "creator"}},
@@ -616,16 +616,16 @@ func TestRBACCreateAndWorkloadCreateRules(t *testing.T) {
 	)
 
 	core.Cluster.ClusterRoles = append(core.Cluster.ClusterRoles,
-		rbac.ClusterRole{GraphNodeBase: base("ClusterRole", "", "cluster-target")},
-		rbac.ClusterRole{GraphNodeBase: base("ClusterRole", "", "workload-create-cluster-role"), PermsDisplay: []string{"pods: create"}},
+		rbac.ClusterRole{GraphNodeBase: base("BHK_ClusterRole", "", "cluster-target")},
+		rbac.ClusterRole{GraphNodeBase: base("BHK_ClusterRole", "", "workload-create-cluster-role"), PermsDisplay: []string{"pods: create"}},
 	)
 	core.Cluster.Nodes = append(core.Cluster.Nodes,
-		platform.Node{GraphNodeBase: base("Node", "", "node-1")},
-		platform.Node{GraphNodeBase: base("Node", "", "node-2")},
+		platform.Node{GraphNodeBase: base("BHK_Node", "", "node-1")},
+		platform.Node{GraphNodeBase: base("BHK_Node", "", "node-2")},
 	)
 	core.Cluster.ClusterRoleBindings = append(core.Cluster.ClusterRoleBindings,
 		rbac.ClusterRoleBinding{
-			GraphNodeBase: base("ClusterRoleBinding", "", "crb-workload-create"),
+			GraphNodeBase: base("BHK_ClusterRoleBinding", "", "crb-workload-create"),
 			RoleKind:      "ClusterRole",
 			RoleName:      "workload-create-cluster-role",
 			Subjects:      []nodefw.Subject{{Kind: "ServiceAccount", Name: "creator", Namespace: "ns1"}},
@@ -638,20 +638,20 @@ func TestRBACCreateAndWorkloadCreateRules(t *testing.T) {
 		t.Fatalf("expected 5 RBACCreate edges, got %d", len(rbacCreateEdges))
 	}
 
-	start := nodefw.BuildID("ServiceAccount", "ns1", "creator")
-	if !hasEdge(rbacCreateEdges, start, nodefw.BuildID("Role", "ns1", "role-a"), "RBACCreate") {
+	start := nodefw.BuildID("BHK_ServiceAccount", "ns1", "creator")
+	if !hasEdge(rbacCreateEdges, start, nodefw.BuildID("BHK_Role", "ns1", "role-a"), "BHK_RBACCreate") {
 		t.Fatalf("missing RBACCreate edge to role-a")
 	}
-	if !hasEdge(rbacCreateEdges, start, nodefw.BuildID("Role", "ns1", "role-b"), "RBACCreate") {
+	if !hasEdge(rbacCreateEdges, start, nodefw.BuildID("BHK_Role", "ns1", "role-b"), "BHK_RBACCreate") {
 		t.Fatalf("missing RBACCreate edge to role-b")
 	}
-	if !hasEdge(rbacCreateEdges, start, nodefw.BuildID("Role", "ns1", "rbac-create-role"), "RBACCreate") {
+	if !hasEdge(rbacCreateEdges, start, nodefw.BuildID("BHK_Role", "ns1", "rbac-create-role"), "BHK_RBACCreate") {
 		t.Fatalf("missing RBACCreate edge to rbac-create-role")
 	}
-	if !hasEdge(rbacCreateEdges, start, nodefw.BuildID("ClusterRole", "", "cluster-target"), "RBACCreate") {
+	if !hasEdge(rbacCreateEdges, start, nodefw.BuildID("BHK_ClusterRole", "", "cluster-target"), "BHK_RBACCreate") {
 		t.Fatalf("missing RBACCreate edge to cluster-target")
 	}
-	if !hasEdge(rbacCreateEdges, start, nodefw.BuildID("ClusterRole", "", "workload-create-cluster-role"), "RBACCreate") {
+	if !hasEdge(rbacCreateEdges, start, nodefw.BuildID("BHK_ClusterRole", "", "workload-create-cluster-role"), "BHK_RBACCreate") {
 		t.Fatalf("missing RBACCreate edge to workload-create-cluster-role")
 	}
 
@@ -659,10 +659,10 @@ func TestRBACCreateAndWorkloadCreateRules(t *testing.T) {
 	if len(workloadCreateEdges) != 2 {
 		t.Fatalf("expected 2 WorkloadCreate edges, got %d", len(workloadCreateEdges))
 	}
-	if !hasEdge(workloadCreateEdges, start, nodefw.BuildID("Node", "", "node-1"), "WorkloadCreate") {
+	if !hasEdge(workloadCreateEdges, start, nodefw.BuildID("BHK_Node", "", "node-1"), "BHK_WorkloadCreate") {
 		t.Fatalf("missing WorkloadCreate edge to node-1")
 	}
-	if !hasEdge(workloadCreateEdges, start, nodefw.BuildID("Node", "", "node-2"), "WorkloadCreate") {
+	if !hasEdge(workloadCreateEdges, start, nodefw.BuildID("BHK_Node", "", "node-2"), "BHK_WorkloadCreate") {
 		t.Fatalf("missing WorkloadCreate edge to node-2")
 	}
 }
@@ -675,24 +675,24 @@ func TestRBACReadLogsNamespacedWildcard(t *testing.T) {
 	nsB := ensureNamespace(core, "ns-b")
 
 	nsA.ServiceAccounts = append(nsA.ServiceAccounts,
-		rbac.ServiceAccount{GraphNodeBase: base("ServiceAccount", "ns-a", "log-reader")},
+		rbac.ServiceAccount{GraphNodeBase: base("BHK_ServiceAccount", "ns-a", "log-reader")},
 	)
 	nsA.Pods = append(nsA.Pods,
-		workload.Pod{GraphNodeBase: base("Pod", "ns-a", "pod-1")},
-		workload.Pod{GraphNodeBase: base("Pod", "ns-a", "pod-2")},
+		workload.Pod{GraphNodeBase: base("BHK_Pod", "ns-a", "pod-1")},
+		workload.Pod{GraphNodeBase: base("BHK_Pod", "ns-a", "pod-2")},
 	)
 	nsB.Pods = append(nsB.Pods,
-		workload.Pod{GraphNodeBase: base("Pod", "ns-b", "pod-other")},
+		workload.Pod{GraphNodeBase: base("BHK_Pod", "ns-b", "pod-other")},
 	)
 	nsA.Roles = append(nsA.Roles,
 		rbac.Role{
-			GraphNodeBase: base("Role", "ns-a", "logs-role"),
+			GraphNodeBase: base("BHK_Role", "ns-a", "logs-role"),
 			PermsDisplay:  []string{"pods/log: get, list, watch"},
 		},
 	)
 	nsA.RoleBindings = append(nsA.RoleBindings,
 		rbac.RoleBinding{
-			GraphNodeBase: base("RoleBinding", "ns-a", "rb-logs"),
+			GraphNodeBase: base("BHK_RoleBinding", "ns-a", "rb-logs"),
 			RoleKind:      "Role",
 			RoleName:      "logs-role",
 			Subjects:      []nodefw.Subject{{Kind: "ServiceAccount", Name: "log-reader"}},
@@ -705,14 +705,14 @@ func TestRBACReadLogsNamespacedWildcard(t *testing.T) {
 		t.Fatalf("expected 2 ReadLogs edges (one per pod in ns-a), got %d", len(edges))
 	}
 
-	saID := nodefw.BuildID("ServiceAccount", "ns-a", "log-reader")
-	if !hasEdge(edges, saID, nodefw.BuildID("Pod", "ns-a", "pod-1"), "ReadLogs") {
+	saID := nodefw.BuildID("BHK_ServiceAccount", "ns-a", "log-reader")
+	if !hasEdge(edges, saID, nodefw.BuildID("BHK_Pod", "ns-a", "pod-1"), "BHK_ReadLogs") {
 		t.Fatalf("missing ReadLogs edge to ns-a/pod-1")
 	}
-	if !hasEdge(edges, saID, nodefw.BuildID("Pod", "ns-a", "pod-2"), "ReadLogs") {
+	if !hasEdge(edges, saID, nodefw.BuildID("BHK_Pod", "ns-a", "pod-2"), "BHK_ReadLogs") {
 		t.Fatalf("missing ReadLogs edge to ns-a/pod-2")
 	}
-	if hasEdge(edges, saID, nodefw.BuildID("Pod", "ns-b", "pod-other"), "ReadLogs") {
+	if hasEdge(edges, saID, nodefw.BuildID("BHK_Pod", "ns-b", "pod-other"), "BHK_ReadLogs") {
 		t.Fatalf("unexpected cross-namespace ReadLogs edge to ns-b/pod-other")
 	}
 }
@@ -721,21 +721,21 @@ func TestRBACReadLogsNamespacedNamedPod(t *testing.T) {
 	core := newCore()
 	ns := ensureNamespace(core, "ns1")
 	ns.ServiceAccounts = append(ns.ServiceAccounts,
-		rbac.ServiceAccount{GraphNodeBase: base("ServiceAccount", "ns1", "scoped-reader")},
+		rbac.ServiceAccount{GraphNodeBase: base("BHK_ServiceAccount", "ns1", "scoped-reader")},
 	)
 	ns.Pods = append(ns.Pods,
-		workload.Pod{GraphNodeBase: base("Pod", "ns1", "specific-pod")},
-		workload.Pod{GraphNodeBase: base("Pod", "ns1", "other-pod")},
+		workload.Pod{GraphNodeBase: base("BHK_Pod", "ns1", "specific-pod")},
+		workload.Pod{GraphNodeBase: base("BHK_Pod", "ns1", "other-pod")},
 	)
 	ns.Roles = append(ns.Roles,
 		rbac.Role{
-			GraphNodeBase: base("Role", "ns1", "scoped-logs-role"),
+			GraphNodeBase: base("BHK_Role", "ns1", "scoped-logs-role"),
 			PermsDisplay:  []string{"pods/log/specific-pod: get"},
 		},
 	)
 	ns.RoleBindings = append(ns.RoleBindings,
 		rbac.RoleBinding{
-			GraphNodeBase: base("RoleBinding", "ns1", "rb-scoped-logs"),
+			GraphNodeBase: base("BHK_RoleBinding", "ns1", "rb-scoped-logs"),
 			RoleKind:      "Role",
 			RoleName:      "scoped-logs-role",
 			Subjects:      []nodefw.Subject{{Kind: "ServiceAccount", Name: "scoped-reader"}},
@@ -747,11 +747,11 @@ func TestRBACReadLogsNamespacedNamedPod(t *testing.T) {
 	if len(edges) != 1 {
 		t.Fatalf("expected 1 named-pod ReadLogs edge, got %d", len(edges))
 	}
-	saID := nodefw.BuildID("ServiceAccount", "ns1", "scoped-reader")
-	if !hasEdge(edges, saID, nodefw.BuildID("Pod", "ns1", "specific-pod"), "ReadLogs") {
+	saID := nodefw.BuildID("BHK_ServiceAccount", "ns1", "scoped-reader")
+	if !hasEdge(edges, saID, nodefw.BuildID("BHK_Pod", "ns1", "specific-pod"), "BHK_ReadLogs") {
 		t.Fatalf("missing ReadLogs edge to ns1/specific-pod")
 	}
-	if hasEdge(edges, saID, nodefw.BuildID("Pod", "ns1", "other-pod"), "ReadLogs") {
+	if hasEdge(edges, saID, nodefw.BuildID("BHK_Pod", "ns1", "other-pod"), "BHK_ReadLogs") {
 		t.Fatalf("unexpected ReadLogs edge to ns1/other-pod")
 	}
 }
@@ -760,23 +760,23 @@ func TestRBACReadLogsClusterAggregate(t *testing.T) {
 	core := newCore()
 	ns := ensureNamespace(core, "ns1")
 	ns.ServiceAccounts = append(ns.ServiceAccounts,
-		rbac.ServiceAccount{GraphNodeBase: base("ServiceAccount", "ns1", "cluster-log-reader")},
+		rbac.ServiceAccount{GraphNodeBase: base("BHK_ServiceAccount", "ns1", "cluster-log-reader")},
 	)
 	ns.Pods = append(ns.Pods,
-		workload.Pod{GraphNodeBase: base("Pod", "ns1", "pod-1")},
+		workload.Pod{GraphNodeBase: base("BHK_Pod", "ns1", "pod-1")},
 	)
 	core.Cluster.AllPods = append(core.Cluster.AllPods,
-		platform.AllPods{GraphNodeBase: base("AllPods", "", "AllPods")},
+		platform.AllPods{GraphNodeBase: base("BHK_AllPods", "", "BHK_AllPods")},
 	)
 	core.Cluster.ClusterRoles = append(core.Cluster.ClusterRoles,
 		rbac.ClusterRole{
-			GraphNodeBase: base("ClusterRole", "", "cluster-logs"),
+			GraphNodeBase: base("BHK_ClusterRole", "", "cluster-logs"),
 			PermsDisplay:  []string{"pods/log: get"},
 		},
 	)
 	core.Cluster.ClusterRoleBindings = append(core.Cluster.ClusterRoleBindings,
 		rbac.ClusterRoleBinding{
-			GraphNodeBase: base("ClusterRoleBinding", "", "crb-logs"),
+			GraphNodeBase: base("BHK_ClusterRoleBinding", "", "crb-logs"),
 			RoleKind:      "ClusterRole",
 			RoleName:      "cluster-logs",
 			Subjects:      []nodefw.Subject{{Kind: "ServiceAccount", Name: "cluster-log-reader", Namespace: "ns1"}},
@@ -788,11 +788,11 @@ func TestRBACReadLogsClusterAggregate(t *testing.T) {
 	if len(edges) != 1 {
 		t.Fatalf("expected 1 aggregate ReadLogs edge, got %d", len(edges))
 	}
-	saID := nodefw.BuildID("ServiceAccount", "ns1", "cluster-log-reader")
-	if !hasEdge(edges, saID, nodefw.BuildID("AllPods", "", "AllPods"), "ReadLogs") {
+	saID := nodefw.BuildID("BHK_ServiceAccount", "ns1", "cluster-log-reader")
+	if !hasEdge(edges, saID, nodefw.BuildID("BHK_AllPods", "", "BHK_AllPods"), "BHK_ReadLogs") {
 		t.Fatalf("missing ReadLogs edge to AllPods aggregate")
 	}
-	if hasEdge(edges, saID, nodefw.BuildID("Pod", "ns1", "pod-1"), "ReadLogs") {
+	if hasEdge(edges, saID, nodefw.BuildID("BHK_Pod", "ns1", "pod-1"), "BHK_ReadLogs") {
 		t.Fatalf("unexpected per-pod ReadLogs edge when aggregate should be used")
 	}
 }
@@ -803,25 +803,25 @@ func TestRBACReadLogsClusterNamedPodsAcrossNamespaces(t *testing.T) {
 	ns2 := ensureNamespace(core, "ns2")
 
 	ns1.ServiceAccounts = append(ns1.ServiceAccounts,
-		rbac.ServiceAccount{GraphNodeBase: base("ServiceAccount", "ns1", "named-reader")},
+		rbac.ServiceAccount{GraphNodeBase: base("BHK_ServiceAccount", "ns1", "named-reader")},
 	)
 	ns1.Pods = append(ns1.Pods,
-		workload.Pod{GraphNodeBase: base("Pod", "ns1", "log-pod")},
-		workload.Pod{GraphNodeBase: base("Pod", "ns1", "other-pod")},
+		workload.Pod{GraphNodeBase: base("BHK_Pod", "ns1", "log-pod")},
+		workload.Pod{GraphNodeBase: base("BHK_Pod", "ns1", "other-pod")},
 	)
 	ns2.Pods = append(ns2.Pods,
-		workload.Pod{GraphNodeBase: base("Pod", "ns2", "log-pod")},
+		workload.Pod{GraphNodeBase: base("BHK_Pod", "ns2", "log-pod")},
 	)
 
 	core.Cluster.ClusterRoles = append(core.Cluster.ClusterRoles,
 		rbac.ClusterRole{
-			GraphNodeBase: base("ClusterRole", "", "named-logs"),
+			GraphNodeBase: base("BHK_ClusterRole", "", "named-logs"),
 			PermsDisplay:  []string{"pods/log/log-pod: get"},
 		},
 	)
 	core.Cluster.ClusterRoleBindings = append(core.Cluster.ClusterRoleBindings,
 		rbac.ClusterRoleBinding{
-			GraphNodeBase: base("ClusterRoleBinding", "", "crb-named-logs"),
+			GraphNodeBase: base("BHK_ClusterRoleBinding", "", "crb-named-logs"),
 			RoleKind:      "ClusterRole",
 			RoleName:      "named-logs",
 			Subjects:      []nodefw.Subject{{Kind: "ServiceAccount", Name: "named-reader", Namespace: "ns1"}},
@@ -833,14 +833,14 @@ func TestRBACReadLogsClusterNamedPodsAcrossNamespaces(t *testing.T) {
 	if len(edges) != 2 {
 		t.Fatalf("expected 2 named-pod cluster ReadLogs edges, got %d", len(edges))
 	}
-	saID := nodefw.BuildID("ServiceAccount", "ns1", "named-reader")
-	if !hasEdge(edges, saID, nodefw.BuildID("Pod", "ns1", "log-pod"), "ReadLogs") {
+	saID := nodefw.BuildID("BHK_ServiceAccount", "ns1", "named-reader")
+	if !hasEdge(edges, saID, nodefw.BuildID("BHK_Pod", "ns1", "log-pod"), "BHK_ReadLogs") {
 		t.Fatalf("missing ReadLogs edge to ns1/log-pod")
 	}
-	if !hasEdge(edges, saID, nodefw.BuildID("Pod", "ns2", "log-pod"), "ReadLogs") {
+	if !hasEdge(edges, saID, nodefw.BuildID("BHK_Pod", "ns2", "log-pod"), "BHK_ReadLogs") {
 		t.Fatalf("missing ReadLogs edge to ns2/log-pod")
 	}
-	if hasEdge(edges, saID, nodefw.BuildID("Pod", "ns1", "other-pod"), "ReadLogs") {
+	if hasEdge(edges, saID, nodefw.BuildID("BHK_Pod", "ns1", "other-pod"), "BHK_ReadLogs") {
 		t.Fatalf("unexpected ReadLogs edge to ns1/other-pod")
 	}
 }
@@ -849,18 +849,18 @@ func TestRBACReadLogsRejectsWrongVerb(t *testing.T) {
 	core := newCore()
 	ns := ensureNamespace(core, "ns1")
 	ns.ServiceAccounts = append(ns.ServiceAccounts,
-		rbac.ServiceAccount{GraphNodeBase: base("ServiceAccount", "ns1", "writer")},
+		rbac.ServiceAccount{GraphNodeBase: base("BHK_ServiceAccount", "ns1", "writer")},
 	)
-	ns.Pods = append(ns.Pods, workload.Pod{GraphNodeBase: base("Pod", "ns1", "pod-1")})
+	ns.Pods = append(ns.Pods, workload.Pod{GraphNodeBase: base("BHK_Pod", "ns1", "pod-1")})
 	ns.Roles = append(ns.Roles,
 		rbac.Role{
-			GraphNodeBase: base("Role", "ns1", "wrong-verb"),
+			GraphNodeBase: base("BHK_Role", "ns1", "wrong-verb"),
 			PermsDisplay:  []string{"pods/log: create"},
 		},
 	)
 	ns.RoleBindings = append(ns.RoleBindings,
 		rbac.RoleBinding{
-			GraphNodeBase: base("RoleBinding", "ns1", "rb-wrong-verb"),
+			GraphNodeBase: base("BHK_RoleBinding", "ns1", "rb-wrong-verb"),
 			RoleKind:      "Role",
 			RoleName:      "wrong-verb",
 			Subjects:      []nodefw.Subject{{Kind: "ServiceAccount", Name: "writer"}},
@@ -878,19 +878,19 @@ func TestRBACReadLogsRejectsPodsResourceWithoutLogSubresource(t *testing.T) {
 	core := newCore()
 	ns := ensureNamespace(core, "ns1")
 	ns.ServiceAccounts = append(ns.ServiceAccounts,
-		rbac.ServiceAccount{GraphNodeBase: base("ServiceAccount", "ns1", "pod-getter")},
+		rbac.ServiceAccount{GraphNodeBase: base("BHK_ServiceAccount", "ns1", "pod-getter")},
 	)
-	ns.Pods = append(ns.Pods, workload.Pod{GraphNodeBase: base("Pod", "ns1", "pod-1")})
+	ns.Pods = append(ns.Pods, workload.Pod{GraphNodeBase: base("BHK_Pod", "ns1", "pod-1")})
 	ns.Roles = append(ns.Roles,
 		rbac.Role{
-			GraphNodeBase: base("Role", "ns1", "pod-get-role"),
+			GraphNodeBase: base("BHK_Role", "ns1", "pod-get-role"),
 			// `get pods` does NOT grant access to `pods/log` in Kubernetes.
 			PermsDisplay: []string{"pods: get, list, watch"},
 		},
 	)
 	ns.RoleBindings = append(ns.RoleBindings,
 		rbac.RoleBinding{
-			GraphNodeBase: base("RoleBinding", "ns1", "rb-pod-get"),
+			GraphNodeBase: base("BHK_RoleBinding", "ns1", "rb-pod-get"),
 			RoleKind:      "Role",
 			RoleName:      "pod-get-role",
 			Subjects:      []nodefw.Subject{{Kind: "ServiceAccount", Name: "pod-getter"}},
@@ -912,18 +912,18 @@ func TestRBACPodExecNamespacedWildcard(t *testing.T) {
 	core := newCore()
 	ns := ensureNamespace(core, "ns1")
 	ns.ServiceAccounts = append(ns.ServiceAccounts,
-		rbac.ServiceAccount{GraphNodeBase: base("ServiceAccount", "ns1", "exec-sa")},
+		rbac.ServiceAccount{GraphNodeBase: base("BHK_ServiceAccount", "ns1", "exec-sa")},
 	)
 	ns.Pods = append(ns.Pods,
-		workload.Pod{GraphNodeBase: base("Pod", "ns1", "pod-a")},
-		workload.Pod{GraphNodeBase: base("Pod", "ns1", "pod-b")},
+		workload.Pod{GraphNodeBase: base("BHK_Pod", "ns1", "pod-a")},
+		workload.Pod{GraphNodeBase: base("BHK_Pod", "ns1", "pod-b")},
 	)
 	ns.Roles = append(ns.Roles,
-		rbac.Role{GraphNodeBase: base("Role", "ns1", "exec-role"), PermsDisplay: []string{"pods/exec: create"}},
+		rbac.Role{GraphNodeBase: base("BHK_Role", "ns1", "exec-role"), PermsDisplay: []string{"pods/exec: create"}},
 	)
 	ns.RoleBindings = append(ns.RoleBindings,
 		rbac.RoleBinding{
-			GraphNodeBase: base("RoleBinding", "ns1", "rb-exec"),
+			GraphNodeBase: base("BHK_RoleBinding", "ns1", "rb-exec"),
 			RoleKind:      "Role",
 			RoleName:      "exec-role",
 			Subjects:      []nodefw.Subject{{Kind: "ServiceAccount", Name: "exec-sa"}},
@@ -935,11 +935,11 @@ func TestRBACPodExecNamespacedWildcard(t *testing.T) {
 	if len(edges) != 2 {
 		t.Fatalf("expected 2 PodExec edges, got %d", len(edges))
 	}
-	saID := nodefw.BuildID("ServiceAccount", "ns1", "exec-sa")
-	if !hasEdge(edges, saID, nodefw.BuildID("Pod", "ns1", "pod-a"), "PodExec") {
+	saID := nodefw.BuildID("BHK_ServiceAccount", "ns1", "exec-sa")
+	if !hasEdge(edges, saID, nodefw.BuildID("BHK_Pod", "ns1", "pod-a"), "BHK_PodExec") {
 		t.Fatalf("missing PodExec edge to pod-a")
 	}
-	if !hasEdge(edges, saID, nodefw.BuildID("Pod", "ns1", "pod-b"), "PodExec") {
+	if !hasEdge(edges, saID, nodefw.BuildID("BHK_Pod", "ns1", "pod-b"), "BHK_PodExec") {
 		t.Fatalf("missing PodExec edge to pod-b")
 	}
 }
@@ -948,18 +948,18 @@ func TestRBACPodExecNamespacedNamedPod(t *testing.T) {
 	core := newCore()
 	ns := ensureNamespace(core, "ns1")
 	ns.ServiceAccounts = append(ns.ServiceAccounts,
-		rbac.ServiceAccount{GraphNodeBase: base("ServiceAccount", "ns1", "exec-sa")},
+		rbac.ServiceAccount{GraphNodeBase: base("BHK_ServiceAccount", "ns1", "exec-sa")},
 	)
 	ns.Pods = append(ns.Pods,
-		workload.Pod{GraphNodeBase: base("Pod", "ns1", "target-pod")},
-		workload.Pod{GraphNodeBase: base("Pod", "ns1", "other-pod")},
+		workload.Pod{GraphNodeBase: base("BHK_Pod", "ns1", "target-pod")},
+		workload.Pod{GraphNodeBase: base("BHK_Pod", "ns1", "other-pod")},
 	)
 	ns.Roles = append(ns.Roles,
-		rbac.Role{GraphNodeBase: base("Role", "ns1", "exec-role"), PermsDisplay: []string{"pods/exec/target-pod: create"}},
+		rbac.Role{GraphNodeBase: base("BHK_Role", "ns1", "exec-role"), PermsDisplay: []string{"pods/exec/target-pod: create"}},
 	)
 	ns.RoleBindings = append(ns.RoleBindings,
 		rbac.RoleBinding{
-			GraphNodeBase: base("RoleBinding", "ns1", "rb-exec"),
+			GraphNodeBase: base("BHK_RoleBinding", "ns1", "rb-exec"),
 			RoleKind:      "Role",
 			RoleName:      "exec-role",
 			Subjects:      []nodefw.Subject{{Kind: "ServiceAccount", Name: "exec-sa"}},
@@ -971,11 +971,11 @@ func TestRBACPodExecNamespacedNamedPod(t *testing.T) {
 	if len(edges) != 1 {
 		t.Fatalf("expected 1 PodExec edge, got %d", len(edges))
 	}
-	saID := nodefw.BuildID("ServiceAccount", "ns1", "exec-sa")
-	if !hasEdge(edges, saID, nodefw.BuildID("Pod", "ns1", "target-pod"), "PodExec") {
+	saID := nodefw.BuildID("BHK_ServiceAccount", "ns1", "exec-sa")
+	if !hasEdge(edges, saID, nodefw.BuildID("BHK_Pod", "ns1", "target-pod"), "BHK_PodExec") {
 		t.Fatalf("missing PodExec edge to target-pod")
 	}
-	if hasEdge(edges, saID, nodefw.BuildID("Pod", "ns1", "other-pod"), "PodExec") {
+	if hasEdge(edges, saID, nodefw.BuildID("BHK_Pod", "ns1", "other-pod"), "BHK_PodExec") {
 		t.Fatalf("unexpected PodExec edge to other-pod")
 	}
 }
@@ -984,17 +984,17 @@ func TestRBACPodExecClusterAggregate(t *testing.T) {
 	core := newCore()
 	ns := ensureNamespace(core, "ns1")
 	ns.ServiceAccounts = append(ns.ServiceAccounts,
-		rbac.ServiceAccount{GraphNodeBase: base("ServiceAccount", "ns1", "exec-sa")},
+		rbac.ServiceAccount{GraphNodeBase: base("BHK_ServiceAccount", "ns1", "exec-sa")},
 	)
 	core.Cluster.AllPods = append(core.Cluster.AllPods,
-		platform.AllPods{GraphNodeBase: base("AllPods", "", "AllPods")},
+		platform.AllPods{GraphNodeBase: base("BHK_AllPods", "", "BHK_AllPods")},
 	)
 	core.Cluster.ClusterRoles = append(core.Cluster.ClusterRoles,
-		rbac.ClusterRole{GraphNodeBase: base("ClusterRole", "", "exec-cr"), PermsDisplay: []string{"pods/exec: create"}},
+		rbac.ClusterRole{GraphNodeBase: base("BHK_ClusterRole", "", "exec-cr"), PermsDisplay: []string{"pods/exec: create"}},
 	)
 	core.Cluster.ClusterRoleBindings = append(core.Cluster.ClusterRoleBindings,
 		rbac.ClusterRoleBinding{
-			GraphNodeBase: base("ClusterRoleBinding", "", "crb-exec"),
+			GraphNodeBase: base("BHK_ClusterRoleBinding", "", "crb-exec"),
 			RoleKind:      "ClusterRole",
 			RoleName:      "exec-cr",
 			Subjects:      []nodefw.Subject{{Kind: "ServiceAccount", Name: "exec-sa", Namespace: "ns1"}},
@@ -1006,8 +1006,8 @@ func TestRBACPodExecClusterAggregate(t *testing.T) {
 	if len(edges) != 1 {
 		t.Fatalf("expected 1 aggregate PodExec edge, got %d", len(edges))
 	}
-	saID := nodefw.BuildID("ServiceAccount", "ns1", "exec-sa")
-	if !hasEdge(edges, saID, nodefw.BuildID("AllPods", "", "AllPods"), "PodExec") {
+	saID := nodefw.BuildID("BHK_ServiceAccount", "ns1", "exec-sa")
+	if !hasEdge(edges, saID, nodefw.BuildID("BHK_AllPods", "", "BHK_AllPods"), "BHK_PodExec") {
 		t.Fatalf("missing PodExec edge to AllPods aggregate")
 	}
 }
@@ -1017,16 +1017,16 @@ func TestRBACPodExecClusterNamedCrossNamespace(t *testing.T) {
 	ns1 := ensureNamespace(core, "ns1")
 	ns2 := ensureNamespace(core, "ns2")
 	ns1.ServiceAccounts = append(ns1.ServiceAccounts,
-		rbac.ServiceAccount{GraphNodeBase: base("ServiceAccount", "ns1", "exec-sa")},
+		rbac.ServiceAccount{GraphNodeBase: base("BHK_ServiceAccount", "ns1", "exec-sa")},
 	)
-	ns1.Pods = append(ns1.Pods, workload.Pod{GraphNodeBase: base("Pod", "ns1", "shared-pod")})
-	ns2.Pods = append(ns2.Pods, workload.Pod{GraphNodeBase: base("Pod", "ns2", "shared-pod")})
+	ns1.Pods = append(ns1.Pods, workload.Pod{GraphNodeBase: base("BHK_Pod", "ns1", "shared-pod")})
+	ns2.Pods = append(ns2.Pods, workload.Pod{GraphNodeBase: base("BHK_Pod", "ns2", "shared-pod")})
 	core.Cluster.ClusterRoles = append(core.Cluster.ClusterRoles,
-		rbac.ClusterRole{GraphNodeBase: base("ClusterRole", "", "exec-cr"), PermsDisplay: []string{"pods/exec/shared-pod: create"}},
+		rbac.ClusterRole{GraphNodeBase: base("BHK_ClusterRole", "", "exec-cr"), PermsDisplay: []string{"pods/exec/shared-pod: create"}},
 	)
 	core.Cluster.ClusterRoleBindings = append(core.Cluster.ClusterRoleBindings,
 		rbac.ClusterRoleBinding{
-			GraphNodeBase: base("ClusterRoleBinding", "", "crb-exec"),
+			GraphNodeBase: base("BHK_ClusterRoleBinding", "", "crb-exec"),
 			RoleKind:      "ClusterRole",
 			RoleName:      "exec-cr",
 			Subjects:      []nodefw.Subject{{Kind: "ServiceAccount", Name: "exec-sa", Namespace: "ns1"}},
@@ -1038,11 +1038,11 @@ func TestRBACPodExecClusterNamedCrossNamespace(t *testing.T) {
 	if len(edges) != 2 {
 		t.Fatalf("expected 2 named PodExec edges across namespaces, got %d", len(edges))
 	}
-	saID := nodefw.BuildID("ServiceAccount", "ns1", "exec-sa")
-	if !hasEdge(edges, saID, nodefw.BuildID("Pod", "ns1", "shared-pod"), "PodExec") {
+	saID := nodefw.BuildID("BHK_ServiceAccount", "ns1", "exec-sa")
+	if !hasEdge(edges, saID, nodefw.BuildID("BHK_Pod", "ns1", "shared-pod"), "BHK_PodExec") {
 		t.Fatalf("missing PodExec edge to ns1/shared-pod")
 	}
-	if !hasEdge(edges, saID, nodefw.BuildID("Pod", "ns2", "shared-pod"), "PodExec") {
+	if !hasEdge(edges, saID, nodefw.BuildID("BHK_Pod", "ns2", "shared-pod"), "BHK_PodExec") {
 		t.Fatalf("missing PodExec edge to ns2/shared-pod")
 	}
 }
@@ -1055,18 +1055,18 @@ func TestRBACPodPortForwardNamespacedWildcard(t *testing.T) {
 	core := newCore()
 	ns := ensureNamespace(core, "ns1")
 	ns.ServiceAccounts = append(ns.ServiceAccounts,
-		rbac.ServiceAccount{GraphNodeBase: base("ServiceAccount", "ns1", "pf-sa")},
+		rbac.ServiceAccount{GraphNodeBase: base("BHK_ServiceAccount", "ns1", "pf-sa")},
 	)
 	ns.Pods = append(ns.Pods,
-		workload.Pod{GraphNodeBase: base("Pod", "ns1", "pod-a")},
-		workload.Pod{GraphNodeBase: base("Pod", "ns1", "pod-b")},
+		workload.Pod{GraphNodeBase: base("BHK_Pod", "ns1", "pod-a")},
+		workload.Pod{GraphNodeBase: base("BHK_Pod", "ns1", "pod-b")},
 	)
 	ns.Roles = append(ns.Roles,
-		rbac.Role{GraphNodeBase: base("Role", "ns1", "pf-role"), PermsDisplay: []string{"pods/portforward: create"}},
+		rbac.Role{GraphNodeBase: base("BHK_Role", "ns1", "pf-role"), PermsDisplay: []string{"pods/portforward: create"}},
 	)
 	ns.RoleBindings = append(ns.RoleBindings,
 		rbac.RoleBinding{
-			GraphNodeBase: base("RoleBinding", "ns1", "rb-pf"),
+			GraphNodeBase: base("BHK_RoleBinding", "ns1", "rb-pf"),
 			RoleKind:      "Role",
 			RoleName:      "pf-role",
 			Subjects:      []nodefw.Subject{{Kind: "ServiceAccount", Name: "pf-sa"}},
@@ -1078,8 +1078,8 @@ func TestRBACPodPortForwardNamespacedWildcard(t *testing.T) {
 	if len(edges) != 2 {
 		t.Fatalf("expected 2 PodPortForward edges, got %d", len(edges))
 	}
-	saID := nodefw.BuildID("ServiceAccount", "ns1", "pf-sa")
-	if !hasEdge(edges, saID, nodefw.BuildID("Pod", "ns1", "pod-a"), "PodPortForward") {
+	saID := nodefw.BuildID("BHK_ServiceAccount", "ns1", "pf-sa")
+	if !hasEdge(edges, saID, nodefw.BuildID("BHK_Pod", "ns1", "pod-a"), "BHK_PodPortForward") {
 		t.Fatalf("missing PodPortForward edge to pod-a")
 	}
 }
@@ -1088,17 +1088,17 @@ func TestRBACPodPortForwardClusterAggregate(t *testing.T) {
 	core := newCore()
 	ns := ensureNamespace(core, "ns1")
 	ns.ServiceAccounts = append(ns.ServiceAccounts,
-		rbac.ServiceAccount{GraphNodeBase: base("ServiceAccount", "ns1", "pf-sa")},
+		rbac.ServiceAccount{GraphNodeBase: base("BHK_ServiceAccount", "ns1", "pf-sa")},
 	)
 	core.Cluster.AllPods = append(core.Cluster.AllPods,
-		platform.AllPods{GraphNodeBase: base("AllPods", "", "AllPods")},
+		platform.AllPods{GraphNodeBase: base("BHK_AllPods", "", "BHK_AllPods")},
 	)
 	core.Cluster.ClusterRoles = append(core.Cluster.ClusterRoles,
-		rbac.ClusterRole{GraphNodeBase: base("ClusterRole", "", "pf-cr"), PermsDisplay: []string{"pods/portforward: create"}},
+		rbac.ClusterRole{GraphNodeBase: base("BHK_ClusterRole", "", "pf-cr"), PermsDisplay: []string{"pods/portforward: create"}},
 	)
 	core.Cluster.ClusterRoleBindings = append(core.Cluster.ClusterRoleBindings,
 		rbac.ClusterRoleBinding{
-			GraphNodeBase: base("ClusterRoleBinding", "", "crb-pf"),
+			GraphNodeBase: base("BHK_ClusterRoleBinding", "", "crb-pf"),
 			RoleKind:      "ClusterRole",
 			RoleName:      "pf-cr",
 			Subjects:      []nodefw.Subject{{Kind: "ServiceAccount", Name: "pf-sa", Namespace: "ns1"}},
@@ -1110,8 +1110,8 @@ func TestRBACPodPortForwardClusterAggregate(t *testing.T) {
 	if len(edges) != 1 {
 		t.Fatalf("expected 1 aggregate PodPortForward edge, got %d", len(edges))
 	}
-	saID := nodefw.BuildID("ServiceAccount", "ns1", "pf-sa")
-	if !hasEdge(edges, saID, nodefw.BuildID("AllPods", "", "AllPods"), "PodPortForward") {
+	saID := nodefw.BuildID("BHK_ServiceAccount", "ns1", "pf-sa")
+	if !hasEdge(edges, saID, nodefw.BuildID("BHK_AllPods", "", "BHK_AllPods"), "BHK_PodPortForward") {
 		t.Fatalf("missing PodPortForward edge to AllPods aggregate")
 	}
 }
@@ -1124,17 +1124,17 @@ func TestRBACPodAttachNamespacedWildcard(t *testing.T) {
 	core := newCore()
 	ns := ensureNamespace(core, "ns1")
 	ns.ServiceAccounts = append(ns.ServiceAccounts,
-		rbac.ServiceAccount{GraphNodeBase: base("ServiceAccount", "ns1", "attach-sa")},
+		rbac.ServiceAccount{GraphNodeBase: base("BHK_ServiceAccount", "ns1", "attach-sa")},
 	)
 	ns.Pods = append(ns.Pods,
-		workload.Pod{GraphNodeBase: base("Pod", "ns1", "pod-a")},
+		workload.Pod{GraphNodeBase: base("BHK_Pod", "ns1", "pod-a")},
 	)
 	ns.Roles = append(ns.Roles,
-		rbac.Role{GraphNodeBase: base("Role", "ns1", "attach-role"), PermsDisplay: []string{"pods/attach: create"}},
+		rbac.Role{GraphNodeBase: base("BHK_Role", "ns1", "attach-role"), PermsDisplay: []string{"pods/attach: create"}},
 	)
 	ns.RoleBindings = append(ns.RoleBindings,
 		rbac.RoleBinding{
-			GraphNodeBase: base("RoleBinding", "ns1", "rb-attach"),
+			GraphNodeBase: base("BHK_RoleBinding", "ns1", "rb-attach"),
 			RoleKind:      "Role",
 			RoleName:      "attach-role",
 			Subjects:      []nodefw.Subject{{Kind: "ServiceAccount", Name: "attach-sa"}},
@@ -1146,8 +1146,8 @@ func TestRBACPodAttachNamespacedWildcard(t *testing.T) {
 	if len(edges) != 1 {
 		t.Fatalf("expected 1 PodAttach edge, got %d", len(edges))
 	}
-	saID := nodefw.BuildID("ServiceAccount", "ns1", "attach-sa")
-	if !hasEdge(edges, saID, nodefw.BuildID("Pod", "ns1", "pod-a"), "PodAttach") {
+	saID := nodefw.BuildID("BHK_ServiceAccount", "ns1", "attach-sa")
+	if !hasEdge(edges, saID, nodefw.BuildID("BHK_Pod", "ns1", "pod-a"), "BHK_PodAttach") {
 		t.Fatalf("missing PodAttach edge to pod-a")
 	}
 }
@@ -1156,17 +1156,17 @@ func TestRBACPodAttachClusterAggregate(t *testing.T) {
 	core := newCore()
 	ns := ensureNamespace(core, "ns1")
 	ns.ServiceAccounts = append(ns.ServiceAccounts,
-		rbac.ServiceAccount{GraphNodeBase: base("ServiceAccount", "ns1", "attach-sa")},
+		rbac.ServiceAccount{GraphNodeBase: base("BHK_ServiceAccount", "ns1", "attach-sa")},
 	)
 	core.Cluster.AllPods = append(core.Cluster.AllPods,
-		platform.AllPods{GraphNodeBase: base("AllPods", "", "AllPods")},
+		platform.AllPods{GraphNodeBase: base("BHK_AllPods", "", "BHK_AllPods")},
 	)
 	core.Cluster.ClusterRoles = append(core.Cluster.ClusterRoles,
-		rbac.ClusterRole{GraphNodeBase: base("ClusterRole", "", "attach-cr"), PermsDisplay: []string{"pods/attach: create"}},
+		rbac.ClusterRole{GraphNodeBase: base("BHK_ClusterRole", "", "attach-cr"), PermsDisplay: []string{"pods/attach: create"}},
 	)
 	core.Cluster.ClusterRoleBindings = append(core.Cluster.ClusterRoleBindings,
 		rbac.ClusterRoleBinding{
-			GraphNodeBase: base("ClusterRoleBinding", "", "crb-attach"),
+			GraphNodeBase: base("BHK_ClusterRoleBinding", "", "crb-attach"),
 			RoleKind:      "ClusterRole",
 			RoleName:      "attach-cr",
 			Subjects:      []nodefw.Subject{{Kind: "ServiceAccount", Name: "attach-sa", Namespace: "ns1"}},
@@ -1178,8 +1178,8 @@ func TestRBACPodAttachClusterAggregate(t *testing.T) {
 	if len(edges) != 1 {
 		t.Fatalf("expected 1 aggregate PodAttach edge, got %d", len(edges))
 	}
-	saID := nodefw.BuildID("ServiceAccount", "ns1", "attach-sa")
-	if !hasEdge(edges, saID, nodefw.BuildID("AllPods", "", "AllPods"), "PodAttach") {
+	saID := nodefw.BuildID("BHK_ServiceAccount", "ns1", "attach-sa")
+	if !hasEdge(edges, saID, nodefw.BuildID("BHK_AllPods", "", "BHK_AllPods"), "BHK_PodAttach") {
 		t.Fatalf("missing PodAttach edge to AllPods aggregate")
 	}
 }
@@ -1192,18 +1192,18 @@ func TestRBACPodDebugNamespacedWildcard(t *testing.T) {
 	core := newCore()
 	ns := ensureNamespace(core, "ns1")
 	ns.ServiceAccounts = append(ns.ServiceAccounts,
-		rbac.ServiceAccount{GraphNodeBase: base("ServiceAccount", "ns1", "debug-sa")},
+		rbac.ServiceAccount{GraphNodeBase: base("BHK_ServiceAccount", "ns1", "debug-sa")},
 	)
 	ns.Pods = append(ns.Pods,
-		workload.Pod{GraphNodeBase: base("Pod", "ns1", "pod-a")},
-		workload.Pod{GraphNodeBase: base("Pod", "ns1", "pod-b")},
+		workload.Pod{GraphNodeBase: base("BHK_Pod", "ns1", "pod-a")},
+		workload.Pod{GraphNodeBase: base("BHK_Pod", "ns1", "pod-b")},
 	)
 	ns.Roles = append(ns.Roles,
-		rbac.Role{GraphNodeBase: base("Role", "ns1", "debug-role"), PermsDisplay: []string{"pods/ephemeralcontainers: update"}},
+		rbac.Role{GraphNodeBase: base("BHK_Role", "ns1", "debug-role"), PermsDisplay: []string{"pods/ephemeralcontainers: update"}},
 	)
 	ns.RoleBindings = append(ns.RoleBindings,
 		rbac.RoleBinding{
-			GraphNodeBase: base("RoleBinding", "ns1", "rb-debug"),
+			GraphNodeBase: base("BHK_RoleBinding", "ns1", "rb-debug"),
 			RoleKind:      "Role",
 			RoleName:      "debug-role",
 			Subjects:      []nodefw.Subject{{Kind: "ServiceAccount", Name: "debug-sa"}},
@@ -1215,11 +1215,11 @@ func TestRBACPodDebugNamespacedWildcard(t *testing.T) {
 	if len(edges) != 2 {
 		t.Fatalf("expected 2 PodDebug edges, got %d", len(edges))
 	}
-	saID := nodefw.BuildID("ServiceAccount", "ns1", "debug-sa")
-	if !hasEdge(edges, saID, nodefw.BuildID("Pod", "ns1", "pod-a"), "PodDebug") {
+	saID := nodefw.BuildID("BHK_ServiceAccount", "ns1", "debug-sa")
+	if !hasEdge(edges, saID, nodefw.BuildID("BHK_Pod", "ns1", "pod-a"), "BHK_PodDebug") {
 		t.Fatalf("missing PodDebug edge to pod-a")
 	}
-	if !hasEdge(edges, saID, nodefw.BuildID("Pod", "ns1", "pod-b"), "PodDebug") {
+	if !hasEdge(edges, saID, nodefw.BuildID("BHK_Pod", "ns1", "pod-b"), "BHK_PodDebug") {
 		t.Fatalf("missing PodDebug edge to pod-b")
 	}
 }
@@ -1229,16 +1229,16 @@ func TestRBACPodDebugClusterNamedCrossNamespace(t *testing.T) {
 	ns1 := ensureNamespace(core, "ns1")
 	ns2 := ensureNamespace(core, "ns2")
 	ns1.ServiceAccounts = append(ns1.ServiceAccounts,
-		rbac.ServiceAccount{GraphNodeBase: base("ServiceAccount", "ns1", "debug-sa")},
+		rbac.ServiceAccount{GraphNodeBase: base("BHK_ServiceAccount", "ns1", "debug-sa")},
 	)
-	ns1.Pods = append(ns1.Pods, workload.Pod{GraphNodeBase: base("Pod", "ns1", "shared-pod")})
-	ns2.Pods = append(ns2.Pods, workload.Pod{GraphNodeBase: base("Pod", "ns2", "shared-pod")})
+	ns1.Pods = append(ns1.Pods, workload.Pod{GraphNodeBase: base("BHK_Pod", "ns1", "shared-pod")})
+	ns2.Pods = append(ns2.Pods, workload.Pod{GraphNodeBase: base("BHK_Pod", "ns2", "shared-pod")})
 	core.Cluster.ClusterRoles = append(core.Cluster.ClusterRoles,
-		rbac.ClusterRole{GraphNodeBase: base("ClusterRole", "", "debug-cr"), PermsDisplay: []string{"pods/ephemeralcontainers/shared-pod: update"}},
+		rbac.ClusterRole{GraphNodeBase: base("BHK_ClusterRole", "", "debug-cr"), PermsDisplay: []string{"pods/ephemeralcontainers/shared-pod: update"}},
 	)
 	core.Cluster.ClusterRoleBindings = append(core.Cluster.ClusterRoleBindings,
 		rbac.ClusterRoleBinding{
-			GraphNodeBase: base("ClusterRoleBinding", "", "crb-debug"),
+			GraphNodeBase: base("BHK_ClusterRoleBinding", "", "crb-debug"),
 			RoleKind:      "ClusterRole",
 			RoleName:      "debug-cr",
 			Subjects:      []nodefw.Subject{{Kind: "ServiceAccount", Name: "debug-sa", Namespace: "ns1"}},
@@ -1250,11 +1250,11 @@ func TestRBACPodDebugClusterNamedCrossNamespace(t *testing.T) {
 	if len(edges) != 2 {
 		t.Fatalf("expected 2 named PodDebug edges across namespaces, got %d", len(edges))
 	}
-	saID := nodefw.BuildID("ServiceAccount", "ns1", "debug-sa")
-	if !hasEdge(edges, saID, nodefw.BuildID("Pod", "ns1", "shared-pod"), "PodDebug") {
+	saID := nodefw.BuildID("BHK_ServiceAccount", "ns1", "debug-sa")
+	if !hasEdge(edges, saID, nodefw.BuildID("BHK_Pod", "ns1", "shared-pod"), "BHK_PodDebug") {
 		t.Fatalf("missing PodDebug edge to ns1/shared-pod")
 	}
-	if !hasEdge(edges, saID, nodefw.BuildID("Pod", "ns2", "shared-pod"), "PodDebug") {
+	if !hasEdge(edges, saID, nodefw.BuildID("BHK_Pod", "ns2", "shared-pod"), "BHK_PodDebug") {
 		t.Fatalf("missing PodDebug edge to ns2/shared-pod")
 	}
 }
@@ -1267,15 +1267,15 @@ func TestRBACImpersonateNamespacedWildcard(t *testing.T) {
 	core := newCore()
 	ns := ensureNamespace(core, "ns1")
 	ns.ServiceAccounts = append(ns.ServiceAccounts,
-		rbac.ServiceAccount{GraphNodeBase: base("ServiceAccount", "ns1", "actor-sa")},
-		rbac.ServiceAccount{GraphNodeBase: base("ServiceAccount", "ns1", "target-sa")},
+		rbac.ServiceAccount{GraphNodeBase: base("BHK_ServiceAccount", "ns1", "actor-sa")},
+		rbac.ServiceAccount{GraphNodeBase: base("BHK_ServiceAccount", "ns1", "target-sa")},
 	)
 	ns.Roles = append(ns.Roles,
-		rbac.Role{GraphNodeBase: base("Role", "ns1", "impersonate-role"), PermsDisplay: []string{"serviceaccounts: impersonate"}},
+		rbac.Role{GraphNodeBase: base("BHK_Role", "ns1", "impersonate-role"), PermsDisplay: []string{"serviceaccounts: impersonate"}},
 	)
 	ns.RoleBindings = append(ns.RoleBindings,
 		rbac.RoleBinding{
-			GraphNodeBase: base("RoleBinding", "ns1", "rb-imp"),
+			GraphNodeBase: base("BHK_RoleBinding", "ns1", "rb-imp"),
 			RoleKind:      "Role",
 			RoleName:      "impersonate-role",
 			Subjects:      []nodefw.Subject{{Kind: "ServiceAccount", Name: "actor-sa"}},
@@ -1284,9 +1284,9 @@ func TestRBACImpersonateNamespacedWildcard(t *testing.T) {
 
 	ctx := framework.NewContext(core)
 	edges := rbacImpersonateEdgesRule{}.Apply(ctx)
-	saID := nodefw.BuildID("ServiceAccount", "ns1", "actor-sa")
-	if !hasEdge(edges, saID, nodefw.BuildID("ServiceAccount", "ns1", "target-sa"), "ImpersonateSA") {
-		t.Fatalf("missing SAImpersonate edge to target-sa")
+	saID := nodefw.BuildID("BHK_ServiceAccount", "ns1", "actor-sa")
+	if !hasEdge(edges, saID, nodefw.BuildID("BHK_ServiceAccount", "ns1", "target-sa"), "BHK_Impersonate") {
+		t.Fatalf("missing Impersonate edge to target-sa")
 	}
 }
 
@@ -1294,17 +1294,17 @@ func TestRBACImpersonateNamespacedImpersonateUsers(t *testing.T) {
 	core := newCore()
 	ns := ensureNamespace(core, "ns1")
 	ns.ServiceAccounts = append(ns.ServiceAccounts,
-		rbac.ServiceAccount{GraphNodeBase: base("ServiceAccount", "ns1", "actor-sa")},
+		rbac.ServiceAccount{GraphNodeBase: base("BHK_ServiceAccount", "ns1", "actor-sa")},
 	)
-	core.Cluster.AllServiceAccounts = append(core.Cluster.AllServiceAccounts,
-		platform.AllServiceAccounts{GraphNodeBase: base("AllServiceAccounts", "", "AllServiceAccounts")},
+	core.Cluster.AllUsers = append(core.Cluster.AllUsers,
+		platform.AllUsers{GraphNodeBase: base("BHK_AllUsers", "", "BHK_AllUsers")},
 	)
 	ns.Roles = append(ns.Roles,
-		rbac.Role{GraphNodeBase: base("Role", "ns1", "imp-users-role"), PermsDisplay: []string{"users: impersonate"}},
+		rbac.Role{GraphNodeBase: base("BHK_Role", "ns1", "imp-users-role"), PermsDisplay: []string{"users: impersonate"}},
 	)
 	ns.RoleBindings = append(ns.RoleBindings,
 		rbac.RoleBinding{
-			GraphNodeBase: base("RoleBinding", "ns1", "rb-imp-users"),
+			GraphNodeBase: base("BHK_RoleBinding", "ns1", "rb-imp-users"),
 			RoleKind:      "Role",
 			RoleName:      "imp-users-role",
 			Subjects:      []nodefw.Subject{{Kind: "ServiceAccount", Name: "actor-sa"}},
@@ -1313,10 +1313,10 @@ func TestRBACImpersonateNamespacedImpersonateUsers(t *testing.T) {
 
 	ctx := framework.NewContext(core)
 	edges := rbacImpersonateEdgesRule{}.Apply(ctx)
-	saID := nodefw.BuildID("ServiceAccount", "ns1", "actor-sa")
-	aggID := nodefw.BuildID("AllServiceAccounts", "", "AllServiceAccounts")
-	if !hasEdge(edges, saID, aggID, "ImpersonateUsers") {
-		t.Fatalf("missing ImpersonateUsers edge to AllServiceAccounts")
+	saID := nodefw.BuildID("BHK_ServiceAccount", "ns1", "actor-sa")
+	aggID := nodefw.BuildID("BHK_AllUsers", "", "BHK_AllUsers")
+	if !hasEdge(edges, saID, aggID, "BHK_Impersonate") {
+		t.Fatalf("missing Impersonate edge to AllUsers")
 	}
 }
 
@@ -1324,17 +1324,17 @@ func TestRBACImpersonateNamespacedImpersonateGroups(t *testing.T) {
 	core := newCore()
 	ns := ensureNamespace(core, "ns1")
 	ns.ServiceAccounts = append(ns.ServiceAccounts,
-		rbac.ServiceAccount{GraphNodeBase: base("ServiceAccount", "ns1", "actor-sa")},
+		rbac.ServiceAccount{GraphNodeBase: base("BHK_ServiceAccount", "ns1", "actor-sa")},
 	)
-	core.Cluster.AllServiceAccounts = append(core.Cluster.AllServiceAccounts,
-		platform.AllServiceAccounts{GraphNodeBase: base("AllServiceAccounts", "", "AllServiceAccounts")},
+	core.Cluster.AllGroups = append(core.Cluster.AllGroups,
+		platform.AllGroups{GraphNodeBase: base("BHK_AllGroups", "", "BHK_AllGroups")},
 	)
 	ns.Roles = append(ns.Roles,
-		rbac.Role{GraphNodeBase: base("Role", "ns1", "imp-groups-role"), PermsDisplay: []string{"groups: impersonate"}},
+		rbac.Role{GraphNodeBase: base("BHK_Role", "ns1", "imp-groups-role"), PermsDisplay: []string{"groups: impersonate"}},
 	)
 	ns.RoleBindings = append(ns.RoleBindings,
 		rbac.RoleBinding{
-			GraphNodeBase: base("RoleBinding", "ns1", "rb-imp-groups"),
+			GraphNodeBase: base("BHK_RoleBinding", "ns1", "rb-imp-groups"),
 			RoleKind:      "Role",
 			RoleName:      "imp-groups-role",
 			Subjects:      []nodefw.Subject{{Kind: "ServiceAccount", Name: "actor-sa"}},
@@ -1343,10 +1343,10 @@ func TestRBACImpersonateNamespacedImpersonateGroups(t *testing.T) {
 
 	ctx := framework.NewContext(core)
 	edges := rbacImpersonateEdgesRule{}.Apply(ctx)
-	saID := nodefw.BuildID("ServiceAccount", "ns1", "actor-sa")
-	aggID := nodefw.BuildID("AllServiceAccounts", "", "AllServiceAccounts")
-	if !hasEdge(edges, saID, aggID, "ImpersonateGroups") {
-		t.Fatalf("missing ImpersonateGroups edge to AllServiceAccounts")
+	saID := nodefw.BuildID("BHK_ServiceAccount", "ns1", "actor-sa")
+	aggID := nodefw.BuildID("BHK_AllGroups", "", "BHK_AllGroups")
+	if !hasEdge(edges, saID, aggID, "BHK_Impersonate") {
+		t.Fatalf("missing Impersonate edge to AllGroups")
 	}
 }
 
@@ -1354,17 +1354,17 @@ func TestRBACImpersonateClusterWildcard(t *testing.T) {
 	core := newCore()
 	ns := ensureNamespace(core, "ns1")
 	ns.ServiceAccounts = append(ns.ServiceAccounts,
-		rbac.ServiceAccount{GraphNodeBase: base("ServiceAccount", "ns1", "actor-sa")},
+		rbac.ServiceAccount{GraphNodeBase: base("BHK_ServiceAccount", "ns1", "actor-sa")},
 	)
 	core.Cluster.AllServiceAccounts = append(core.Cluster.AllServiceAccounts,
-		platform.AllServiceAccounts{GraphNodeBase: base("AllServiceAccounts", "", "AllServiceAccounts")},
+		platform.AllServiceAccounts{GraphNodeBase: base("BHK_AllServiceAccounts", "", "BHK_AllServiceAccounts")},
 	)
 	core.Cluster.ClusterRoles = append(core.Cluster.ClusterRoles,
-		rbac.ClusterRole{GraphNodeBase: base("ClusterRole", "", "imp-cr"), PermsDisplay: []string{"serviceaccounts: impersonate"}},
+		rbac.ClusterRole{GraphNodeBase: base("BHK_ClusterRole", "", "imp-cr"), PermsDisplay: []string{"serviceaccounts: impersonate"}},
 	)
 	core.Cluster.ClusterRoleBindings = append(core.Cluster.ClusterRoleBindings,
 		rbac.ClusterRoleBinding{
-			GraphNodeBase: base("ClusterRoleBinding", "", "crb-imp"),
+			GraphNodeBase: base("BHK_ClusterRoleBinding", "", "crb-imp"),
 			RoleKind:      "ClusterRole",
 			RoleName:      "imp-cr",
 			Subjects:      []nodefw.Subject{{Kind: "ServiceAccount", Name: "actor-sa", Namespace: "ns1"}},
@@ -1373,10 +1373,10 @@ func TestRBACImpersonateClusterWildcard(t *testing.T) {
 
 	ctx := framework.NewContext(core)
 	edges := rbacImpersonateEdgesRule{}.Apply(ctx)
-	saID := nodefw.BuildID("ServiceAccount", "ns1", "actor-sa")
-	aggID := nodefw.BuildID("AllServiceAccounts", "", "AllServiceAccounts")
-	if !hasEdge(edges, saID, aggID, "ImpersonateSA") {
-		t.Fatalf("missing cluster SAImpersonate edge to AllServiceAccounts")
+	saID := nodefw.BuildID("BHK_ServiceAccount", "ns1", "actor-sa")
+	aggID := nodefw.BuildID("BHK_AllServiceAccounts", "", "BHK_AllServiceAccounts")
+	if !hasEdge(edges, saID, aggID, "BHK_Impersonate") {
+		t.Fatalf("missing cluster Impersonate edge to AllServiceAccounts")
 	}
 }
 
@@ -1385,18 +1385,18 @@ func TestRBACImpersonateClusterNamedSA(t *testing.T) {
 	ns1 := ensureNamespace(core, "ns1")
 	ns2 := ensureNamespace(core, "ns2")
 	ns1.ServiceAccounts = append(ns1.ServiceAccounts,
-		rbac.ServiceAccount{GraphNodeBase: base("ServiceAccount", "ns1", "actor-sa")},
-		rbac.ServiceAccount{GraphNodeBase: base("ServiceAccount", "ns1", "shared-sa")},
+		rbac.ServiceAccount{GraphNodeBase: base("BHK_ServiceAccount", "ns1", "actor-sa")},
+		rbac.ServiceAccount{GraphNodeBase: base("BHK_ServiceAccount", "ns1", "shared-sa")},
 	)
 	ns2.ServiceAccounts = append(ns2.ServiceAccounts,
-		rbac.ServiceAccount{GraphNodeBase: base("ServiceAccount", "ns2", "shared-sa")},
+		rbac.ServiceAccount{GraphNodeBase: base("BHK_ServiceAccount", "ns2", "shared-sa")},
 	)
 	core.Cluster.ClusterRoles = append(core.Cluster.ClusterRoles,
-		rbac.ClusterRole{GraphNodeBase: base("ClusterRole", "", "imp-named-cr"), PermsDisplay: []string{"serviceaccounts/shared-sa: impersonate"}},
+		rbac.ClusterRole{GraphNodeBase: base("BHK_ClusterRole", "", "imp-named-cr"), PermsDisplay: []string{"serviceaccounts/shared-sa: impersonate"}},
 	)
 	core.Cluster.ClusterRoleBindings = append(core.Cluster.ClusterRoleBindings,
 		rbac.ClusterRoleBinding{
-			GraphNodeBase: base("ClusterRoleBinding", "", "crb-imp-named"),
+			GraphNodeBase: base("BHK_ClusterRoleBinding", "", "crb-imp-named"),
 			RoleKind:      "ClusterRole",
 			RoleName:      "imp-named-cr",
 			Subjects:      []nodefw.Subject{{Kind: "ServiceAccount", Name: "actor-sa", Namespace: "ns1"}},
@@ -1405,12 +1405,12 @@ func TestRBACImpersonateClusterNamedSA(t *testing.T) {
 
 	ctx := framework.NewContext(core)
 	edges := rbacImpersonateEdgesRule{}.Apply(ctx)
-	saID := nodefw.BuildID("ServiceAccount", "ns1", "actor-sa")
-	if !hasEdge(edges, saID, nodefw.BuildID("ServiceAccount", "ns1", "shared-sa"), "ImpersonateSA") {
-		t.Fatalf("missing SAImpersonate edge to ns1/shared-sa")
+	saID := nodefw.BuildID("BHK_ServiceAccount", "ns1", "actor-sa")
+	if !hasEdge(edges, saID, nodefw.BuildID("BHK_ServiceAccount", "ns1", "shared-sa"), "BHK_Impersonate") {
+		t.Fatalf("missing Impersonate edge to ns1/shared-sa")
 	}
-	if !hasEdge(edges, saID, nodefw.BuildID("ServiceAccount", "ns2", "shared-sa"), "ImpersonateSA") {
-		t.Fatalf("missing SAImpersonate edge to ns2/shared-sa")
+	if !hasEdge(edges, saID, nodefw.BuildID("BHK_ServiceAccount", "ns2", "shared-sa"), "BHK_Impersonate") {
+		t.Fatalf("missing Impersonate edge to ns2/shared-sa")
 	}
 }
 
@@ -1422,18 +1422,18 @@ func TestRBACEscalateBindNamespacedEscalateRoles(t *testing.T) {
 	core := newCore()
 	ns := ensureNamespace(core, "ns1")
 	ns.ServiceAccounts = append(ns.ServiceAccounts,
-		rbac.ServiceAccount{GraphNodeBase: base("ServiceAccount", "ns1", "escalator-sa")},
+		rbac.ServiceAccount{GraphNodeBase: base("BHK_ServiceAccount", "ns1", "escalator-sa")},
 	)
 	ns.Roles = append(ns.Roles,
-		rbac.Role{GraphNodeBase: base("Role", "ns1", "victim-role")},
+		rbac.Role{GraphNodeBase: base("BHK_Role", "ns1", "victim-role")},
 		rbac.Role{
-			GraphNodeBase: base("Role", "ns1", "escalate-role"),
+			GraphNodeBase: base("BHK_Role", "ns1", "escalate-role"),
 			PermsDisplay:  []string{"roles: escalate"},
 		},
 	)
 	ns.RoleBindings = append(ns.RoleBindings,
 		rbac.RoleBinding{
-			GraphNodeBase: base("RoleBinding", "ns1", "rb-escalate"),
+			GraphNodeBase: base("BHK_RoleBinding", "ns1", "rb-escalate"),
 			RoleKind:      "Role",
 			RoleName:      "escalate-role",
 			Subjects:      []nodefw.Subject{{Kind: "ServiceAccount", Name: "escalator-sa"}},
@@ -1442,11 +1442,11 @@ func TestRBACEscalateBindNamespacedEscalateRoles(t *testing.T) {
 
 	ctx := framework.NewContext(core)
 	edges := rbacEscalateBindEdgesRule{}.Apply(ctx)
-	saID := nodefw.BuildID("ServiceAccount", "ns1", "escalator-sa")
-	if !hasEdge(edges, saID, nodefw.BuildID("Role", "ns1", "victim-role"), "RBACEscalate") {
+	saID := nodefw.BuildID("BHK_ServiceAccount", "ns1", "escalator-sa")
+	if !hasEdge(edges, saID, nodefw.BuildID("BHK_Role", "ns1", "victim-role"), "BHK_RBACEscalate") {
 		t.Fatalf("missing RBACEscalate edge to victim-role")
 	}
-	if !hasEdge(edges, saID, nodefw.BuildID("Role", "ns1", "escalate-role"), "RBACEscalate") {
+	if !hasEdge(edges, saID, nodefw.BuildID("BHK_Role", "ns1", "escalate-role"), "BHK_RBACEscalate") {
 		t.Fatalf("missing RBACEscalate edge to escalate-role itself")
 	}
 }
@@ -1455,30 +1455,30 @@ func TestRBACEscalateBindNamespacedBindClusterRoles(t *testing.T) {
 	core := newCore()
 	ns := ensureNamespace(core, "ns1")
 	ns.ServiceAccounts = append(ns.ServiceAccounts,
-		rbac.ServiceAccount{GraphNodeBase: base("ServiceAccount", "ns1", "binder-sa")},
+		rbac.ServiceAccount{GraphNodeBase: base("BHK_ServiceAccount", "ns1", "binder-sa")},
 	)
 	ns.Roles = append(ns.Roles,
 		rbac.Role{
-			GraphNodeBase: base("Role", "ns1", "bind-role"),
+			GraphNodeBase: base("BHK_Role", "ns1", "bind-role"),
 			PermsDisplay:  []string{"clusterroles: bind"},
 		},
 	)
 	ns.RoleBindings = append(ns.RoleBindings,
 		rbac.RoleBinding{
-			GraphNodeBase: base("RoleBinding", "ns1", "rb-bind"),
+			GraphNodeBase: base("BHK_RoleBinding", "ns1", "rb-bind"),
 			RoleKind:      "Role",
 			RoleName:      "bind-role",
 			Subjects:      []nodefw.Subject{{Kind: "ServiceAccount", Name: "binder-sa"}},
 		},
 	)
 	core.Cluster.ClusterRoles = append(core.Cluster.ClusterRoles,
-		rbac.ClusterRole{GraphNodeBase: base("ClusterRole", "", "target-cr")},
+		rbac.ClusterRole{GraphNodeBase: base("BHK_ClusterRole", "", "target-cr")},
 	)
 
 	ctx := framework.NewContext(core)
 	edges := rbacEscalateBindEdgesRule{}.Apply(ctx)
-	saID := nodefw.BuildID("ServiceAccount", "ns1", "binder-sa")
-	if !hasEdge(edges, saID, nodefw.BuildID("ClusterRole", "", "target-cr"), "RBACBind") {
+	saID := nodefw.BuildID("BHK_ServiceAccount", "ns1", "binder-sa")
+	if !hasEdge(edges, saID, nodefw.BuildID("BHK_ClusterRole", "", "target-cr"), "BHK_RBACBind") {
 		t.Fatalf("missing RBACBind edge to target-cr")
 	}
 }
@@ -1487,18 +1487,18 @@ func TestRBACEscalateBindClusterEscalateClusterRoles(t *testing.T) {
 	core := newCore()
 	ns := ensureNamespace(core, "ns1")
 	ns.ServiceAccounts = append(ns.ServiceAccounts,
-		rbac.ServiceAccount{GraphNodeBase: base("ServiceAccount", "ns1", "escalator-sa")},
+		rbac.ServiceAccount{GraphNodeBase: base("BHK_ServiceAccount", "ns1", "escalator-sa")},
 	)
 	core.Cluster.ClusterRoles = append(core.Cluster.ClusterRoles,
-		rbac.ClusterRole{GraphNodeBase: base("ClusterRole", "", "victim-cr")},
+		rbac.ClusterRole{GraphNodeBase: base("BHK_ClusterRole", "", "victim-cr")},
 		rbac.ClusterRole{
-			GraphNodeBase: base("ClusterRole", "", "escalate-cr"),
+			GraphNodeBase: base("BHK_ClusterRole", "", "escalate-cr"),
 			PermsDisplay:  []string{"clusterroles: escalate"},
 		},
 	)
 	core.Cluster.ClusterRoleBindings = append(core.Cluster.ClusterRoleBindings,
 		rbac.ClusterRoleBinding{
-			GraphNodeBase: base("ClusterRoleBinding", "", "crb-escalate"),
+			GraphNodeBase: base("BHK_ClusterRoleBinding", "", "crb-escalate"),
 			RoleKind:      "ClusterRole",
 			RoleName:      "escalate-cr",
 			Subjects:      []nodefw.Subject{{Kind: "ServiceAccount", Name: "escalator-sa", Namespace: "ns1"}},
@@ -1507,11 +1507,11 @@ func TestRBACEscalateBindClusterEscalateClusterRoles(t *testing.T) {
 
 	ctx := framework.NewContext(core)
 	edges := rbacEscalateBindEdgesRule{}.Apply(ctx)
-	saID := nodefw.BuildID("ServiceAccount", "ns1", "escalator-sa")
-	if !hasEdge(edges, saID, nodefw.BuildID("ClusterRole", "", "victim-cr"), "RBACEscalate") {
+	saID := nodefw.BuildID("BHK_ServiceAccount", "ns1", "escalator-sa")
+	if !hasEdge(edges, saID, nodefw.BuildID("BHK_ClusterRole", "", "victim-cr"), "BHK_RBACEscalate") {
 		t.Fatalf("missing cluster RBACEscalate edge to victim-cr")
 	}
-	if !hasEdge(edges, saID, nodefw.BuildID("ClusterRole", "", "escalate-cr"), "RBACEscalate") {
+	if !hasEdge(edges, saID, nodefw.BuildID("BHK_ClusterRole", "", "escalate-cr"), "BHK_RBACEscalate") {
 		t.Fatalf("missing cluster RBACEscalate edge to escalate-cr itself")
 	}
 }
@@ -1521,19 +1521,19 @@ func TestRBACEscalateBindClusterBindRoles(t *testing.T) {
 	ns1 := ensureNamespace(core, "ns1")
 	ns2 := ensureNamespace(core, "ns2")
 	ns1.ServiceAccounts = append(ns1.ServiceAccounts,
-		rbac.ServiceAccount{GraphNodeBase: base("ServiceAccount", "ns1", "binder-sa")},
+		rbac.ServiceAccount{GraphNodeBase: base("BHK_ServiceAccount", "ns1", "binder-sa")},
 	)
-	ns1.Roles = append(ns1.Roles, rbac.Role{GraphNodeBase: base("Role", "ns1", "role-a")})
-	ns2.Roles = append(ns2.Roles, rbac.Role{GraphNodeBase: base("Role", "ns2", "role-b")})
+	ns1.Roles = append(ns1.Roles, rbac.Role{GraphNodeBase: base("BHK_Role", "ns1", "role-a")})
+	ns2.Roles = append(ns2.Roles, rbac.Role{GraphNodeBase: base("BHK_Role", "ns2", "role-b")})
 	core.Cluster.ClusterRoles = append(core.Cluster.ClusterRoles,
 		rbac.ClusterRole{
-			GraphNodeBase: base("ClusterRole", "", "bind-roles-cr"),
+			GraphNodeBase: base("BHK_ClusterRole", "", "bind-roles-cr"),
 			PermsDisplay:  []string{"roles: bind"},
 		},
 	)
 	core.Cluster.ClusterRoleBindings = append(core.Cluster.ClusterRoleBindings,
 		rbac.ClusterRoleBinding{
-			GraphNodeBase: base("ClusterRoleBinding", "", "crb-bind-roles"),
+			GraphNodeBase: base("BHK_ClusterRoleBinding", "", "crb-bind-roles"),
 			RoleKind:      "ClusterRole",
 			RoleName:      "bind-roles-cr",
 			Subjects:      []nodefw.Subject{{Kind: "ServiceAccount", Name: "binder-sa", Namespace: "ns1"}},
@@ -1542,11 +1542,11 @@ func TestRBACEscalateBindClusterBindRoles(t *testing.T) {
 
 	ctx := framework.NewContext(core)
 	edges := rbacEscalateBindEdgesRule{}.Apply(ctx)
-	saID := nodefw.BuildID("ServiceAccount", "ns1", "binder-sa")
-	if !hasEdge(edges, saID, nodefw.BuildID("Role", "ns1", "role-a"), "RBACBind") {
+	saID := nodefw.BuildID("BHK_ServiceAccount", "ns1", "binder-sa")
+	if !hasEdge(edges, saID, nodefw.BuildID("BHK_Role", "ns1", "role-a"), "BHK_RBACBind") {
 		t.Fatalf("missing cluster RBACBind edge to ns1/role-a")
 	}
-	if !hasEdge(edges, saID, nodefw.BuildID("Role", "ns2", "role-b"), "RBACBind") {
+	if !hasEdge(edges, saID, nodefw.BuildID("BHK_Role", "ns2", "role-b"), "BHK_RBACBind") {
 		t.Fatalf("missing cluster RBACBind edge to ns2/role-b")
 	}
 }
@@ -1559,17 +1559,17 @@ func TestRBACSATokenRequestNamespacedWildcard(t *testing.T) {
 	core := newCore()
 	ns := ensureNamespace(core, "ns1")
 	ns.ServiceAccounts = append(ns.ServiceAccounts,
-		rbac.ServiceAccount{GraphNodeBase: base("ServiceAccount", "ns1", "token-minter")},
+		rbac.ServiceAccount{GraphNodeBase: base("BHK_ServiceAccount", "ns1", "token-minter")},
 	)
 	ns.AllServiceAccounts = append(ns.AllServiceAccounts,
-		platform.AllServiceAccounts{GraphNodeBase: base("AllServiceAccounts", "ns1", "AllServiceAccounts")},
+		platform.AllServiceAccounts{GraphNodeBase: base("BHK_AllServiceAccounts", "ns1", "BHK_AllServiceAccounts")},
 	)
 	ns.Roles = append(ns.Roles,
-		rbac.Role{GraphNodeBase: base("Role", "ns1", "token-role"), PermsDisplay: []string{"serviceaccounts/token: create"}},
+		rbac.Role{GraphNodeBase: base("BHK_Role", "ns1", "token-role"), PermsDisplay: []string{"serviceaccounts/token: create"}},
 	)
 	ns.RoleBindings = append(ns.RoleBindings,
 		rbac.RoleBinding{
-			GraphNodeBase: base("RoleBinding", "ns1", "rb-token"),
+			GraphNodeBase: base("BHK_RoleBinding", "ns1", "rb-token"),
 			RoleKind:      "Role",
 			RoleName:      "token-role",
 			Subjects:      []nodefw.Subject{{Kind: "ServiceAccount", Name: "token-minter"}},
@@ -1578,9 +1578,9 @@ func TestRBACSATokenRequestNamespacedWildcard(t *testing.T) {
 
 	ctx := framework.NewContext(core)
 	edges := rbacSATokenRequestEdgesRule{}.Apply(ctx)
-	saID := nodefw.BuildID("ServiceAccount", "ns1", "token-minter")
-	aggID := nodefw.BuildID("AllServiceAccounts", "ns1", "AllServiceAccounts")
-	if !hasEdge(edges, saID, aggID, "SATokenRequest") {
+	saID := nodefw.BuildID("BHK_ServiceAccount", "ns1", "token-minter")
+	aggID := nodefw.BuildID("BHK_AllServiceAccounts", "ns1", "BHK_AllServiceAccounts")
+	if !hasEdge(edges, saID, aggID, "BHK_SATokenRequest") {
 		t.Fatalf("missing SATokenRequest edge to ns1 AllServiceAccounts aggregate")
 	}
 }
@@ -1589,16 +1589,16 @@ func TestRBACSATokenRequestNamespacedNamed(t *testing.T) {
 	core := newCore()
 	ns := ensureNamespace(core, "ns1")
 	ns.ServiceAccounts = append(ns.ServiceAccounts,
-		rbac.ServiceAccount{GraphNodeBase: base("ServiceAccount", "ns1", "token-minter")},
-		rbac.ServiceAccount{GraphNodeBase: base("ServiceAccount", "ns1", "target-sa")},
-		rbac.ServiceAccount{GraphNodeBase: base("ServiceAccount", "ns1", "other-sa")},
+		rbac.ServiceAccount{GraphNodeBase: base("BHK_ServiceAccount", "ns1", "token-minter")},
+		rbac.ServiceAccount{GraphNodeBase: base("BHK_ServiceAccount", "ns1", "target-sa")},
+		rbac.ServiceAccount{GraphNodeBase: base("BHK_ServiceAccount", "ns1", "other-sa")},
 	)
 	ns.Roles = append(ns.Roles,
-		rbac.Role{GraphNodeBase: base("Role", "ns1", "token-role"), PermsDisplay: []string{"serviceaccounts/token/target-sa: create"}},
+		rbac.Role{GraphNodeBase: base("BHK_Role", "ns1", "token-role"), PermsDisplay: []string{"serviceaccounts/token/target-sa: create"}},
 	)
 	ns.RoleBindings = append(ns.RoleBindings,
 		rbac.RoleBinding{
-			GraphNodeBase: base("RoleBinding", "ns1", "rb-token"),
+			GraphNodeBase: base("BHK_RoleBinding", "ns1", "rb-token"),
 			RoleKind:      "Role",
 			RoleName:      "token-role",
 			Subjects:      []nodefw.Subject{{Kind: "ServiceAccount", Name: "token-minter"}},
@@ -1607,11 +1607,11 @@ func TestRBACSATokenRequestNamespacedNamed(t *testing.T) {
 
 	ctx := framework.NewContext(core)
 	edges := rbacSATokenRequestEdgesRule{}.Apply(ctx)
-	saID := nodefw.BuildID("ServiceAccount", "ns1", "token-minter")
-	if !hasEdge(edges, saID, nodefw.BuildID("ServiceAccount", "ns1", "target-sa"), "SATokenRequest") {
+	saID := nodefw.BuildID("BHK_ServiceAccount", "ns1", "token-minter")
+	if !hasEdge(edges, saID, nodefw.BuildID("BHK_ServiceAccount", "ns1", "target-sa"), "BHK_SATokenRequest") {
 		t.Fatalf("missing SATokenRequest edge to target-sa")
 	}
-	if hasEdge(edges, saID, nodefw.BuildID("ServiceAccount", "ns1", "other-sa"), "SATokenRequest") {
+	if hasEdge(edges, saID, nodefw.BuildID("BHK_ServiceAccount", "ns1", "other-sa"), "BHK_SATokenRequest") {
 		t.Fatalf("unexpected SATokenRequest edge to other-sa")
 	}
 }
@@ -1620,17 +1620,17 @@ func TestRBACSATokenRequestClusterAggregate(t *testing.T) {
 	core := newCore()
 	ns := ensureNamespace(core, "ns1")
 	ns.ServiceAccounts = append(ns.ServiceAccounts,
-		rbac.ServiceAccount{GraphNodeBase: base("ServiceAccount", "ns1", "token-minter")},
+		rbac.ServiceAccount{GraphNodeBase: base("BHK_ServiceAccount", "ns1", "token-minter")},
 	)
 	core.Cluster.AllServiceAccounts = append(core.Cluster.AllServiceAccounts,
-		platform.AllServiceAccounts{GraphNodeBase: base("AllServiceAccounts", "", "AllServiceAccounts")},
+		platform.AllServiceAccounts{GraphNodeBase: base("BHK_AllServiceAccounts", "", "BHK_AllServiceAccounts")},
 	)
 	core.Cluster.ClusterRoles = append(core.Cluster.ClusterRoles,
-		rbac.ClusterRole{GraphNodeBase: base("ClusterRole", "", "token-cr"), PermsDisplay: []string{"serviceaccounts/token: create"}},
+		rbac.ClusterRole{GraphNodeBase: base("BHK_ClusterRole", "", "token-cr"), PermsDisplay: []string{"serviceaccounts/token: create"}},
 	)
 	core.Cluster.ClusterRoleBindings = append(core.Cluster.ClusterRoleBindings,
 		rbac.ClusterRoleBinding{
-			GraphNodeBase: base("ClusterRoleBinding", "", "crb-token"),
+			GraphNodeBase: base("BHK_ClusterRoleBinding", "", "crb-token"),
 			RoleKind:      "ClusterRole",
 			RoleName:      "token-cr",
 			Subjects:      []nodefw.Subject{{Kind: "ServiceAccount", Name: "token-minter", Namespace: "ns1"}},
@@ -1639,9 +1639,9 @@ func TestRBACSATokenRequestClusterAggregate(t *testing.T) {
 
 	ctx := framework.NewContext(core)
 	edges := rbacSATokenRequestEdgesRule{}.Apply(ctx)
-	saID := nodefw.BuildID("ServiceAccount", "ns1", "token-minter")
-	aggID := nodefw.BuildID("AllServiceAccounts", "", "AllServiceAccounts")
-	if !hasEdge(edges, saID, aggID, "SATokenRequest") {
+	saID := nodefw.BuildID("BHK_ServiceAccount", "ns1", "token-minter")
+	aggID := nodefw.BuildID("BHK_AllServiceAccounts", "", "BHK_AllServiceAccounts")
+	if !hasEdge(edges, saID, aggID, "BHK_SATokenRequest") {
 		t.Fatalf("missing cluster SATokenRequest edge to AllServiceAccounts aggregate")
 	}
 }
@@ -1651,18 +1651,18 @@ func TestRBACSATokenRequestClusterNamedCrossNamespace(t *testing.T) {
 	ns1 := ensureNamespace(core, "ns1")
 	ns2 := ensureNamespace(core, "ns2")
 	ns1.ServiceAccounts = append(ns1.ServiceAccounts,
-		rbac.ServiceAccount{GraphNodeBase: base("ServiceAccount", "ns1", "token-minter")},
-		rbac.ServiceAccount{GraphNodeBase: base("ServiceAccount", "ns1", "shared-sa")},
+		rbac.ServiceAccount{GraphNodeBase: base("BHK_ServiceAccount", "ns1", "token-minter")},
+		rbac.ServiceAccount{GraphNodeBase: base("BHK_ServiceAccount", "ns1", "shared-sa")},
 	)
 	ns2.ServiceAccounts = append(ns2.ServiceAccounts,
-		rbac.ServiceAccount{GraphNodeBase: base("ServiceAccount", "ns2", "shared-sa")},
+		rbac.ServiceAccount{GraphNodeBase: base("BHK_ServiceAccount", "ns2", "shared-sa")},
 	)
 	core.Cluster.ClusterRoles = append(core.Cluster.ClusterRoles,
-		rbac.ClusterRole{GraphNodeBase: base("ClusterRole", "", "token-cr"), PermsDisplay: []string{"serviceaccounts/token/shared-sa: create"}},
+		rbac.ClusterRole{GraphNodeBase: base("BHK_ClusterRole", "", "token-cr"), PermsDisplay: []string{"serviceaccounts/token/shared-sa: create"}},
 	)
 	core.Cluster.ClusterRoleBindings = append(core.Cluster.ClusterRoleBindings,
 		rbac.ClusterRoleBinding{
-			GraphNodeBase: base("ClusterRoleBinding", "", "crb-token"),
+			GraphNodeBase: base("BHK_ClusterRoleBinding", "", "crb-token"),
 			RoleKind:      "ClusterRole",
 			RoleName:      "token-cr",
 			Subjects:      []nodefw.Subject{{Kind: "ServiceAccount", Name: "token-minter", Namespace: "ns1"}},
@@ -1671,11 +1671,11 @@ func TestRBACSATokenRequestClusterNamedCrossNamespace(t *testing.T) {
 
 	ctx := framework.NewContext(core)
 	edges := rbacSATokenRequestEdgesRule{}.Apply(ctx)
-	saID := nodefw.BuildID("ServiceAccount", "ns1", "token-minter")
-	if !hasEdge(edges, saID, nodefw.BuildID("ServiceAccount", "ns1", "shared-sa"), "SATokenRequest") {
+	saID := nodefw.BuildID("BHK_ServiceAccount", "ns1", "token-minter")
+	if !hasEdge(edges, saID, nodefw.BuildID("BHK_ServiceAccount", "ns1", "shared-sa"), "BHK_SATokenRequest") {
 		t.Fatalf("missing SATokenRequest edge to ns1/shared-sa")
 	}
-	if !hasEdge(edges, saID, nodefw.BuildID("ServiceAccount", "ns2", "shared-sa"), "SATokenRequest") {
+	if !hasEdge(edges, saID, nodefw.BuildID("BHK_ServiceAccount", "ns2", "shared-sa"), "BHK_SATokenRequest") {
 		t.Fatalf("missing SATokenRequest edge to ns2/shared-sa")
 	}
 }
@@ -1688,20 +1688,20 @@ func TestRBACNodeProxyClusterWildcard(t *testing.T) {
 	core := newCore()
 	ns := ensureNamespace(core, "ns1")
 	ns.ServiceAccounts = append(ns.ServiceAccounts,
-		rbac.ServiceAccount{GraphNodeBase: base("ServiceAccount", "ns1", "proxy-sa")},
+		rbac.ServiceAccount{GraphNodeBase: base("BHK_ServiceAccount", "ns1", "proxy-sa")},
 	)
 	ns.Pods = append(ns.Pods,
-		workload.Pod{GraphNodeBase: base("Pod", "ns1", "pod-on-node1"), NodeName: "node1"},
+		workload.Pod{GraphNodeBase: base("BHK_Pod", "ns1", "pod-on-node1"), NodeName: "node1"},
 	)
 	core.Cluster.AllNodes = append(core.Cluster.AllNodes,
-		platform.AllNodes{GraphNodeBase: base("AllNodes", "", "AllNodes")},
+		platform.AllNodes{GraphNodeBase: base("BHK_AllNodes", "", "BHK_AllNodes")},
 	)
 	core.Cluster.ClusterRoles = append(core.Cluster.ClusterRoles,
-		rbac.ClusterRole{GraphNodeBase: base("ClusterRole", "", "proxy-cr"), PermsDisplay: []string{"nodes/proxy: get"}},
+		rbac.ClusterRole{GraphNodeBase: base("BHK_ClusterRole", "", "proxy-cr"), PermsDisplay: []string{"nodes/proxy: get"}},
 	)
 	core.Cluster.ClusterRoleBindings = append(core.Cluster.ClusterRoleBindings,
 		rbac.ClusterRoleBinding{
-			GraphNodeBase: base("ClusterRoleBinding", "", "crb-proxy"),
+			GraphNodeBase: base("BHK_ClusterRoleBinding", "", "crb-proxy"),
 			RoleKind:      "ClusterRole",
 			RoleName:      "proxy-cr",
 			Subjects:      []nodefw.Subject{{Kind: "ServiceAccount", Name: "proxy-sa", Namespace: "ns1"}},
@@ -1710,11 +1710,11 @@ func TestRBACNodeProxyClusterWildcard(t *testing.T) {
 
 	ctx := framework.NewContext(core)
 	edges := rbacNodeProxyEdgesRule{}.Apply(ctx)
-	saID := nodefw.BuildID("ServiceAccount", "ns1", "proxy-sa")
-	if !hasEdge(edges, saID, nodefw.BuildID("Pod", "ns1", "pod-on-node1"), "NodeProxyRCE") {
+	saID := nodefw.BuildID("BHK_ServiceAccount", "ns1", "proxy-sa")
+	if !hasEdge(edges, saID, nodefw.BuildID("BHK_Pod", "ns1", "pod-on-node1"), "BHK_NodeProxyRCE") {
 		t.Fatalf("missing NodeProxyRCE edge to pod-on-node1")
 	}
-	if !hasEdge(edges, saID, nodefw.BuildID("AllNodes", "", "AllNodes"), "NodeProxyRCE") {
+	if !hasEdge(edges, saID, nodefw.BuildID("BHK_AllNodes", "", "BHK_AllNodes"), "BHK_NodeProxyRCE") {
 		t.Fatalf("missing NodeProxyRCE edge to AllNodes aggregate")
 	}
 }
@@ -1723,22 +1723,22 @@ func TestRBACNodeProxyClusterNamedNode(t *testing.T) {
 	core := newCore()
 	ns := ensureNamespace(core, "ns1")
 	ns.ServiceAccounts = append(ns.ServiceAccounts,
-		rbac.ServiceAccount{GraphNodeBase: base("ServiceAccount", "ns1", "proxy-sa")},
+		rbac.ServiceAccount{GraphNodeBase: base("BHK_ServiceAccount", "ns1", "proxy-sa")},
 	)
 	ns.Pods = append(ns.Pods,
-		workload.Pod{GraphNodeBase: base("Pod", "ns1", "pod-on-node1"), NodeName: "node1"},
-		workload.Pod{GraphNodeBase: base("Pod", "ns1", "pod-on-node2"), NodeName: "node2"},
+		workload.Pod{GraphNodeBase: base("BHK_Pod", "ns1", "pod-on-node1"), NodeName: "node1"},
+		workload.Pod{GraphNodeBase: base("BHK_Pod", "ns1", "pod-on-node2"), NodeName: "node2"},
 	)
 	core.Cluster.Nodes = append(core.Cluster.Nodes,
-		platform.Node{GraphNodeBase: base("Node", "", "node1")},
-		platform.Node{GraphNodeBase: base("Node", "", "node2")},
+		platform.Node{GraphNodeBase: base("BHK_Node", "", "node1")},
+		platform.Node{GraphNodeBase: base("BHK_Node", "", "node2")},
 	)
 	core.Cluster.ClusterRoles = append(core.Cluster.ClusterRoles,
-		rbac.ClusterRole{GraphNodeBase: base("ClusterRole", "", "proxy-cr"), PermsDisplay: []string{"nodes/proxy/node1: get"}},
+		rbac.ClusterRole{GraphNodeBase: base("BHK_ClusterRole", "", "proxy-cr"), PermsDisplay: []string{"nodes/proxy/node1: get"}},
 	)
 	core.Cluster.ClusterRoleBindings = append(core.Cluster.ClusterRoleBindings,
 		rbac.ClusterRoleBinding{
-			GraphNodeBase: base("ClusterRoleBinding", "", "crb-proxy"),
+			GraphNodeBase: base("BHK_ClusterRoleBinding", "", "crb-proxy"),
 			RoleKind:      "ClusterRole",
 			RoleName:      "proxy-cr",
 			Subjects:      []nodefw.Subject{{Kind: "ServiceAccount", Name: "proxy-sa", Namespace: "ns1"}},
@@ -1747,17 +1747,17 @@ func TestRBACNodeProxyClusterNamedNode(t *testing.T) {
 
 	ctx := framework.NewContext(core)
 	edges := rbacNodeProxyEdgesRule{}.Apply(ctx)
-	saID := nodefw.BuildID("ServiceAccount", "ns1", "proxy-sa")
-	if !hasEdge(edges, saID, nodefw.BuildID("Pod", "ns1", "pod-on-node1"), "NodeProxyRCE") {
+	saID := nodefw.BuildID("BHK_ServiceAccount", "ns1", "proxy-sa")
+	if !hasEdge(edges, saID, nodefw.BuildID("BHK_Pod", "ns1", "pod-on-node1"), "BHK_NodeProxyRCE") {
 		t.Fatalf("missing NodeProxyRCE edge to pod-on-node1")
 	}
-	if hasEdge(edges, saID, nodefw.BuildID("Pod", "ns1", "pod-on-node2"), "NodeProxyRCE") {
+	if hasEdge(edges, saID, nodefw.BuildID("BHK_Pod", "ns1", "pod-on-node2"), "BHK_NodeProxyRCE") {
 		t.Fatalf("unexpected NodeProxyRCE edge to pod-on-node2")
 	}
-	if !hasEdge(edges, saID, nodefw.BuildID("Node", "", "node1"), "NodeProxyRCE") {
+	if !hasEdge(edges, saID, nodefw.BuildID("BHK_Node", "", "node1"), "BHK_NodeProxyRCE") {
 		t.Fatalf("missing NodeProxyRCE edge to node1")
 	}
-	if hasEdge(edges, saID, nodefw.BuildID("Node", "", "node2"), "NodeProxyRCE") {
+	if hasEdge(edges, saID, nodefw.BuildID("BHK_Node", "", "node2"), "BHK_NodeProxyRCE") {
 		t.Fatalf("unexpected NodeProxyRCE edge to node2")
 	}
 }
@@ -1770,18 +1770,18 @@ func TestRBACWorkloadPatchNamespacedPods(t *testing.T) {
 	core := newCore()
 	ns := ensureNamespace(core, "ns1")
 	ns.ServiceAccounts = append(ns.ServiceAccounts,
-		rbac.ServiceAccount{GraphNodeBase: base("ServiceAccount", "ns1", "patcher-sa")},
+		rbac.ServiceAccount{GraphNodeBase: base("BHK_ServiceAccount", "ns1", "patcher-sa")},
 	)
 	ns.Pods = append(ns.Pods,
-		workload.Pod{GraphNodeBase: base("Pod", "ns1", "pod-a")},
-		workload.Pod{GraphNodeBase: base("Pod", "ns1", "pod-b")},
+		workload.Pod{GraphNodeBase: base("BHK_Pod", "ns1", "pod-a")},
+		workload.Pod{GraphNodeBase: base("BHK_Pod", "ns1", "pod-b")},
 	)
 	ns.Roles = append(ns.Roles,
-		rbac.Role{GraphNodeBase: base("Role", "ns1", "patch-role"), PermsDisplay: []string{"pods: patch"}},
+		rbac.Role{GraphNodeBase: base("BHK_Role", "ns1", "patch-role"), PermsDisplay: []string{"pods: patch"}},
 	)
 	ns.RoleBindings = append(ns.RoleBindings,
 		rbac.RoleBinding{
-			GraphNodeBase: base("RoleBinding", "ns1", "rb-patch"),
+			GraphNodeBase: base("BHK_RoleBinding", "ns1", "rb-patch"),
 			RoleKind:      "Role",
 			RoleName:      "patch-role",
 			Subjects:      []nodefw.Subject{{Kind: "ServiceAccount", Name: "patcher-sa"}},
@@ -1793,11 +1793,11 @@ func TestRBACWorkloadPatchNamespacedPods(t *testing.T) {
 	if len(edges) != 2 {
 		t.Fatalf("expected 2 WorkloadPatch edges for pods, got %d", len(edges))
 	}
-	saID := nodefw.BuildID("ServiceAccount", "ns1", "patcher-sa")
-	if !hasEdge(edges, saID, nodefw.BuildID("Pod", "ns1", "pod-a"), "WorkloadPatch") {
+	saID := nodefw.BuildID("BHK_ServiceAccount", "ns1", "patcher-sa")
+	if !hasEdge(edges, saID, nodefw.BuildID("BHK_Pod", "ns1", "pod-a"), "BHK_WorkloadPatch") {
 		t.Fatalf("missing WorkloadPatch edge to pod-a")
 	}
-	if !hasEdge(edges, saID, nodefw.BuildID("Pod", "ns1", "pod-b"), "WorkloadPatch") {
+	if !hasEdge(edges, saID, nodefw.BuildID("BHK_Pod", "ns1", "pod-b"), "BHK_WorkloadPatch") {
 		t.Fatalf("missing WorkloadPatch edge to pod-b")
 	}
 }
@@ -1806,17 +1806,17 @@ func TestRBACWorkloadPatchNamespacedDeployments(t *testing.T) {
 	core := newCore()
 	ns := ensureNamespace(core, "ns1")
 	ns.ServiceAccounts = append(ns.ServiceAccounts,
-		rbac.ServiceAccount{GraphNodeBase: base("ServiceAccount", "ns1", "patcher-sa")},
+		rbac.ServiceAccount{GraphNodeBase: base("BHK_ServiceAccount", "ns1", "patcher-sa")},
 	)
 	ns.Deployments = append(ns.Deployments,
-		workload.Deployment{GraphNodeBase: base("Deployment", "ns1", "deploy-a")},
+		workload.Deployment{GraphNodeBase: base("BHK_Deployment", "ns1", "deploy-a")},
 	)
 	ns.Roles = append(ns.Roles,
-		rbac.Role{GraphNodeBase: base("Role", "ns1", "patch-role"), PermsDisplay: []string{"deployments: update"}},
+		rbac.Role{GraphNodeBase: base("BHK_Role", "ns1", "patch-role"), PermsDisplay: []string{"deployments: update"}},
 	)
 	ns.RoleBindings = append(ns.RoleBindings,
 		rbac.RoleBinding{
-			GraphNodeBase: base("RoleBinding", "ns1", "rb-patch"),
+			GraphNodeBase: base("BHK_RoleBinding", "ns1", "rb-patch"),
 			RoleKind:      "Role",
 			RoleName:      "patch-role",
 			Subjects:      []nodefw.Subject{{Kind: "ServiceAccount", Name: "patcher-sa"}},
@@ -1825,8 +1825,8 @@ func TestRBACWorkloadPatchNamespacedDeployments(t *testing.T) {
 
 	ctx := framework.NewContext(core)
 	edges := rbacPatchWorkloadEdgesRule{}.Apply(ctx)
-	saID := nodefw.BuildID("ServiceAccount", "ns1", "patcher-sa")
-	if !hasEdge(edges, saID, nodefw.BuildID("Deployment", "ns1", "deploy-a"), "WorkloadPatch") {
+	saID := nodefw.BuildID("BHK_ServiceAccount", "ns1", "patcher-sa")
+	if !hasEdge(edges, saID, nodefw.BuildID("BHK_Deployment", "ns1", "deploy-a"), "BHK_WorkloadPatch") {
 		t.Fatalf("missing WorkloadPatch edge to deploy-a")
 	}
 }
@@ -1835,17 +1835,17 @@ func TestRBACWorkloadPatchClusterWildcardPodsAggregate(t *testing.T) {
 	core := newCore()
 	ns := ensureNamespace(core, "ns1")
 	ns.ServiceAccounts = append(ns.ServiceAccounts,
-		rbac.ServiceAccount{GraphNodeBase: base("ServiceAccount", "ns1", "patcher-sa")},
+		rbac.ServiceAccount{GraphNodeBase: base("BHK_ServiceAccount", "ns1", "patcher-sa")},
 	)
 	core.Cluster.AllPods = append(core.Cluster.AllPods,
-		platform.AllPods{GraphNodeBase: base("AllPods", "", "AllPods")},
+		platform.AllPods{GraphNodeBase: base("BHK_AllPods", "", "BHK_AllPods")},
 	)
 	core.Cluster.ClusterRoles = append(core.Cluster.ClusterRoles,
-		rbac.ClusterRole{GraphNodeBase: base("ClusterRole", "", "patch-cr"), PermsDisplay: []string{"pods: patch"}},
+		rbac.ClusterRole{GraphNodeBase: base("BHK_ClusterRole", "", "patch-cr"), PermsDisplay: []string{"pods: patch"}},
 	)
 	core.Cluster.ClusterRoleBindings = append(core.Cluster.ClusterRoleBindings,
 		rbac.ClusterRoleBinding{
-			GraphNodeBase: base("ClusterRoleBinding", "", "crb-patch"),
+			GraphNodeBase: base("BHK_ClusterRoleBinding", "", "crb-patch"),
 			RoleKind:      "ClusterRole",
 			RoleName:      "patch-cr",
 			Subjects:      []nodefw.Subject{{Kind: "ServiceAccount", Name: "patcher-sa", Namespace: "ns1"}},
@@ -1854,8 +1854,8 @@ func TestRBACWorkloadPatchClusterWildcardPodsAggregate(t *testing.T) {
 
 	ctx := framework.NewContext(core)
 	edges := rbacPatchWorkloadEdgesRule{}.Apply(ctx)
-	saID := nodefw.BuildID("ServiceAccount", "ns1", "patcher-sa")
-	if !hasEdge(edges, saID, nodefw.BuildID("AllPods", "", "AllPods"), "WorkloadPatch") {
+	saID := nodefw.BuildID("BHK_ServiceAccount", "ns1", "patcher-sa")
+	if !hasEdge(edges, saID, nodefw.BuildID("BHK_AllPods", "", "BHK_AllPods"), "BHK_WorkloadPatch") {
 		t.Fatalf("missing WorkloadPatch edge to AllPods aggregate")
 	}
 }

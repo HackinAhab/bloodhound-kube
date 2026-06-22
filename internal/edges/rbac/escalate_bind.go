@@ -14,12 +14,12 @@ type rbacEscalateBindEdgesRule struct{}
 func (r rbacEscalateBindEdgesRule) Name() string { return "rbac_escalate_bind" }
 
 var edgePropertiesRBACEscalate = map[string]any{
-	"Description": "ServiceAccount has the 'escalate' verb on roles/clusterroles, allowing it to grant itself permissions it does not currently hold by modifying the role definition.",
+	"Description": "Identity has the 'escalate' verb on roles/clusterroles, allowing it to grant itself permissions it does not currently hold by modifying the role definition.",
 	"Reference":   "https://kubernetes.io/docs/reference/access-authn-authz/rbac/#privilege-escalation-prevention-and-bootstrapping",
 }
 
 var edgePropertiesRBACBind = map[string]any{
-	"Description": "ServiceAccount has the 'bind' verb on roles/clusterroles, allowing it to create role bindings for roles it does not hold.",
+	"Description": "Identity has the 'bind' verb on roles/clusterroles, allowing it to create role bindings for roles it does not hold.",
 	"Reference":   "https://kubernetes.io/docs/reference/access-authn-authz/rbac/#privilege-escalation-prevention-and-bootstrapping",
 }
 
@@ -61,18 +61,18 @@ func escalateBindNamespaced(ctx *framework.Context, namespace string, space *mod
 			continue
 		}
 		for _, subject := range binding.Subjects {
-			sa := resolveNamespacedSubjectSA(ctx, namespace, binding.Namespace, subject.Kind, subject.Namespace, subject.Name)
-			if sa == nil {
+			principal := resolveNamespacedSubject(ctx, namespace, binding.Namespace, subject)
+			if principal == nil {
 				continue
 			}
 			if canEscalateRole || canBindRole {
 				edgeType := rbacEscalateBindEdgeType(canEscalateRole)
 				props := rbacEscalateBindProps(canEscalateRole)
 				if len(space.AllRoles) > 0 {
-					edges = append(edges, framework.CreateEdgeWithProperties(sa, &space.AllRoles[0], edgeType, props))
+					edges = append(edges, framework.CreateEdgeWithProperties(principal, &space.AllRoles[0], edgeType, props))
 				} else {
 					for i := range space.Roles {
-						edges = append(edges, framework.CreateEdgeWithProperties(sa, &space.Roles[i], edgeType, props))
+						edges = append(edges, framework.CreateEdgeWithProperties(principal, &space.Roles[i], edgeType, props))
 					}
 				}
 			}
@@ -81,7 +81,7 @@ func escalateBindNamespaced(ctx *framework.Context, namespace string, space *mod
 				props := rbacEscalateBindProps(canEscalateCR)
 				for _, clusterRole := range ctx.Core.Cluster.ClusterRoles {
 					cr := clusterRole
-					edges = append(edges, framework.CreateEdgeWithProperties(sa, &cr, edgeType, props))
+					edges = append(edges, framework.CreateEdgeWithProperties(principal, &cr, edgeType, props))
 				}
 			}
 		}
@@ -114,19 +114,19 @@ func escalateBindCluster(ctx *framework.Context) []model.BloodHoundEdge {
 			continue
 		}
 		for _, subject := range binding.Subjects {
-			sa := resolveClusterSubjectSA(ctx, subject.Kind, subject.Namespace, subject.Name)
-			if sa == nil {
+			principal := resolveClusterSubject(ctx, subject)
+			if principal == nil {
 				continue
 			}
 			if canEscalateCR || canBindCR {
 				edgeType := rbacEscalateBindEdgeType(canEscalateCR)
 				props := rbacEscalateBindProps(canEscalateCR)
 				if len(ctx.Core.Cluster.AllClusterRoles) > 0 {
-					edges = append(edges, framework.CreateEdgeWithProperties(sa, &ctx.Core.Cluster.AllClusterRoles[0], edgeType, props))
+					edges = append(edges, framework.CreateEdgeWithProperties(principal, &ctx.Core.Cluster.AllClusterRoles[0], edgeType, props))
 				} else {
 					for _, cr := range ctx.Core.Cluster.ClusterRoles {
 						c := cr
-						edges = append(edges, framework.CreateEdgeWithProperties(sa, &c, edgeType, props))
+						edges = append(edges, framework.CreateEdgeWithProperties(principal, &c, edgeType, props))
 					}
 				}
 			}
@@ -138,10 +138,10 @@ func escalateBindCluster(ctx *framework.Context) []model.BloodHoundEdge {
 						continue
 					}
 					if len(space.AllRoles) > 0 {
-						edges = append(edges, framework.CreateEdgeWithProperties(sa, &space.AllRoles[0], edgeType, props))
+						edges = append(edges, framework.CreateEdgeWithProperties(principal, &space.AllRoles[0], edgeType, props))
 					} else {
 						for i := range space.Roles {
-							edges = append(edges, framework.CreateEdgeWithProperties(sa, &space.Roles[i], edgeType, props))
+							edges = append(edges, framework.CreateEdgeWithProperties(principal, &space.Roles[i], edgeType, props))
 						}
 					}
 				}
@@ -151,13 +151,13 @@ func escalateBindCluster(ctx *framework.Context) []model.BloodHoundEdge {
 	return edges
 }
 
-// rbacEscalateBindEdgeType returns "RBACEscalate" when escalate is present,
-// "RBACBind" when only bind is present. Escalate is the more severe verb.
+// rbacEscalateBindEdgeType returns "BHK_RBACEscalate" when escalate is present,
+// "BHK_RBACBind" when only bind is present. Escalate is the more severe verb.
 func rbacEscalateBindEdgeType(canEscalate bool) string {
 	if canEscalate {
-		return "RBACEscalate"
+		return "BHK_RBACEscalate"
 	}
-	return "RBACBind"
+	return "BHK_RBACBind"
 }
 
 func rbacEscalateBindProps(isEscalate bool) map[string]any {

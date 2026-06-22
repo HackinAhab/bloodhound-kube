@@ -46,7 +46,7 @@ func BuildServiceNode(obj runtime.Object) (BuildResult, bool) {
 		"externalIPs": externalIPs,
 	}
 
-	base := NewGraphNodeBase("Service", namespace, name, labelsMap, annotationsMap)
+	base := NewGraphNodeBase("BHK_Service", namespace, name, labelsMap, annotationsMap)
 
 	core := CoreEntry{
 		Namespace: namespace,

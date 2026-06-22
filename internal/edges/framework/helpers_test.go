@@ -74,10 +74,11 @@ func TestLabelsMatchOnly(t *testing.T) {
 
 func TestNormalizeCapability(t *testing.T) {
 	cases := map[string]string{
-		"":             "",
-		"NET_ADMIN":    "CAP_NET_ADMIN",
-		"CAP_SYS_ADMIN": "CAP_SYS_ADMIN",
-		"sys_ptrace":   "CAP_sys_ptrace",
+		"":                "",
+		"NET_ADMIN":       "BHK_CAP_NET_ADMIN",
+		"CAP_SYS_ADMIN":   "BHK_CAP_SYS_ADMIN",
+		"sys_ptrace":      "BHK_CAP_sys_ptrace",
+		"BHK_CAP_NET_RAW": "BHK_CAP_NET_RAW",
 	}
 	for in, want := range cases {
 		if got := NormalizeCapability(in); got != want {

@@ -35,7 +35,7 @@ func BuildClusterRoleNode(obj runtime.Object) (BuildResult, bool) {
 		"perms":       perms,
 	}
 
-	base := NewGraphNodeBase("ClusterRole", "", name, labelsMap, annotationsMap)
+	base := NewGraphNodeBase("BHK_ClusterRole", "", name, labelsMap, annotationsMap)
 
 	core := CoreEntry{
 		Cluster: true,

@@ -39,7 +39,7 @@ func BuildDaemonSetNode(obj runtime.Object) (BuildResult, bool) {
 	properties["serviceAccount"] = serviceAccount
 	properties["envDefinitions"] = envDefinitions
 
-	base := NewGraphNodeBase("DaemonSet", namespace, name, labelsMap, annotationsMap)
+	base := NewGraphNodeBase("BHK_DaemonSet", namespace, name, labelsMap, annotationsMap)
 
 	core := CoreEntry{
 		Namespace: namespace,

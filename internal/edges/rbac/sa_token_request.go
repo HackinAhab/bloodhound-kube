@@ -10,7 +10,7 @@ type rbacSATokenRequestEdgesRule struct{}
 func (r rbacSATokenRequestEdgesRule) Name() string { return "rbac_sa_token_request" }
 
 var edgePropertiesRBACSATokenRequest = map[string]any{
-	"Description": "ServiceAccount has RBAC permission to create ServiceAccount tokens (TokenRequest), allowing it to mint API tokens for any ServiceAccount in scope.",
+	"Description": "Identity has RBAC permission to create ServiceAccount tokens (TokenRequest), allowing it to mint API tokens for any ServiceAccount in scope.",
 	"Reference":   "https://kubernetes.io/docs/reference/access-authn-authz/service-accounts-admin/#bound-service-account-tokens",
 }
 
@@ -48,21 +48,21 @@ func saTokenRequestNamespaced(ctx *framework.Context, namespace string, space *m
 			continue
 		}
 		for _, subject := range binding.Subjects {
-			sa := resolveNamespacedSubjectSA(ctx, namespace, binding.Namespace, subject.Kind, subject.Namespace, subject.Name)
-			if sa == nil {
+			principal := resolveNamespacedSubject(ctx, namespace, binding.Namespace, subject)
+			if principal == nil {
 				continue
 			}
 			if all {
 				if len(space.AllServiceAccounts) > 0 {
 					agg := &space.AllServiceAccounts[0]
-					edges = append(edges, framework.CreateEdgeWithProperties(sa, agg, "SATokenRequest", edgePropertiesRBACSATokenRequest))
+					edges = append(edges, framework.CreateEdgeWithProperties(principal, agg, "BHK_SATokenRequest", edgePropertiesRBACSATokenRequest))
 				}
 				continue
 			}
 			for i := range space.ServiceAccounts {
 				target := &space.ServiceAccounts[i]
 				if _, ok := names[target.Name]; ok {
-					edges = append(edges, framework.CreateEdgeWithProperties(sa, target, "SATokenRequest", edgePropertiesRBACSATokenRequest))
+					edges = append(edges, framework.CreateEdgeWithProperties(principal, target, "BHK_SATokenRequest", edgePropertiesRBACSATokenRequest))
 				}
 			}
 		}
@@ -91,14 +91,14 @@ func saTokenRequestCluster(ctx *framework.Context) []model.BloodHoundEdge {
 			continue
 		}
 		for _, subject := range binding.Subjects {
-			sa := resolveClusterSubjectSA(ctx, subject.Kind, subject.Namespace, subject.Name)
-			if sa == nil {
+			principal := resolveClusterSubject(ctx, subject)
+			if principal == nil {
 				continue
 			}
 			if all {
 				if len(ctx.Core.Cluster.AllServiceAccounts) > 0 {
 					agg := &ctx.Core.Cluster.AllServiceAccounts[0]
-					edges = append(edges, framework.CreateEdgeWithProperties(sa, agg, "SATokenRequest", edgePropertiesRBACSATokenRequest))
+					edges = append(edges, framework.CreateEdgeWithProperties(principal, agg, "BHK_SATokenRequest", edgePropertiesRBACSATokenRequest))
 				}
 				continue
 			}
@@ -109,7 +109,7 @@ func saTokenRequestCluster(ctx *framework.Context) []model.BloodHoundEdge {
 				for i := range space.ServiceAccounts {
 					target := &space.ServiceAccounts[i]
 					if _, ok := names[target.Name]; ok {
-						edges = append(edges, framework.CreateEdgeWithProperties(sa, target, "SATokenRequest", edgePropertiesRBACSATokenRequest))
+						edges = append(edges, framework.CreateEdgeWithProperties(principal, target, "BHK_SATokenRequest", edgePropertiesRBACSATokenRequest))
 					}
 				}
 			}

@@ -8,8 +8,8 @@ type External struct {
 
 func ExternalNode() fw.NodeResult {
 	return fw.NodeResult{
-		ID:    fw.BuildID("External", "", "external"),
-		Kinds: []string{"External"},
+		ID:    fw.BuildID("BHK_External", "", "external"),
+		Kinds: []string{"BHK_External"},
 		Properties: map[string]any{
 			"name":          "external",
 			"namespace":     "",
@@ -21,8 +21,8 @@ func ExternalNode() fw.NodeResult {
 func ExternalCoreEntry() External {
 	return External{
 		GraphNodeBase: fw.GraphNodeBase{
-			ID:             fw.BuildID("External", "", "external"),
-			Kinds:          []string{"External"},
+			ID:             fw.BuildID("BHK_External", "", "external"),
+			Kinds:          []string{"BHK_External"},
 			Name:           "external",
 			Namespace:      "",
 			LabelsMap:      map[string]any{},

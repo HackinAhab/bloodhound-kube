@@ -29,7 +29,7 @@ func (r serviceRoutesToRule) Apply(ctx *framework.Context) []model.BloodHoundEdg
 			}
 			for _, pod := range podIndex {
 				if framework.LabelsMatchOnly(pod.LabelsMap, svc.SelectorMap) {
-					edges = append(edges, framework.CreateEdge(svc, pod, "RoutesTo"))
+					edges = append(edges, framework.CreateEdge(svc, pod, "BHK_RoutesTo"))
 				}
 			}
 		}
@@ -60,12 +60,12 @@ func (r serviceEdgesRule) Apply(ctx *framework.Context) []model.BloodHoundEdge {
 				if len(svc.ExternalIPs) > 0 {
 					description = fmt.Sprintf("External access to service %s via %s", svc.Name, strings.Join(svc.ExternalIPs, ", "))
 				}
-				edges = append(edges, framework.CreateEdgeWithProperties(ctx.Index.External, svc, "ExternalRoutesTo", map[string]any{
+				edges = append(edges, framework.CreateEdgeWithProperties(ctx.Index.External, svc, "BHK_ExternalRoutesTo", map[string]any{
 					"Description": description,
 				}))
 				continue
 			}
-			edges = append(edges, framework.CreateEdge(ctx.Index.External, svc, "ExternalRoutesTo"))
+			edges = append(edges, framework.CreateEdge(ctx.Index.External, svc, "BHK_ExternalRoutesTo"))
 		}
 	}
 	return edges

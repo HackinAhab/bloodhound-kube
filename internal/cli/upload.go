@@ -12,7 +12,7 @@ import (
 )
 
 type UploadRequest struct {
-	ModelFile           string
+	SchemaFile           string
 	QueriesFile         string
 	UploadFile          string
 	BaseURL             string
@@ -22,7 +22,7 @@ type UploadRequest struct {
 	TimeoutSeconds      int
 	Reset               bool
 	ResetDB             bool
-	HasModelFlag        bool
+	HasSchemaFlag        bool
 	HasQueriesFlag      bool
 	HasUploadFlag       bool
 	UseEmbeddedConfigs  bool
@@ -35,13 +35,13 @@ func (s UploadService) Run(req UploadRequest, log utils.Logger) error {
 	if req.TokenID == "" || req.TokenKey == "" {
 		return fmt.Errorf("token ID and token key are required")
 	}
-	if !req.HasModelFlag && !req.HasQueriesFlag && !req.Reset && !req.HasUploadFlag && !req.UseEmbeddedConfigs {
-		return fmt.Errorf("provide --model-file, --queries-file, --upload-file, --configs, or --reset")
+	if !req.HasSchemaFlag && !req.HasQueriesFlag && !req.Reset && !req.HasUploadFlag && !req.UseEmbeddedConfigs {
+		return fmt.Errorf("provide --schema-file, --queries-file, --upload-file, --configs, or --reset")
 	}
 
 	if req.UseEmbeddedConfigs {
-		req.HasModelFlag = true
-		req.ModelFile = ""
+		req.HasSchemaFlag = true
+		req.SchemaFile = ""
 		req.HasQueriesFlag = true
 		req.QueriesFile = ""
 	}
@@ -72,9 +72,9 @@ func (s UploadService) Run(req UploadRequest, log utils.Logger) error {
 		fmt.Println("Database reset successfully.")
 	}
 
-	if req.Reset && !req.HasModelFlag && !req.HasQueriesFlag && !req.ResetDB && !req.HasUploadFlag {
-		if err := client.ResetCustomNodes(ctx); err != nil {
-			return fmt.Errorf("failed to reset custom nodes: %w", err)
+	if req.Reset && !req.HasSchemaFlag && !req.HasQueriesFlag && !req.ResetDB && !req.HasUploadFlag {
+		if err := client.ResetExtensions(ctx); err != nil {
+			return fmt.Errorf("failed to reset extensions: %w", err)
 		}
 		if err := client.ResetQueries(ctx); err != nil {
 			return fmt.Errorf("failed to reset custom queries: %w", err)
@@ -83,23 +83,23 @@ func (s UploadService) Run(req UploadRequest, log utils.Logger) error {
 		return nil
 	}
 
-	if req.HasModelFlag {
-		modelFile, cleanup, err := loadAndMergeModel(req.ModelFile)
+	if req.HasSchemaFlag {
+		modelFile, cleanup, err := loadAndMergeSchema(req.SchemaFile)
 		if err != nil {
-			return fmt.Errorf("failed to load model: %w", err)
+			return fmt.Errorf("failed to load schema: %w", err)
 		}
 		if cleanup != nil {
 			defer cleanup()
 		}
 		if req.Reset {
-			if err := client.ResetCustomNodes(ctx); err != nil {
-				return fmt.Errorf("failed to reset custom nodes: %w", err)
+			if err := client.ResetExtensions(ctx); err != nil {
+				return fmt.Errorf("failed to reset extensions: %w", err)
 			}
 		}
-		if err := client.UploadModel(ctx, modelFile); err != nil {
-			return fmt.Errorf("failed to upload model: %w", err)
+		if err := client.UploadExtension(ctx, modelFile); err != nil {
+			return fmt.Errorf("failed to upload extension schema: %w", err)
 		}
-		fmt.Println("Custom nodes uploaded successfully.")
+		fmt.Println("Extension schema uploaded successfully.")
 	}
 
 	if req.HasQueriesFlag {
@@ -176,13 +176,13 @@ func loadAndMergeQueries(userFile string) (string, func(), error) {
 	return tmpFile.Name(), func() { os.Remove(tmpFile.Name()) }, nil
 }
 
-func loadAndMergeModel(userFile string) (string, func(), error) {
-	embeddedData, _ := config.GetEmbeddedTypes()
+func loadAndMergeSchema(userFile string) (string, func(), error) {
+	embeddedData, _ := config.GetEmbeddedSchema()
 	if userFile == "" {
 		if embeddedData == nil {
-			return "", nil, fmt.Errorf("no embedded model available (build with -tags embedded)")
+			return "", nil, fmt.Errorf("no embedded schema available (build with -tags embedded)")
 		}
-		tmpFile, err := os.CreateTemp("", "model-*.json")
+		tmpFile, err := os.CreateTemp("", "schema-*.json")
 		if err != nil {
 			return "", nil, fmt.Errorf("failed to create temp file: %w", err)
 		}
@@ -197,16 +197,16 @@ func loadAndMergeModel(userFile string) (string, func(), error) {
 
 	userData, err := os.ReadFile(userFile)
 	if err != nil {
-		return "", nil, fmt.Errorf("failed to read model file: %w", err)
+		return "", nil, fmt.Errorf("failed to read schema file: %w", err)
 	}
 	if embeddedData == nil {
 		return userFile, nil, nil
 	}
-	mergedData, err := config.MergeCustomTypes(embeddedData, userData)
+	mergedData, err := config.MergeSchema(embeddedData, userData)
 	if err != nil {
-		return "", nil, fmt.Errorf("failed to merge model: %w", err)
+		return "", nil, fmt.Errorf("failed to merge schema: %w", err)
 	}
-	tmpFile, err := os.CreateTemp("", "model-merged-*.json")
+	tmpFile, err := os.CreateTemp("", "schema-merged-*.json")
 	if err != nil {
 		return "", nil, fmt.Errorf("failed to create temp file: %w", err)
 	}

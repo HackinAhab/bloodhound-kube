@@ -52,7 +52,7 @@ func podHostMountReadNamespaced(ctx *framework.Context, namespace string, space 
 		}
 		description, _ := edgePropertiesHostMountRead["Description"].(string)
 		reference := edgePropertiesHostMountRead["Reference"]
-		edges = append(edges, framework.CreateEdgeWithProperties(pod, node, "hostMountSensitive", map[string]any{
+		edges = append(edges, framework.CreateEdgeWithProperties(pod, node, "BHK_hostMountSensitive", map[string]any{
 			"Description": description + " Mount path: " + mountPath,
 			"Reference":   reference,
 		}))

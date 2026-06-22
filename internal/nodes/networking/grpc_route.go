@@ -55,7 +55,7 @@ func buildGRPCRouteFromV1(route *gatewayv1.GRPCRoute) (BuildResult, bool) {
 		"backendRefKeys": backendRefKeys,
 	}
 
-	base := NewGraphNodeBase("GRPCRoute", namespace, name, labelsMap, annotationsMap)
+	base := NewGraphNodeBase("BHK_GRPCRoute", namespace, name, labelsMap, annotationsMap)
 
 	core := CoreEntry{
 		Namespace: namespace,

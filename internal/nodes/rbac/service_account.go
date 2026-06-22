@@ -46,8 +46,8 @@ func BuildServiceAccountNode(obj runtime.Object) (BuildResult, bool) {
 		Cluster:   false,
 		Data: ServiceAccount{
 			GraphNodeBase: GraphNodeBase{
-				ID:             BuildID("ServiceAccount", namespace, name),
-				Kinds:          []string{"ServiceAccount"},
+				ID:             BuildID("BHK_ServiceAccount", namespace, name),
+				Kinds:          []string{"BHK_ServiceAccount", "BHK_Identity"},
 				Name:           name,
 				Namespace:      namespace,
 				LabelsMap:      labelsMap,
@@ -59,8 +59,8 @@ func BuildServiceAccountNode(obj runtime.Object) (BuildResult, bool) {
 
 	return BuildResult{
 		Node: NodeResult{
-			ID:         BuildID("ServiceAccount", namespace, name),
-			Kinds:      []string{"ServiceAccount"},
+			ID:         BuildID("BHK_ServiceAccount", namespace, name),
+			Kinds:      []string{"BHK_ServiceAccount", "BHK_Identity"},
 			Properties: properties,
 		},
 		Core: []CoreEntry{core},

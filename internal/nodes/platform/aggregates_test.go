@@ -17,15 +17,15 @@ func TestBuildNamespaceAggregate_IDFormat(t *testing.T) {
 		namespace string
 		build     func(string) fw.BuildResult
 	}{
-		{"AllPodsNS", "AllPods", "prod", BuildAllPodsNS},
-		{"AllSecretsNS", "AllSecrets", "prod", BuildAllSecretsNS},
-		{"AllConfigMapsNS", "AllConfigMaps", "prod", BuildAllConfigMapsNS},
-		{"AllServiceAccountsNS", "AllServiceAccounts", "prod", BuildAllServiceAccountsNS},
-		{"AllDeploymentsNS", "AllDeployments", "prod", BuildAllDeploymentsNS},
-		{"AllDaemonSetsNS", "AllDaemonSets", "prod", BuildAllDaemonSetsNS},
-		{"AllStatefulSetsNS", "AllStatefulSets", "prod", BuildAllStatefulSetsNS},
-		{"AllJobsNS", "AllJobs", "prod", BuildAllJobsNS},
-		{"AllCronJobsNS", "AllCronJobs", "prod", BuildAllCronJobsNS},
+		{"AllPodsNS", "BHK_AllPods", "prod", BuildAllPodsNS},
+		{"AllSecretsNS", "BHK_AllSecrets", "prod", BuildAllSecretsNS},
+		{"AllConfigMapsNS", "BHK_AllConfigMaps", "prod", BuildAllConfigMapsNS},
+		{"AllServiceAccountsNS", "BHK_AllServiceAccounts", "prod", BuildAllServiceAccountsNS},
+		{"AllDeploymentsNS", "BHK_AllDeployments", "prod", BuildAllDeploymentsNS},
+		{"AllDaemonSetsNS", "BHK_AllDaemonSets", "prod", BuildAllDaemonSetsNS},
+		{"AllStatefulSetsNS", "BHK_AllStatefulSets", "prod", BuildAllStatefulSetsNS},
+		{"AllJobsNS", "BHK_AllJobs", "prod", BuildAllJobsNS},
+		{"AllCronJobsNS", "BHK_AllCronJobs", "prod", BuildAllCronJobsNS},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -35,10 +35,11 @@ func TestBuildNamespaceAggregate_IDFormat(t *testing.T) {
 			if result.Node.ID != wantID {
 				t.Fatalf("ID = %q, want %q", result.Node.ID, wantID)
 			}
-			if len(result.Node.Kinds) != 1 || result.Node.Kinds[0] != tc.kind {
-				t.Fatalf("Kinds = %v, want [%q]", result.Node.Kinds, tc.kind)
+			wantKinds := []string{tc.kind, "BHK_Aggregate"}
+			if len(result.Node.Kinds) != 2 || result.Node.Kinds[0] != wantKinds[0] || result.Node.Kinds[1] != wantKinds[1] {
+				t.Fatalf("Kinds = %v, want %v", result.Node.Kinds, wantKinds)
 			}
-			if got, want := result.Node.Properties["name"], tc.namespace+"-"+tc.kind; got != want {
+			if got, want := result.Node.Properties["name"], tc.kind+"["+tc.namespace+"]"; got != want {
 				t.Fatalf("Properties[name] = %v, want %v", got, want)
 			}
 			if got, want := result.Node.Properties["namespace"], tc.namespace; got != want {
@@ -67,8 +68,8 @@ func TestBuildNamespaceAggregate_IDFormat(t *testing.T) {
 func TestBuildClusterAggregate_BehaviorUnchanged(t *testing.T) {
 	result := BuildAllSecrets()
 
-	if result.Node.ID != "AllSecrets:AllSecrets" {
-		t.Fatalf("cluster ID = %q, want %q", result.Node.ID, "AllSecrets:AllSecrets")
+	if result.Node.ID != "BHK_AllSecrets:BHK_AllSecrets" {
+		t.Fatalf("cluster ID = %q, want %q", result.Node.ID, "BHK_AllSecrets:BHK_AllSecrets")
 	}
 	if got, want := result.Node.Properties["namespace"], ""; got != want {
 		t.Fatalf("cluster namespace property = %v, want empty string", got)

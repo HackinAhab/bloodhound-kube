@@ -3,10 +3,10 @@ package rbac
 import (
 	"bloodhound-kube/internal/edges/framework"
 	"bloodhound-kube/internal/model"
-	"bloodhound-kube/internal/nodes/rbac"
+	nodefw "bloodhound-kube/internal/nodes/framework"
 )
 
-func appendNamedPods(ctx *framework.Context, sa *rbac.ServiceAccount, names map[string]struct{}) []model.BloodHoundEdge {
+func appendNamedPods(ctx *framework.Context, principal nodefw.EdgeNode, names map[string]struct{}) []model.BloodHoundEdge {
 	if len(names) == 0 {
 		return nil
 	}
@@ -18,14 +18,14 @@ func appendNamedPods(ctx *framework.Context, sa *rbac.ServiceAccount, names map[
 		for i := range space.Pods {
 			pod := &space.Pods[i]
 			if _, ok := names[pod.Name]; ok {
-				edges = append(edges, framework.CreateEdgeWithProperties(sa, pod, "WorkloadPatch", edgePropertiesRBACWorkloadPatch))
+				edges = append(edges, framework.CreateEdgeWithProperties(principal, pod, "BHK_WorkloadPatch", edgePropertiesRBACWorkloadPatch))
 			}
 		}
 	}
 	return edges
 }
 
-func appendNamedDeployments(ctx *framework.Context, sa *rbac.ServiceAccount, names map[string]struct{}) []model.BloodHoundEdge {
+func appendNamedDeployments(ctx *framework.Context, principal nodefw.EdgeNode, names map[string]struct{}) []model.BloodHoundEdge {
 	if len(names) == 0 {
 		return nil
 	}
@@ -37,14 +37,14 @@ func appendNamedDeployments(ctx *framework.Context, sa *rbac.ServiceAccount, nam
 		for i := range space.Deployments {
 			deployment := &space.Deployments[i]
 			if _, ok := names[deployment.Name]; ok {
-				edges = append(edges, framework.CreateEdgeWithProperties(sa, deployment, "WorkloadPatch", edgePropertiesRBACWorkloadPatch))
+				edges = append(edges, framework.CreateEdgeWithProperties(principal, deployment, "BHK_WorkloadPatch", edgePropertiesRBACWorkloadPatch))
 			}
 		}
 	}
 	return edges
 }
 
-func appendNamedDaemonSets(ctx *framework.Context, sa *rbac.ServiceAccount, names map[string]struct{}) []model.BloodHoundEdge {
+func appendNamedDaemonSets(ctx *framework.Context, principal nodefw.EdgeNode, names map[string]struct{}) []model.BloodHoundEdge {
 	if len(names) == 0 {
 		return nil
 	}
@@ -56,14 +56,14 @@ func appendNamedDaemonSets(ctx *framework.Context, sa *rbac.ServiceAccount, name
 		for i := range space.DaemonSets {
 			daemonSet := &space.DaemonSets[i]
 			if _, ok := names[daemonSet.Name]; ok {
-				edges = append(edges, framework.CreateEdgeWithProperties(sa, daemonSet, "WorkloadPatch", edgePropertiesRBACWorkloadPatch))
+				edges = append(edges, framework.CreateEdgeWithProperties(principal, daemonSet, "BHK_WorkloadPatch", edgePropertiesRBACWorkloadPatch))
 			}
 		}
 	}
 	return edges
 }
 
-func appendNamedStatefulSets(ctx *framework.Context, sa *rbac.ServiceAccount, names map[string]struct{}) []model.BloodHoundEdge {
+func appendNamedStatefulSets(ctx *framework.Context, principal nodefw.EdgeNode, names map[string]struct{}) []model.BloodHoundEdge {
 	if len(names) == 0 {
 		return nil
 	}
@@ -75,14 +75,14 @@ func appendNamedStatefulSets(ctx *framework.Context, sa *rbac.ServiceAccount, na
 		for i := range space.StatefulSets {
 			statefulSet := &space.StatefulSets[i]
 			if _, ok := names[statefulSet.Name]; ok {
-				edges = append(edges, framework.CreateEdgeWithProperties(sa, statefulSet, "WorkloadPatch", edgePropertiesRBACWorkloadPatch))
+				edges = append(edges, framework.CreateEdgeWithProperties(principal, statefulSet, "BHK_WorkloadPatch", edgePropertiesRBACWorkloadPatch))
 			}
 		}
 	}
 	return edges
 }
 
-func appendNamedJobs(ctx *framework.Context, sa *rbac.ServiceAccount, names map[string]struct{}) []model.BloodHoundEdge {
+func appendNamedJobs(ctx *framework.Context, principal nodefw.EdgeNode, names map[string]struct{}) []model.BloodHoundEdge {
 	if len(names) == 0 {
 		return nil
 	}
@@ -94,14 +94,14 @@ func appendNamedJobs(ctx *framework.Context, sa *rbac.ServiceAccount, names map[
 		for i := range space.Jobs {
 			job := &space.Jobs[i]
 			if _, ok := names[job.Name]; ok {
-				edges = append(edges, framework.CreateEdgeWithProperties(sa, job, "WorkloadPatch", edgePropertiesRBACWorkloadPatch))
+				edges = append(edges, framework.CreateEdgeWithProperties(principal, job, "BHK_WorkloadPatch", edgePropertiesRBACWorkloadPatch))
 			}
 		}
 	}
 	return edges
 }
 
-func appendNamedCronJobs(ctx *framework.Context, sa *rbac.ServiceAccount, names map[string]struct{}) []model.BloodHoundEdge {
+func appendNamedCronJobs(ctx *framework.Context, principal nodefw.EdgeNode, names map[string]struct{}) []model.BloodHoundEdge {
 	if len(names) == 0 {
 		return nil
 	}
@@ -113,7 +113,7 @@ func appendNamedCronJobs(ctx *framework.Context, sa *rbac.ServiceAccount, names 
 		for i := range space.CronJobs {
 			cronJob := &space.CronJobs[i]
 			if _, ok := names[cronJob.Name]; ok {
-				edges = append(edges, framework.CreateEdgeWithProperties(sa, cronJob, "WorkloadPatch", edgePropertiesRBACWorkloadPatch))
+				edges = append(edges, framework.CreateEdgeWithProperties(principal, cronJob, "BHK_WorkloadPatch", edgePropertiesRBACWorkloadPatch))
 			}
 		}
 	}

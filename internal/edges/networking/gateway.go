@@ -23,7 +23,7 @@ func (r gatewayEdgesRule) Apply(ctx *framework.Context) []model.BloodHoundEdge {
 		for i := range space.Gateways {
 			gateway := &space.Gateways[i]
 			if ctx.Index.External != nil {
-				edges = append(edges, framework.CreateEdge(ctx.Index.External, gateway, "ExternalRoutesTo"))
+				edges = append(edges, framework.CreateEdge(ctx.Index.External, gateway, "BHK_ExternalRoutesTo"))
 			}
 			edges = append(edges, gatewayHTTPRouteEdges(ctx, gateway, ns)...)
 			edges = append(edges, gatewayGRPCRouteEdges(ctx, gateway, ns)...)
@@ -46,7 +46,7 @@ func gatewayHTTPRouteEdges(ctx *framework.Context, gatewayRef *networking.Gatewa
 		for i := range space.HTTPRoutes {
 			route := &space.HTTPRoutes[i]
 			if routeAttachedToGateway(route.ParentGatewayRefs, gatewayRef.Name, gatewayNS) {
-				edges = append(edges, framework.CreateEdge(gatewayRef, route, "RoutesTo"))
+				edges = append(edges, framework.CreateEdge(gatewayRef, route, "BHK_RoutesTo"))
 			}
 		}
 	}
@@ -65,7 +65,7 @@ func gatewayGRPCRouteEdges(ctx *framework.Context, gatewayRef *networking.Gatewa
 		for i := range space.GRPCRoutes {
 			route := &space.GRPCRoutes[i]
 			if routeAttachedToGateway(route.ParentGatewayRefs, gatewayRef.Name, gatewayNS) {
-				edges = append(edges, framework.CreateEdge(gatewayRef, route, "RoutesTo"))
+				edges = append(edges, framework.CreateEdge(gatewayRef, route, "BHK_RoutesTo"))
 			}
 		}
 	}
@@ -84,7 +84,7 @@ func gatewayTCPRouteEdges(ctx *framework.Context, gatewayRef *networking.Gateway
 		for i := range space.TCPRoutes {
 			route := &space.TCPRoutes[i]
 			if routeAttachedToGateway(route.ParentGatewayRefs, gatewayRef.Name, gatewayNS) {
-				edges = append(edges, framework.CreateEdge(gatewayRef, route, "RoutesTo"))
+				edges = append(edges, framework.CreateEdge(gatewayRef, route, "BHK_RoutesTo"))
 			}
 		}
 	}
@@ -103,7 +103,7 @@ func gatewayTLSRouteEdges(ctx *framework.Context, gatewayRef *networking.Gateway
 		for i := range space.TLSRoutes {
 			route := &space.TLSRoutes[i]
 			if routeAttachedToGateway(route.ParentGatewayRefs, gatewayRef.Name, gatewayNS) {
-				edges = append(edges, framework.CreateEdge(gatewayRef, route, "RoutesTo"))
+				edges = append(edges, framework.CreateEdge(gatewayRef, route, "BHK_RoutesTo"))
 			}
 		}
 	}

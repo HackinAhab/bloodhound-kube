@@ -73,7 +73,7 @@ func BuildSecretNode(obj runtime.Object) (BuildResult, bool) {
 		}
 	}
 
-	base := NewGraphNodeBase("Secret", namespace, name, labelsMap, annotationsMap)
+	base := NewGraphNodeBase("BHK_Secret", namespace, name, labelsMap, annotationsMap)
 
 	core := CoreEntry{
 		Namespace: namespace,

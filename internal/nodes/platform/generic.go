@@ -44,6 +44,7 @@ func BuildGenericNode(resource map[string]any) (fw.BuildResult, bool) {
 	if kindKey == "" {
 		return fw.BuildResult{}, false
 	}
+	kindKey = "BHK_" + kindKey
 	properties["resource_type"] = "generic"
 	if group != "" {
 		properties["group"] = group

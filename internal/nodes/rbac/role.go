@@ -36,7 +36,7 @@ func BuildRoleNode(obj runtime.Object) (BuildResult, bool) {
 		"perms":       perms,
 	}
 
-	base := NewGraphNodeBase("Role", namespace, name, labelsMap, annotationsMap)
+	base := NewGraphNodeBase("BHK_Role", namespace, name, labelsMap, annotationsMap)
 
 	core := CoreEntry{
 		Namespace: namespace,

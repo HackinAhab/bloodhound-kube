@@ -11,9 +11,14 @@ As a disclaimer, I have used AI to help write/refactor chunks of the code and do
 
 ## Example Graphs
 
-HTTPRoutes to Nodes:
-![](./docs/img/paths-httproute-node.png)
+Paths to all pods:
+![](./docs/img/paths-to-all-pods.png)
 
+Paths to all secrets:
+![](./docs/img/paths-to-all-secrets.png)
+
+Paths from External:
+![](./docs/img/paths-from-external.png)
 
 ## Quickstart
 
@@ -250,12 +255,6 @@ The tool uses the Kubernetes API to discover resources present in the cluster. C
 
 Data collected is output as a raw kubernetes resource dump in JSONL format, which *should* be easy to parse with `jq --slurp`.
 
-## Contributor notes
-- Put command wiring and flags in `cmd/*` only.
-- Put orchestration and request policy in `internal/cli/*`.
-- Put discovery/planning/execution logic in `internal/collector/*`.
-- Put node transforms in `internal/nodes/*` and relationships in `internal/edges/*`.
-
 ## Future improvements
 - Add more commonly deployed CRDs to the edge rules to improve visibility in clusters using popular tools like ArgoCD, cert-manager, etc.
 - Add more queries to the BloodHound UI for common attack paths and misconfigurations.
@@ -265,7 +264,9 @@ Data collected is output as a raw kubernetes resource dump in JSONL format, whic
 These projects were instrumental in inspiring and informing the development of BloodHound-Kube, and I highly recommend checking them out:
 - [KubeHound](https://kubehound.io/) for their attack reference library and as a major inspiration for this project. 
 - [Trivy](https://trivy.dev/) which inspired some of the edge checks.
-- [BloodHound OpenGraph](https://bloodhound.specterops.io/opengraph/overview), which enabled the use of BloodHound for Kubernetes. 
+- [BloodHound OpenGraph](https://bloodhound.specterops.io/opengraph/overview), which enabled the use of BloodHound for Kubernetes.
+- [ClusterHound](https://github.com/dovesec/ClusterHound) is another tool that does some of the same stuff as this one, and is alot less complicated. I found out about it's existence after the work for this project was complete, and I was waiting for approval to release. 
+
 ### People
 Credit to the people who listened to my rambling about this project and providing exceptional feedback, suggestions, and beta testing my first janky golang tool.
 - [Josh Neimann]()

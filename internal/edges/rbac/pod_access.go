@@ -52,12 +52,15 @@ func podExecNamespaced(ctx *framework.Context, namespace string, space *model.Na
 			if principal == nil {
 				continue
 			}
+			if all {
+				if len(space.AllPods) > 0 {
+					agg := &space.AllPods[0]
+					edges = append(edges, framework.CreateEdgeWithProperties(principal, agg, "BHK_PodExec", edgePropertiesRBACPodExec))
+				}
+				continue
+			}
 			for i := range space.Pods {
 				pod := &space.Pods[i]
-				if all {
-					edges = append(edges, framework.CreateEdgeWithProperties(principal, pod, "BHK_PodExec", edgePropertiesRBACPodExec))
-					continue
-				}
 				if _, ok := names[pod.Name]; ok {
 					edges = append(edges, framework.CreateEdgeWithProperties(principal, pod, "BHK_PodExec", edgePropertiesRBACPodExec))
 				}
@@ -162,12 +165,15 @@ func podPortForwardNamespaced(ctx *framework.Context, namespace string, space *m
 			if principal == nil {
 				continue
 			}
+			if all {
+				if len(space.AllPods) > 0 {
+					agg := &space.AllPods[0]
+					edges = append(edges, framework.CreateEdgeWithProperties(principal, agg, "BHK_PodPortForward", edgePropertiesRBACPodPortForward))
+				}
+				continue
+			}
 			for i := range space.Pods {
 				pod := &space.Pods[i]
-				if all {
-					edges = append(edges, framework.CreateEdgeWithProperties(principal, pod, "BHK_PodPortForward", edgePropertiesRBACPodPortForward))
-					continue
-				}
 				if _, ok := names[pod.Name]; ok {
 					edges = append(edges, framework.CreateEdgeWithProperties(principal, pod, "BHK_PodPortForward", edgePropertiesRBACPodPortForward))
 				}
@@ -272,12 +278,15 @@ func podAttachNamespaced(ctx *framework.Context, namespace string, space *model.
 			if principal == nil {
 				continue
 			}
+			if all {
+				if len(space.AllPods) > 0 {
+					agg := &space.AllPods[0]
+					edges = append(edges, framework.CreateEdgeWithProperties(principal, agg, "BHK_PodAttach", edgePropertiesRBACPodAttach))
+				}
+				continue
+			}
 			for i := range space.Pods {
 				pod := &space.Pods[i]
-				if all {
-					edges = append(edges, framework.CreateEdgeWithProperties(principal, pod, "BHK_PodAttach", edgePropertiesRBACPodAttach))
-					continue
-				}
 				if _, ok := names[pod.Name]; ok {
 					edges = append(edges, framework.CreateEdgeWithProperties(principal, pod, "BHK_PodAttach", edgePropertiesRBACPodAttach))
 				}
@@ -382,12 +391,15 @@ func podDebugNamespaced(ctx *framework.Context, namespace string, space *model.N
 			if principal == nil {
 				continue
 			}
+			if all {
+				if len(space.AllPods) > 0 {
+					agg := &space.AllPods[0]
+					edges = append(edges, framework.CreateEdgeWithProperties(principal, agg, "BHK_PodDebug", edgePropertiesRBACPodDebug))
+				}
+				continue
+			}
 			for i := range space.Pods {
 				pod := &space.Pods[i]
-				if all {
-					edges = append(edges, framework.CreateEdgeWithProperties(principal, pod, "BHK_PodDebug", edgePropertiesRBACPodDebug))
-					continue
-				}
 				if _, ok := names[pod.Name]; ok {
 					edges = append(edges, framework.CreateEdgeWithProperties(principal, pod, "BHK_PodDebug", edgePropertiesRBACPodDebug))
 				}
@@ -422,16 +434,19 @@ func podDebugCluster(ctx *framework.Context) []model.BloodHoundEdge {
 			if principal == nil {
 				continue
 			}
+			if all {
+				if len(ctx.Core.Cluster.AllPods) > 0 {
+					agg := &ctx.Core.Cluster.AllPods[0]
+					edges = append(edges, framework.CreateEdgeWithProperties(principal, agg, "BHK_PodDebug", edgePropertiesRBACPodDebug))
+				}
+				continue
+			}
 			for _, space := range ctx.Core.Namespaces {
 				if space == nil {
 					continue
 				}
 				for i := range space.Pods {
 					pod := &space.Pods[i]
-					if all {
-						edges = append(edges, framework.CreateEdgeWithProperties(principal, pod, "BHK_PodDebug", edgePropertiesRBACPodDebug))
-						continue
-					}
 					if _, ok := names[pod.Name]; ok {
 						edges = append(edges, framework.CreateEdgeWithProperties(principal, pod, "BHK_PodDebug", edgePropertiesRBACPodDebug))
 					}

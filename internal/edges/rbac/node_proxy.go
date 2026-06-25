@@ -18,61 +18,7 @@ func (r rbacNodeProxyEdgesRule) Apply(ctx *framework.Context) []model.BloodHound
 	if ctx == nil || ctx.Core == nil {
 		return nil
 	}
-	var edges []model.BloodHoundEdge
-	for ns, space := range ctx.Core.Namespaces {
-		if space == nil {
-			continue
-		}
-		edges = append(edges, rbacNodeProxyToPodNamespaced(ctx, ns)...)
-	}
-	edges = append(edges, rbacNodeProxyToPodCluster(ctx)...)
-	return edges
-}
-
-func rbacNodeProxyToPodNamespaced(ctx *framework.Context, namespace string) []model.BloodHoundEdge {
-	if ctx == nil || ctx.Core == nil {
-		return nil
-	}
-	resourceKeys := []string{"nodes/proxy"}
-	verbs := []string{"get"}
-
-	roleBindings := ctx.Index.RoleBindingsByNamespace[namespace]
-	var edges []model.BloodHoundEdge
-	for _, binding := range roleBindings {
-		perms := permsForBinding(ctx, namespace, binding.RoleKind, binding.RoleName)
-		if len(perms) == 0 {
-			continue
-		}
-		all, names := accessForResource(perms, resourceKeys, verbs)
-		if !all && len(names) == 0 {
-			continue
-		}
-		for _, subject := range binding.Subjects {
-			principal := resolveNamespacedSubject(ctx, namespace, binding.Namespace, subject)
-			if principal == nil {
-				continue
-			}
-			for _, space := range ctx.Core.Namespaces {
-				if space == nil {
-					continue
-				}
-				for i := range space.Pods {
-					pod := &space.Pods[i]
-					if pod.NodeName == "" {
-						continue
-					}
-					if all {
-						edges = append(edges, framework.CreateEdge(principal, pod, "BHK_NodeProxy"))
-						continue
-					}
-					if _, ok := names[pod.NodeName]; ok {
-						edges = append(edges, framework.CreateEdgeWithProperties(principal, pod, "BHK_NodeProxy", edgePropertiesRBACNodeProxy))
-					}
-				}
-			}
-		}
-	}
-	return edges
+	return rbacNodeProxyToPodCluster(ctx)
 }
 
 func rbacNodeProxyToPodCluster(ctx *framework.Context) []model.BloodHoundEdge {
@@ -100,17 +46,24 @@ func rbacNodeProxyToPodCluster(ctx *framework.Context) []model.BloodHoundEdge {
 			if principal == nil {
 				continue
 			}
-			for _, space := range ctx.Core.Namespaces {
-				if space == nil {
-					continue
+			if all {
+				if len(ctx.Core.Cluster.AllPods) > 0 {
+					agg := &ctx.Core.Cluster.AllPods[0]
+					edges = append(edges, framework.CreateEdge(principal, agg, "BHK_NodeProxyRCE"))
 				}
-				for i := range space.Pods {
-					pod := &space.Pods[i]
-					if pod.NodeName == "" {
+			} else {
+				for _, space := range ctx.Core.Namespaces {
+					if space == nil {
 						continue
 					}
-					if all || hasName(names, pod.NodeName) {
-						edges = append(edges, framework.CreateEdge(principal, pod, "BHK_NodeProxyRCE"))
+					for i := range space.Pods {
+						pod := &space.Pods[i]
+						if pod.NodeName == "" {
+							continue
+						}
+						if hasName(names, pod.NodeName) {
+							edges = append(edges, framework.CreateEdge(principal, pod, "BHK_NodeProxyRCE"))
+						}
 					}
 				}
 			}

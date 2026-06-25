@@ -51,12 +51,15 @@ func readLogsNamespaced(ctx *framework.Context, namespace string, space *model.N
 			if principal == nil {
 				continue
 			}
+			if all {
+				if len(space.AllPods) > 0 {
+					agg := &space.AllPods[0]
+					edges = append(edges, framework.CreateEdgeWithProperties(principal, agg, "BHK_ReadLogs", edgePropertiesRBACReadLogs))
+				}
+				continue
+			}
 			for i := range space.Pods {
 				pod := &space.Pods[i]
-				if all {
-					edges = append(edges, framework.CreateEdgeWithProperties(principal, pod, "BHK_ReadLogs", edgePropertiesRBACReadLogs))
-					continue
-				}
 				if _, ok := names[pod.Name]; ok {
 					edges = append(edges, framework.CreateEdgeWithProperties(principal, pod, "BHK_ReadLogs", edgePropertiesRBACReadLogs))
 				}

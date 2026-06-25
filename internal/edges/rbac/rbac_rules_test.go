@@ -524,39 +524,6 @@ func TestRBACReadConfigMapsNamespacedNamed(t *testing.T) {
 	}
 }
 
-func TestRBACNodeProxyRule(t *testing.T) {
-	core := newCore()
-	ns := ensureNamespace(core, "ns1")
-	ns.ServiceAccounts = append(ns.ServiceAccounts, rbac.ServiceAccount{GraphNodeBase: base("BHK_ServiceAccount", "ns1", "proxy-sa")})
-	ns.Pods = append(ns.Pods,
-		workload.Pod{GraphNodeBase: base("BHK_Pod", "ns1", "pod-on-node1"), NodeName: "node1"},
-		workload.Pod{GraphNodeBase: base("BHK_Pod", "ns1", "pod-on-node2"), NodeName: "node2"},
-	)
-	ns.Roles = append(ns.Roles,
-		rbac.Role{GraphNodeBase: base("BHK_Role", "ns1", "node-proxy-role"), PermsDisplay: []string{"nodes/proxy/node1: get"}},
-	)
-	ns.RoleBindings = append(ns.RoleBindings,
-		rbac.RoleBinding{
-			GraphNodeBase: base("BHK_RoleBinding", "ns1", "rb-node-proxy"),
-			RoleKind:      "Role",
-			RoleName:      "node-proxy-role",
-			Subjects:      []nodefw.Subject{{Kind: "ServiceAccount", Name: "proxy-sa"}},
-		},
-	)
-
-	ctx := framework.NewContext(core)
-	edges := rbacNodeProxyToPodNamespaced(ctx, "ns1")
-	if len(edges) != 1 {
-		t.Fatalf("expected 1 NodeProxy edge, got %d", len(edges))
-	}
-	if !hasEdge(edges,
-		nodefw.BuildID("BHK_ServiceAccount", "ns1", "proxy-sa"),
-		nodefw.BuildID("BHK_Pod", "ns1", "pod-on-node1"),
-		"BHK_NodeProxy",
-	) {
-		t.Fatalf("missing proxy-sa->pod-on-node1 NodeProxy edge")
-	}
-}
 
 func TestRBACWorkloadPatchClusterNamedPods(t *testing.T) {
 	core := newCore()
@@ -601,6 +568,9 @@ func TestRBACCreateAndWorkloadCreateRules(t *testing.T) {
 	core := newCore()
 	ns := ensureNamespace(core, "ns1")
 	ns.ServiceAccounts = append(ns.ServiceAccounts, rbac.ServiceAccount{GraphNodeBase: base("BHK_ServiceAccount", "ns1", "creator")})
+	ns.AllRoles = append(ns.AllRoles,
+		platform.AllRoles{GraphNodeBase: base("BHK_AllRoles", "ns1", "BHK_AllRoles")},
+	)
 	ns.Roles = append(ns.Roles,
 		rbac.Role{GraphNodeBase: base("BHK_Role", "ns1", "role-a")},
 		rbac.Role{GraphNodeBase: base("BHK_Role", "ns1", "role-b")},
@@ -615,6 +585,9 @@ func TestRBACCreateAndWorkloadCreateRules(t *testing.T) {
 		},
 	)
 
+	core.Cluster.AllClusterRoles = append(core.Cluster.AllClusterRoles,
+		platform.AllClusterRoles{GraphNodeBase: base("BHK_AllClusterRoles", "", "BHK_AllClusterRoles")},
+	)
 	core.Cluster.ClusterRoles = append(core.Cluster.ClusterRoles,
 		rbac.ClusterRole{GraphNodeBase: base("BHK_ClusterRole", "", "cluster-target")},
 		rbac.ClusterRole{GraphNodeBase: base("BHK_ClusterRole", "", "workload-create-cluster-role"), PermsDisplay: []string{"pods: create"}},
@@ -634,25 +607,16 @@ func TestRBACCreateAndWorkloadCreateRules(t *testing.T) {
 
 	ctx := framework.NewContext(core)
 	rbacCreateEdges := rbacCreateEdgesRule{}.Apply(ctx)
-	if len(rbacCreateEdges) != 5 {
-		t.Fatalf("expected 5 RBACCreate edges, got %d", len(rbacCreateEdges))
+	if len(rbacCreateEdges) != 2 {
+		t.Fatalf("expected 2 RBACCreate aggregate edges, got %d", len(rbacCreateEdges))
 	}
 
 	start := nodefw.BuildID("BHK_ServiceAccount", "ns1", "creator")
-	if !hasEdge(rbacCreateEdges, start, nodefw.BuildID("BHK_Role", "ns1", "role-a"), "BHK_RBACCreate") {
-		t.Fatalf("missing RBACCreate edge to role-a")
+	if !hasEdge(rbacCreateEdges, start, nodefw.BuildID("BHK_AllRoles", "ns1", "BHK_AllRoles"), "BHK_RBACCreate") {
+		t.Fatalf("missing RBACCreate edge to ns1 AllRoles aggregate")
 	}
-	if !hasEdge(rbacCreateEdges, start, nodefw.BuildID("BHK_Role", "ns1", "role-b"), "BHK_RBACCreate") {
-		t.Fatalf("missing RBACCreate edge to role-b")
-	}
-	if !hasEdge(rbacCreateEdges, start, nodefw.BuildID("BHK_Role", "ns1", "rbac-create-role"), "BHK_RBACCreate") {
-		t.Fatalf("missing RBACCreate edge to rbac-create-role")
-	}
-	if !hasEdge(rbacCreateEdges, start, nodefw.BuildID("BHK_ClusterRole", "", "cluster-target"), "BHK_RBACCreate") {
-		t.Fatalf("missing RBACCreate edge to cluster-target")
-	}
-	if !hasEdge(rbacCreateEdges, start, nodefw.BuildID("BHK_ClusterRole", "", "workload-create-cluster-role"), "BHK_RBACCreate") {
-		t.Fatalf("missing RBACCreate edge to workload-create-cluster-role")
+	if !hasEdge(rbacCreateEdges, start, nodefw.BuildID("BHK_AllClusterRoles", "", "BHK_AllClusterRoles"), "BHK_RBACCreate") {
+		t.Fatalf("missing RBACCreate edge to AllClusterRoles aggregate")
 	}
 
 	workloadCreateEdges := rbacCreateWorkloadEdgesRule{}.Apply(ctx)
@@ -676,6 +640,9 @@ func TestRBACReadLogsNamespacedWildcard(t *testing.T) {
 
 	nsA.ServiceAccounts = append(nsA.ServiceAccounts,
 		rbac.ServiceAccount{GraphNodeBase: base("BHK_ServiceAccount", "ns-a", "log-reader")},
+	)
+	nsA.AllPods = append(nsA.AllPods,
+		platform.AllPods{GraphNodeBase: base("BHK_AllPods", "ns-a", "BHK_AllPods")},
 	)
 	nsA.Pods = append(nsA.Pods,
 		workload.Pod{GraphNodeBase: base("BHK_Pod", "ns-a", "pod-1")},
@@ -701,19 +668,13 @@ func TestRBACReadLogsNamespacedWildcard(t *testing.T) {
 
 	ctx := framework.NewContext(core)
 	edges := rbacReadLogsEdgesRule{}.Apply(ctx)
-	if len(edges) != 2 {
-		t.Fatalf("expected 2 ReadLogs edges (one per pod in ns-a), got %d", len(edges))
+	if len(edges) != 1 {
+		t.Fatalf("expected 1 ReadLogs aggregate edge, got %d", len(edges))
 	}
 
 	saID := nodefw.BuildID("BHK_ServiceAccount", "ns-a", "log-reader")
-	if !hasEdge(edges, saID, nodefw.BuildID("BHK_Pod", "ns-a", "pod-1"), "BHK_ReadLogs") {
-		t.Fatalf("missing ReadLogs edge to ns-a/pod-1")
-	}
-	if !hasEdge(edges, saID, nodefw.BuildID("BHK_Pod", "ns-a", "pod-2"), "BHK_ReadLogs") {
-		t.Fatalf("missing ReadLogs edge to ns-a/pod-2")
-	}
-	if hasEdge(edges, saID, nodefw.BuildID("BHK_Pod", "ns-b", "pod-other"), "BHK_ReadLogs") {
-		t.Fatalf("unexpected cross-namespace ReadLogs edge to ns-b/pod-other")
+	if !hasEdge(edges, saID, nodefw.BuildID("BHK_AllPods", "ns-a", "BHK_AllPods"), "BHK_ReadLogs") {
+		t.Fatalf("missing ReadLogs edge to ns-a AllPods aggregate")
 	}
 }
 
@@ -914,6 +875,9 @@ func TestRBACPodExecNamespacedWildcard(t *testing.T) {
 	ns.ServiceAccounts = append(ns.ServiceAccounts,
 		rbac.ServiceAccount{GraphNodeBase: base("BHK_ServiceAccount", "ns1", "exec-sa")},
 	)
+	ns.AllPods = append(ns.AllPods,
+		platform.AllPods{GraphNodeBase: base("BHK_AllPods", "ns1", "BHK_AllPods")},
+	)
 	ns.Pods = append(ns.Pods,
 		workload.Pod{GraphNodeBase: base("BHK_Pod", "ns1", "pod-a")},
 		workload.Pod{GraphNodeBase: base("BHK_Pod", "ns1", "pod-b")},
@@ -932,15 +896,12 @@ func TestRBACPodExecNamespacedWildcard(t *testing.T) {
 
 	ctx := framework.NewContext(core)
 	edges := rbacPodExecEdgesRule{}.Apply(ctx)
-	if len(edges) != 2 {
-		t.Fatalf("expected 2 PodExec edges, got %d", len(edges))
+	if len(edges) != 1 {
+		t.Fatalf("expected 1 PodExec aggregate edge, got %d", len(edges))
 	}
 	saID := nodefw.BuildID("BHK_ServiceAccount", "ns1", "exec-sa")
-	if !hasEdge(edges, saID, nodefw.BuildID("BHK_Pod", "ns1", "pod-a"), "BHK_PodExec") {
-		t.Fatalf("missing PodExec edge to pod-a")
-	}
-	if !hasEdge(edges, saID, nodefw.BuildID("BHK_Pod", "ns1", "pod-b"), "BHK_PodExec") {
-		t.Fatalf("missing PodExec edge to pod-b")
+	if !hasEdge(edges, saID, nodefw.BuildID("BHK_AllPods", "ns1", "BHK_AllPods"), "BHK_PodExec") {
+		t.Fatalf("missing PodExec edge to ns1 AllPods aggregate")
 	}
 }
 
@@ -1057,6 +1018,9 @@ func TestRBACPodPortForwardNamespacedWildcard(t *testing.T) {
 	ns.ServiceAccounts = append(ns.ServiceAccounts,
 		rbac.ServiceAccount{GraphNodeBase: base("BHK_ServiceAccount", "ns1", "pf-sa")},
 	)
+	ns.AllPods = append(ns.AllPods,
+		platform.AllPods{GraphNodeBase: base("BHK_AllPods", "ns1", "BHK_AllPods")},
+	)
 	ns.Pods = append(ns.Pods,
 		workload.Pod{GraphNodeBase: base("BHK_Pod", "ns1", "pod-a")},
 		workload.Pod{GraphNodeBase: base("BHK_Pod", "ns1", "pod-b")},
@@ -1075,12 +1039,12 @@ func TestRBACPodPortForwardNamespacedWildcard(t *testing.T) {
 
 	ctx := framework.NewContext(core)
 	edges := rbacPodPortForwardEdgesRule{}.Apply(ctx)
-	if len(edges) != 2 {
-		t.Fatalf("expected 2 PodPortForward edges, got %d", len(edges))
+	if len(edges) != 1 {
+		t.Fatalf("expected 1 PodPortForward aggregate edge, got %d", len(edges))
 	}
 	saID := nodefw.BuildID("BHK_ServiceAccount", "ns1", "pf-sa")
-	if !hasEdge(edges, saID, nodefw.BuildID("BHK_Pod", "ns1", "pod-a"), "BHK_PodPortForward") {
-		t.Fatalf("missing PodPortForward edge to pod-a")
+	if !hasEdge(edges, saID, nodefw.BuildID("BHK_AllPods", "ns1", "BHK_AllPods"), "BHK_PodPortForward") {
+		t.Fatalf("missing PodPortForward edge to ns1 AllPods aggregate")
 	}
 }
 
@@ -1126,6 +1090,9 @@ func TestRBACPodAttachNamespacedWildcard(t *testing.T) {
 	ns.ServiceAccounts = append(ns.ServiceAccounts,
 		rbac.ServiceAccount{GraphNodeBase: base("BHK_ServiceAccount", "ns1", "attach-sa")},
 	)
+	ns.AllPods = append(ns.AllPods,
+		platform.AllPods{GraphNodeBase: base("BHK_AllPods", "ns1", "BHK_AllPods")},
+	)
 	ns.Pods = append(ns.Pods,
 		workload.Pod{GraphNodeBase: base("BHK_Pod", "ns1", "pod-a")},
 	)
@@ -1144,11 +1111,11 @@ func TestRBACPodAttachNamespacedWildcard(t *testing.T) {
 	ctx := framework.NewContext(core)
 	edges := rbacPodAttachEdgesRule{}.Apply(ctx)
 	if len(edges) != 1 {
-		t.Fatalf("expected 1 PodAttach edge, got %d", len(edges))
+		t.Fatalf("expected 1 PodAttach aggregate edge, got %d", len(edges))
 	}
 	saID := nodefw.BuildID("BHK_ServiceAccount", "ns1", "attach-sa")
-	if !hasEdge(edges, saID, nodefw.BuildID("BHK_Pod", "ns1", "pod-a"), "BHK_PodAttach") {
-		t.Fatalf("missing PodAttach edge to pod-a")
+	if !hasEdge(edges, saID, nodefw.BuildID("BHK_AllPods", "ns1", "BHK_AllPods"), "BHK_PodAttach") {
+		t.Fatalf("missing PodAttach edge to ns1 AllPods aggregate")
 	}
 }
 
@@ -1194,6 +1161,9 @@ func TestRBACPodDebugNamespacedWildcard(t *testing.T) {
 	ns.ServiceAccounts = append(ns.ServiceAccounts,
 		rbac.ServiceAccount{GraphNodeBase: base("BHK_ServiceAccount", "ns1", "debug-sa")},
 	)
+	ns.AllPods = append(ns.AllPods,
+		platform.AllPods{GraphNodeBase: base("BHK_AllPods", "ns1", "BHK_AllPods")},
+	)
 	ns.Pods = append(ns.Pods,
 		workload.Pod{GraphNodeBase: base("BHK_Pod", "ns1", "pod-a")},
 		workload.Pod{GraphNodeBase: base("BHK_Pod", "ns1", "pod-b")},
@@ -1212,15 +1182,12 @@ func TestRBACPodDebugNamespacedWildcard(t *testing.T) {
 
 	ctx := framework.NewContext(core)
 	edges := rbacPodDebugEdgesRule{}.Apply(ctx)
-	if len(edges) != 2 {
-		t.Fatalf("expected 2 PodDebug edges, got %d", len(edges))
+	if len(edges) != 1 {
+		t.Fatalf("expected 1 PodDebug aggregate edge, got %d", len(edges))
 	}
 	saID := nodefw.BuildID("BHK_ServiceAccount", "ns1", "debug-sa")
-	if !hasEdge(edges, saID, nodefw.BuildID("BHK_Pod", "ns1", "pod-a"), "BHK_PodDebug") {
-		t.Fatalf("missing PodDebug edge to pod-a")
-	}
-	if !hasEdge(edges, saID, nodefw.BuildID("BHK_Pod", "ns1", "pod-b"), "BHK_PodDebug") {
-		t.Fatalf("missing PodDebug edge to pod-b")
+	if !hasEdge(edges, saID, nodefw.BuildID("BHK_AllPods", "ns1", "BHK_AllPods"), "BHK_PodDebug") {
+		t.Fatalf("missing PodDebug edge to ns1 AllPods aggregate")
 	}
 }
 
@@ -1256,6 +1223,38 @@ func TestRBACPodDebugClusterNamedCrossNamespace(t *testing.T) {
 	}
 	if !hasEdge(edges, saID, nodefw.BuildID("BHK_Pod", "ns2", "shared-pod"), "BHK_PodDebug") {
 		t.Fatalf("missing PodDebug edge to ns2/shared-pod")
+	}
+}
+
+func TestRBACPodDebugClusterAggregate(t *testing.T) {
+	core := newCore()
+	ns := ensureNamespace(core, "ns1")
+	ns.ServiceAccounts = append(ns.ServiceAccounts,
+		rbac.ServiceAccount{GraphNodeBase: base("BHK_ServiceAccount", "ns1", "debug-sa")},
+	)
+	core.Cluster.AllPods = append(core.Cluster.AllPods,
+		platform.AllPods{GraphNodeBase: base("BHK_AllPods", "", "BHK_AllPods")},
+	)
+	core.Cluster.ClusterRoles = append(core.Cluster.ClusterRoles,
+		rbac.ClusterRole{GraphNodeBase: base("BHK_ClusterRole", "", "debug-cr"), PermsDisplay: []string{"pods/ephemeralcontainers: update"}},
+	)
+	core.Cluster.ClusterRoleBindings = append(core.Cluster.ClusterRoleBindings,
+		rbac.ClusterRoleBinding{
+			GraphNodeBase: base("BHK_ClusterRoleBinding", "", "crb-debug"),
+			RoleKind:      "ClusterRole",
+			RoleName:      "debug-cr",
+			Subjects:      []nodefw.Subject{{Kind: "ServiceAccount", Name: "debug-sa", Namespace: "ns1"}},
+		},
+	)
+
+	ctx := framework.NewContext(core)
+	edges := rbacPodDebugEdgesRule{}.Apply(ctx)
+	if len(edges) != 1 {
+		t.Fatalf("expected 1 aggregate PodDebug edge, got %d", len(edges))
+	}
+	saID := nodefw.BuildID("BHK_ServiceAccount", "ns1", "debug-sa")
+	if !hasEdge(edges, saID, nodefw.BuildID("BHK_AllPods", "", "BHK_AllPods"), "BHK_PodDebug") {
+		t.Fatalf("missing PodDebug edge to AllPods aggregate")
 	}
 }
 
@@ -1693,6 +1692,9 @@ func TestRBACNodeProxyClusterWildcard(t *testing.T) {
 	ns.Pods = append(ns.Pods,
 		workload.Pod{GraphNodeBase: base("BHK_Pod", "ns1", "pod-on-node1"), NodeName: "node1"},
 	)
+	core.Cluster.AllPods = append(core.Cluster.AllPods,
+		platform.AllPods{GraphNodeBase: base("BHK_AllPods", "", "BHK_AllPods")},
+	)
 	core.Cluster.AllNodes = append(core.Cluster.AllNodes,
 		platform.AllNodes{GraphNodeBase: base("BHK_AllNodes", "", "BHK_AllNodes")},
 	)
@@ -1711,8 +1713,8 @@ func TestRBACNodeProxyClusterWildcard(t *testing.T) {
 	ctx := framework.NewContext(core)
 	edges := rbacNodeProxyEdgesRule{}.Apply(ctx)
 	saID := nodefw.BuildID("BHK_ServiceAccount", "ns1", "proxy-sa")
-	if !hasEdge(edges, saID, nodefw.BuildID("BHK_Pod", "ns1", "pod-on-node1"), "BHK_NodeProxyRCE") {
-		t.Fatalf("missing NodeProxyRCE edge to pod-on-node1")
+	if !hasEdge(edges, saID, nodefw.BuildID("BHK_AllPods", "", "BHK_AllPods"), "BHK_NodeProxyRCE") {
+		t.Fatalf("missing NodeProxyRCE edge to AllPods aggregate")
 	}
 	if !hasEdge(edges, saID, nodefw.BuildID("BHK_AllNodes", "", "BHK_AllNodes"), "BHK_NodeProxyRCE") {
 		t.Fatalf("missing NodeProxyRCE edge to AllNodes aggregate")

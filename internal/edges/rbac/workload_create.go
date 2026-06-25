@@ -52,13 +52,13 @@ func rbacCreateNamespaced(ctx *framework.Context, namespace string, space *model
 			if principal == nil {
 				continue
 			}
-			for i := range space.Roles {
-				role := &space.Roles[i]
-				edges = append(edges, framework.CreateEdgeWithProperties(principal, role, "BHK_RBACCreate", edgePropertiesRBACCreate))
+			if len(space.AllRoles) > 0 {
+				agg := &space.AllRoles[0]
+				edges = append(edges, framework.CreateEdgeWithProperties(principal, agg, "BHK_RBACCreate", edgePropertiesRBACCreate))
 			}
-			for _, clusterRole := range ctx.Core.Cluster.ClusterRoles {
-				cr := clusterRole
-				edges = append(edges, framework.CreateEdgeWithProperties(principal, &cr, "BHK_RBACCreate", edgePropertiesRBACCreate))
+			if len(ctx.Core.Cluster.AllClusterRoles) > 0 {
+				agg := &ctx.Core.Cluster.AllClusterRoles[0]
+				edges = append(edges, framework.CreateEdgeWithProperties(principal, agg, "BHK_RBACCreate", edgePropertiesRBACCreate))
 			}
 		}
 	}
@@ -90,19 +90,17 @@ func rbacCreateCluster(ctx *framework.Context) []model.BloodHoundEdge {
 			if principal == nil {
 				continue
 			}
-			for _, clusterRole := range ctx.Core.Cluster.ClusterRoles {
-				cr := clusterRole
-				edges = append(edges, framework.CreateEdgeWithProperties(principal, &cr, "BHK_RBACCreate", edgePropertiesRBACCreate))
+			if len(ctx.Core.Cluster.AllClusterRoles) > 0 {
+				agg := &ctx.Core.Cluster.AllClusterRoles[0]
+				edges = append(edges, framework.CreateEdgeWithProperties(principal, agg, "BHK_RBACCreate", edgePropertiesRBACCreate))
 			}
-			// Cluster-scoped clusterrolebindings can also bind ClusterRoles into
-			// namespaces via RoleBindings, so namespaced Roles are reachable too.
 			for _, space := range ctx.Core.Namespaces {
 				if space == nil {
 					continue
 				}
-				for i := range space.Roles {
-					role := &space.Roles[i]
-					edges = append(edges, framework.CreateEdgeWithProperties(principal, role, "BHK_RBACCreate", edgePropertiesRBACCreate))
+				if len(space.AllRoles) > 0 {
+					agg := &space.AllRoles[0]
+					edges = append(edges, framework.CreateEdgeWithProperties(principal, agg, "BHK_RBACCreate", edgePropertiesRBACCreate))
 				}
 			}
 		}

@@ -33,7 +33,7 @@
         {
             "name": "All Aggregate Nodes",
             "description": "Retrieves all paths from nodes that are aggregates of other nodes.",
-            "query": "MATCH p=(s)-[]->(t)\nWHERE s.cluster = '{{.Cluster}}' AND t.name STARTS WITH 'ALL'\nRETURN p\nLIMIT 1000"
+            "query": "MATCH p=(s)-[]->(t)\nWHERE s.cluster = '{{.Cluster}}' AND t.name STARTS WITH 'BHK_ALL'\nRETURN p\nLIMIT 1000"
         },
         {
             "name": "Paths to AllSecrets",

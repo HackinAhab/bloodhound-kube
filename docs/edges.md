@@ -473,6 +473,29 @@ Maps the ExternalSecrets Operator graph: ExternalSecret objects pull secrets fro
 
 ---
 
+### `ciliumnetworkpolicy` — Cilium CiliumNetworkPolicy Application
+**File:** `cilium_network_policy.go`
+
+Namespaced, mirrors the core `networkpolicy` rule (`internal/edges/networking/`) exactly. Cilium's `endpointSelector` is structurally a standard k8s `LabelSelector`, so only `matchLabels` drives edges (`matchExpressions` are display-only, same convention as core NetworkPolicy).
+
+| Edge | Source → Target | Trigger |
+|------|----------------|---------|
+| `BHK_AppliesTo` | CiliumNetworkPolicy → Pod | Pod labels satisfy `spec.endpointSelector.matchLabels`; empty selector applies to the namespace's `AllPods` aggregate |
+
+---
+
+### `globalnetworkpolicy` — Calico GlobalNetworkPolicy Application
+**File:** `calico_global_network_policy.go`
+
+Cluster-scoped: matches pods across every namespace instead of one. Calico's `spec.selector` is a string expression language, not a structured selector — only `all()` and simple `&&`/`,`-joined `key == 'value'` equality clauses are recognized (see `parseCalicoSelector`). Policies with an unrecognized selector (e.g. `has()`, `in {}`, `||`, negation) still get a node with the raw expression shown in properties, but produce **no** edges — this is a known limitation, not a silent misinterpretation.
+
+| Edge | Source → Target | Trigger |
+|------|----------------|---------|
+| `BHK_AppliesTo` | GlobalNetworkPolicy → Pod | Pod labels satisfy the parsed equality clauses of `spec.selector` |
+| `BHK_AppliesTo` | GlobalNetworkPolicy → cluster `AllPods` aggregate | `spec.selector` is empty or `all()` |
+
+---
+
 ## Aggregates (`internal/edges/aggregates/`)
 
 ### `aggregate_contains` — Aggregate Containment

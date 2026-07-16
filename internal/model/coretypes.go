@@ -21,6 +21,7 @@ type Namespace struct {
 	Jobs                   []workload.Job
 	CronJobs               []workload.CronJob
 	NetworkPolicies        []networking.NetworkPolicy
+	CiliumNetworkPolicies  []addons.CiliumNetworkPolicy
 	Ingresses              []networking.Ingress
 	Gateways               []networking.Gateway
 	HTTPRoutes             []networking.HTTPRoute
@@ -54,6 +55,7 @@ type Cluster struct {
 	PersistentVolumes          []mounts.PersistentVolume
 	ClusterSecretStores        []addons.ClusterSecretStore
 	SecurityContextConstraints []addons.SecurityContextConstraints
+	GlobalNetworkPolicies      []addons.GlobalNetworkPolicy
 	External                   []platform.External
 	AllPods                    []platform.AllPods
 	AllSecrets                 []platform.AllSecrets

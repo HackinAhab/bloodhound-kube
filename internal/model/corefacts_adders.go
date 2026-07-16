@@ -31,6 +31,9 @@ func init() {
 	registerClusterFactAdder(func(c *CoreFacts, v addons.SecurityContextConstraints) {
 		c.Cluster.SecurityContextConstraints = append(c.Cluster.SecurityContextConstraints, v)
 	})
+	registerClusterFactAdder(func(c *CoreFacts, v addons.GlobalNetworkPolicy) {
+		c.Cluster.GlobalNetworkPolicies = append(c.Cluster.GlobalNetworkPolicies, v)
+	})
 	registerClusterFactAdder(func(c *CoreFacts, v platform.External) { c.Cluster.External = append(c.Cluster.External, v) })
 	registerClusterFactAdder(func(c *CoreFacts, v platform.AllNodes) { c.Cluster.AllNodes = append(c.Cluster.AllNodes, v) })
 	registerClusterFactAdder(func(c *CoreFacts, v platform.AllPods) { c.Cluster.AllPods = append(c.Cluster.AllPods, v) })
@@ -76,6 +79,9 @@ func init() {
 	registerNamespacedFactAdder(func(ns *Namespace, v workload.CronJob) { ns.CronJobs = append(ns.CronJobs, v) })
 	registerNamespacedFactAdder(func(ns *Namespace, v networking.NetworkPolicy) {
 		ns.NetworkPolicies = append(ns.NetworkPolicies, v)
+	})
+	registerNamespacedFactAdder(func(ns *Namespace, v addons.CiliumNetworkPolicy) {
+		ns.CiliumNetworkPolicies = append(ns.CiliumNetworkPolicies, v)
 	})
 	registerNamespacedFactAdder(func(ns *Namespace, v networking.Ingress) { ns.Ingresses = append(ns.Ingresses, v) })
 	registerNamespacedFactAdder(func(ns *Namespace, v networking.Gateway) { ns.Gateways = append(ns.Gateways, v) })

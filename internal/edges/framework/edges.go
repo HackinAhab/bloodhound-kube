@@ -27,6 +27,16 @@ func CreateEdge(start, end nodefw.EdgeNode, kind string) model.BloodHoundEdge {
 	return CreateEdgeWithProperties(start, end, kind, nil)
 }
 
+// FirstEdgeNode returns the first element of slice as an EdgeNode, or nil if
+// slice is empty. Used to target aggregate "AllX" nodes (e.g. AllPods) when a
+// selector matches everything, avoiding per-item edge fan-out.
+func FirstEdgeNode[T nodefw.EdgeNode](slice []T) nodefw.EdgeNode {
+	if len(slice) == 0 {
+		return nil
+	}
+	return slice[0]
+}
+
 func CreateEdgeWithProperties(start, end nodefw.EdgeNode, kind string, props map[string]any) model.BloodHoundEdge {
 	properties := map[string]any{}
 	maps.Copy(properties, props)

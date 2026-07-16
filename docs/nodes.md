@@ -67,6 +67,8 @@ Nodes are organized by domain. Each domain has its own subdirectory under `inter
 | `BHK_ClusterSecretStore` | `addons/external_secrets.go` | cluster | external-secrets operator |
 | `BHK_ExternalSecret` | `addons/external_secrets.go` | namespace | external-secrets operator |
 | `BHK_SecurityContextConstraint` | `addons/security_context_constraints.go` | cluster | OpenShift only; builder implemented but not yet registered |
+| `BHK_CiliumNetworkPolicy` | `addons/cilium_network_policy.go` | namespace | `cilium.io/v2`; unstructured, full spec fetch |
+| `BHK_GlobalNetworkPolicy` | `addons/calico_global_network_policy.go` | cluster | `projectcalico.org/v3`; typed via `github.com/projectcalico/api` |
 
 ---
 

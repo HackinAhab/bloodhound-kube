@@ -29,6 +29,8 @@ var defaultAllowlist = []string{
 	"batch/v1/jobs",
 	"networking.k8s.io/v1/ingresses",
 	"networking.k8s.io/v1/networkpolicies",
+	"projectcalico.org/v3/globalnetworkpolicies",
+	"cilium.io/v2/ciliumnetworkpolicies",
 	"gateway.networking.k8s.io/v1",
 	"gateway.networking.k8s.io/v1alpha2/grpcroutes",
 	"gateway.networking.k8s.io/v1alpha2/tcproutes",

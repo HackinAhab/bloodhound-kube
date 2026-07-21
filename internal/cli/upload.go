@@ -31,7 +31,7 @@ type UploadRequest struct {
 
 type UploadService struct{}
 
-func (s UploadService) Run(req UploadRequest, log utils.Logger) error {
+func (s UploadService) Run(req UploadRequest, log *utils.Logger) error {
 	if req.TokenID == "" || req.TokenKey == "" {
 		return fmt.Errorf("token ID and token key are required")
 	}
@@ -84,7 +84,7 @@ func (s UploadService) Run(req UploadRequest, log utils.Logger) error {
 	}
 
 	if req.HasSchemaFlag {
-		modelFile, cleanup, err := loadAndMergeSchema(req.SchemaFile)
+		modelFile, cleanup, err := loadAndMergeConfig(req.SchemaFile, "schema", config.GetEmbeddedSchema, config.MergeSchema)
 		if err != nil {
 			return fmt.Errorf("failed to load schema: %w", err)
 		}
@@ -103,7 +103,7 @@ func (s UploadService) Run(req UploadRequest, log utils.Logger) error {
 	}
 
 	if req.HasQueriesFlag {
-		queriesFile, cleanup, err := loadAndMergeQueries(req.QueriesFile)
+		queriesFile, cleanup, err := loadAndMergeConfig(req.QueriesFile, "queries", config.GetEmbeddedQueries, config.MergeQueries)
 		if err != nil {
 			return fmt.Errorf("failed to load queries: %w", err)
 		}
@@ -133,84 +133,38 @@ func (s UploadService) Run(req UploadRequest, log utils.Logger) error {
 	return nil
 }
 
-func loadAndMergeQueries(userFile string) (string, func(), error) {
-	embeddedData, _ := config.GetEmbeddedQueries()
+// loadAndMergeConfig loads an embedded config of the given kind ("schema" or "queries"),
+// optionally merging it with a user-provided file, and returns a path to the result
+// (writing a temp file when embedded data is involved) plus a cleanup func.
+func loadAndMergeConfig(userFile string, kind string, getEmbedded func() ([]byte, error), merge func([]byte, []byte) ([]byte, error)) (string, func(), error) {
+	embeddedData, _ := getEmbedded()
 	if userFile == "" {
 		if embeddedData == nil {
-			return "", nil, fmt.Errorf("no embedded queries available (build with -tags embedded)")
+			return "", nil, fmt.Errorf("no embedded %s available (build with -tags embedded)", kind)
 		}
-		tmpFile, err := os.CreateTemp("", "queries-*.json")
-		if err != nil {
-			return "", nil, fmt.Errorf("failed to create temp file: %w", err)
-		}
-		if _, err := tmpFile.Write(embeddedData); err != nil {
-			tmpFile.Close()
-			os.Remove(tmpFile.Name())
-			return "", nil, fmt.Errorf("failed to write temp file: %w", err)
-		}
-		tmpFile.Close()
-		return tmpFile.Name(), func() { os.Remove(tmpFile.Name()) }, nil
+		return writeTempFile(kind+"-*.json", embeddedData)
 	}
 
 	userData, err := os.ReadFile(userFile)
 	if err != nil {
-		return "", nil, fmt.Errorf("failed to read queries file: %w", err)
+		return "", nil, fmt.Errorf("failed to read %s file: %w", kind, err)
 	}
 	if embeddedData == nil {
 		return userFile, nil, nil
 	}
-	mergedData, err := config.MergeQueries(embeddedData, userData)
+	mergedData, err := merge(embeddedData, userData)
 	if err != nil {
-		return "", nil, fmt.Errorf("failed to merge queries: %w", err)
+		return "", nil, fmt.Errorf("failed to merge %s: %w", kind, err)
 	}
-	tmpFile, err := os.CreateTemp("", "queries-merged-*.json")
-	if err != nil {
-		return "", nil, fmt.Errorf("failed to create temp file: %w", err)
-	}
-	if _, err := tmpFile.Write(mergedData); err != nil {
-		tmpFile.Close()
-		os.Remove(tmpFile.Name())
-		return "", nil, fmt.Errorf("failed to write temp file: %w", err)
-	}
-	tmpFile.Close()
-	return tmpFile.Name(), func() { os.Remove(tmpFile.Name()) }, nil
+	return writeTempFile(kind+"-merged-*.json", mergedData)
 }
 
-func loadAndMergeSchema(userFile string) (string, func(), error) {
-	embeddedData, _ := config.GetEmbeddedSchema()
-	if userFile == "" {
-		if embeddedData == nil {
-			return "", nil, fmt.Errorf("no embedded schema available (build with -tags embedded)")
-		}
-		tmpFile, err := os.CreateTemp("", "schema-*.json")
-		if err != nil {
-			return "", nil, fmt.Errorf("failed to create temp file: %w", err)
-		}
-		if _, err := tmpFile.Write(embeddedData); err != nil {
-			tmpFile.Close()
-			os.Remove(tmpFile.Name())
-			return "", nil, fmt.Errorf("failed to write temp file: %w", err)
-		}
-		tmpFile.Close()
-		return tmpFile.Name(), func() { os.Remove(tmpFile.Name()) }, nil
-	}
-
-	userData, err := os.ReadFile(userFile)
-	if err != nil {
-		return "", nil, fmt.Errorf("failed to read schema file: %w", err)
-	}
-	if embeddedData == nil {
-		return userFile, nil, nil
-	}
-	mergedData, err := config.MergeSchema(embeddedData, userData)
-	if err != nil {
-		return "", nil, fmt.Errorf("failed to merge schema: %w", err)
-	}
-	tmpFile, err := os.CreateTemp("", "schema-merged-*.json")
+func writeTempFile(pattern string, data []byte) (string, func(), error) {
+	tmpFile, err := os.CreateTemp("", pattern)
 	if err != nil {
 		return "", nil, fmt.Errorf("failed to create temp file: %w", err)
 	}
-	if _, err := tmpFile.Write(mergedData); err != nil {
+	if _, err := tmpFile.Write(data); err != nil {
 		tmpFile.Close()
 		os.Remove(tmpFile.Name())
 		return "", nil, fmt.Errorf("failed to write temp file: %w", err)

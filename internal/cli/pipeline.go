@@ -37,7 +37,7 @@ type PipelineResponse struct {
 
 type PipelineService struct{}
 
-func (s PipelineService) Run(ctx context.Context, req PipelineRequest, log utils.Logger) (PipelineResponse, error) {
+func (s PipelineService) Run(ctx context.Context, req PipelineRequest, log *utils.Logger) (PipelineResponse, error) {
 	if req.ClustersConfigPath != "" {
 		return runMultiPipeline(ctx, req, log)
 	}
@@ -53,7 +53,7 @@ func pipelineOut(req PipelineRequest) io.Writer {
 	return os.Stdout
 }
 
-func runSinglePipeline(ctx context.Context, req PipelineRequest, log utils.Logger) (PipelineResponse, error) {
+func runSinglePipeline(ctx context.Context, req PipelineRequest, log *utils.Logger) (PipelineResponse, error) {
 	start := time.Now()
 	out := pipelineOut(req)
 
@@ -184,7 +184,7 @@ type ParseResponse struct {
 
 type ParseService struct{}
 
-func (s ParseService) Run(req ParseRequest, out io.Writer, log utils.Logger) (ParseResponse, error) {
+func (s ParseService) Run(req ParseRequest, out io.Writer, log *utils.Logger) (ParseResponse, error) {
 	if out == nil {
 		out = os.Stdout
 	}

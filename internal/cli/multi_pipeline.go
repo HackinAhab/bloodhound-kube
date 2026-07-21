@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 	"text/tabwriter"
 	"time"
 
@@ -34,7 +33,7 @@ type clusterResult struct {
 	buffered []byte
 }
 
-func runMultiPipeline(ctx context.Context, req PipelineRequest, log utils.Logger) (PipelineResponse, error) {
+func runMultiPipeline(ctx context.Context, req PipelineRequest, log *utils.Logger) (PipelineResponse, error) {
 	cfg, err := multicluster.LoadConfig(req.ClustersConfigPath)
 	if err != nil {
 		return PipelineResponse{}, err
@@ -129,7 +128,7 @@ func runMultiPipeline(ctx context.Context, req PipelineRequest, log utils.Logger
 	return resp, nil
 }
 
-func safeRunSinglePipeline(ctx context.Context, req PipelineRequest, log utils.Logger) (resp PipelineResponse, err error) {
+func safeRunSinglePipeline(ctx context.Context, req PipelineRequest, log *utils.Logger) (resp PipelineResponse, err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			err = fmt.Errorf("panic during collection: %v", r)
@@ -229,19 +228,4 @@ func printMultiClusterSummary(results []clusterResult, parseEnabled bool) {
 		}
 	}
 	w.Flush()
-}
-
-// clusterOutputDir infers a directory from a path that may be a file or dir.
-func clusterOutputDir(path string) string {
-	if path == "" {
-		return "."
-	}
-	if strings.HasSuffix(path, "/") || path == "." || path == ".." {
-		return path
-	}
-	// If the path looks like a file (has an extension), return its directory.
-	if filepath.Ext(path) != "" {
-		return filepath.Dir(path)
-	}
-	return path
 }

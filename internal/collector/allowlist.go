@@ -29,8 +29,6 @@ var defaultAllowlist = []string{
 	"batch/v1/jobs",
 	"networking.k8s.io/v1/ingresses",
 	"networking.k8s.io/v1/networkpolicies",
-	"projectcalico.org/v3/globalnetworkpolicies",
-	"cilium.io/v2/ciliumnetworkpolicies",
 	"gateway.networking.k8s.io/v1",
 	"gateway.networking.k8s.io/v1alpha2/grpcroutes",
 	"gateway.networking.k8s.io/v1alpha2/tcproutes",
@@ -46,8 +44,14 @@ var defaultAllowlist = []string{
 	"image.openshift.io/v1/imagestreams",
 }
 
+// addonAllowlist holds discovery entries for build-tag-gated addon families.
+// Each gated family file (allowlist_calico.go, allowlist_cilium.go) appends to
+// it from an init(); when tagged out its entries are absent, so a build that
+// excludes an addon won't request its CRDs.
+var addonAllowlist []string
+
 func DefaultDiscoveryAllowlist() ([]AllowlistEntry, error) {
-	return ParseAllowlistEntries(defaultAllowlist)
+	return ParseAllowlistEntries(append(append([]string{}, defaultAllowlist...), addonAllowlist...))
 }
 
 func MergeAllowlists(base []AllowlistEntry, extra []AllowlistEntry) []AllowlistEntry {

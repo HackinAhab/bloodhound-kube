@@ -29,15 +29,18 @@ const (
 
 var registerOnce sync.Once
 
+func init() {
+	ensureRegistered()
+}
+
 func ensureRegistered() {
 	registerOnce.Do(func() {
-		reg := framework.NewRegistry()
-		rbac.Register(reg)
-		networking.Register(reg)
-		workload.Register(reg)
-		mounts.Register(reg)
-		addons.Register(reg)
-		platform.Register(reg)
+		rbac.Register()
+		networking.Register()
+		workload.Register()
+		mounts.Register()
+		addons.Register()
+		platform.Register()
 
 		framework.LogRegistrationSummary()
 	})
@@ -55,10 +58,6 @@ func RegisterTypedWithFetchMode(gvk schema.GroupVersionKind, builder TypedBuilde
 	framework.RegisterTypedWithFetchMode(gvk, builder, mode)
 }
 
-func RegisterTypedFromMap(gvk schema.GroupVersionKind, builder Builder) {
-	framework.RegisterTypedFromMap(gvk, builder)
-}
-
 func RegisterTypedFromMapWithFetchMode(gvk schema.GroupVersionKind, builder Builder, mode FetchModeHint) {
 	framework.RegisterTypedFromMapWithFetchMode(gvk, builder, mode)
 }
@@ -73,27 +72,13 @@ func BuildTyped(gvk schema.GroupVersionKind, obj runtime.Object) (BuildResult, b
 	return framework.BuildTyped(gvk, obj)
 }
 
+func BuildTypedFromMap(gvk schema.GroupVersionKind, resource map[string]any) (BuildResult, bool) {
+	ensureRegistered()
+	return framework.BuildTypedFromMap(gvk, resource)
+}
+
 func GVKKey(gvk schema.GroupVersionKind) string {
 	return framework.GVKKey(gvk)
-}
-
-func RegistrationConflictCount() int {
-	ensureRegistered()
-	return framework.RegistrationConflictCount()
-}
-
-func LogRegistrationSummary() {
-	ensureRegistered()
-}
-
-func RegisteredKinds() []string {
-	ensureRegistered()
-	return framework.RegisteredKinds()
-}
-
-func RegisteredTypedGVKs() []string {
-	ensureRegistered()
-	return framework.RegisteredTypedGVKs()
 }
 
 func TypedFetchModeHint(gvk schema.GroupVersionKind) (FetchModeHint, bool) {

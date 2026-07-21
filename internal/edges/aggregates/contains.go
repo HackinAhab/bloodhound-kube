@@ -42,52 +42,52 @@ func namespaceAggregateToResources(ctx *framework.Context) []model.BloodHoundEdg
 			continue
 		}
 
-		if agg := nsAggregate(space.AllPods); agg != nil {
+		if agg := framework.FirstEdgeNode(space.AllPods); agg != nil {
 			for i := range space.Pods {
 				edges = append(edges, contains(agg, &space.Pods[i]))
 			}
 		}
-		if agg := nsAggregate(space.AllSecrets); agg != nil {
+		if agg := framework.FirstEdgeNode(space.AllSecrets); agg != nil {
 			for i := range space.Secrets {
 				edges = append(edges, contains(agg, &space.Secrets[i]))
 			}
 		}
-		if agg := nsAggregate(space.AllConfigMaps); agg != nil {
+		if agg := framework.FirstEdgeNode(space.AllConfigMaps); agg != nil {
 			for i := range space.ConfigMaps {
 				edges = append(edges, contains(agg, &space.ConfigMaps[i]))
 			}
 		}
-		if agg := nsAggregate(space.AllServiceAccounts); agg != nil {
+		if agg := framework.FirstEdgeNode(space.AllServiceAccounts); agg != nil {
 			for i := range space.ServiceAccounts {
 				edges = append(edges, contains(agg, &space.ServiceAccounts[i]))
 			}
 		}
-		if agg := nsAggregate(space.AllDeployments); agg != nil {
+		if agg := framework.FirstEdgeNode(space.AllDeployments); agg != nil {
 			for i := range space.Deployments {
 				edges = append(edges, contains(agg, &space.Deployments[i]))
 			}
 		}
-		if agg := nsAggregate(space.AllDaemonSets); agg != nil {
+		if agg := framework.FirstEdgeNode(space.AllDaemonSets); agg != nil {
 			for i := range space.DaemonSets {
 				edges = append(edges, contains(agg, &space.DaemonSets[i]))
 			}
 		}
-		if agg := nsAggregate(space.AllStatefulSets); agg != nil {
+		if agg := framework.FirstEdgeNode(space.AllStatefulSets); agg != nil {
 			for i := range space.StatefulSets {
 				edges = append(edges, contains(agg, &space.StatefulSets[i]))
 			}
 		}
-		if agg := nsAggregate(space.AllJobs); agg != nil {
+		if agg := framework.FirstEdgeNode(space.AllJobs); agg != nil {
 			for i := range space.Jobs {
 				edges = append(edges, contains(agg, &space.Jobs[i]))
 			}
 		}
-		if agg := nsAggregate(space.AllCronJobs); agg != nil {
+		if agg := framework.FirstEdgeNode(space.AllCronJobs); agg != nil {
 			for i := range space.CronJobs {
 				edges = append(edges, contains(agg, &space.CronJobs[i]))
 			}
 		}
-		if agg := nsAggregate(space.AllRoles); agg != nil {
+		if agg := framework.FirstEdgeNode(space.AllRoles); agg != nil {
 			for i := range space.Roles {
 				edges = append(edges, contains(agg, &space.Roles[i]))
 			}
@@ -105,7 +105,7 @@ func clusterAggregateToClusterResources(ctx *framework.Context) []model.BloodHou
 		return nil
 	}
 	var edges []model.BloodHoundEdge
-	if cAgg := clusterAggregate(cluster.AllClusterRoles); cAgg != nil {
+	if cAgg := framework.FirstEdgeNode(cluster.AllClusterRoles); cAgg != nil {
 		for i := range cluster.ClusterRoles {
 			edges = append(edges, contains(cAgg, &cluster.ClusterRoles[i]))
 		}
@@ -128,58 +128,35 @@ func clusterAggregateToNamespaceAggregates(ctx *framework.Context) []model.Blood
 			continue
 		}
 
-		if cAgg, nsAgg := clusterAggregate(cluster.AllPods), nsAggregate(space.AllPods); cAgg != nil && nsAgg != nil {
+		if cAgg, nsAgg := framework.FirstEdgeNode(cluster.AllPods), framework.FirstEdgeNode(space.AllPods); cAgg != nil && nsAgg != nil {
 			edges = append(edges, contains(cAgg, nsAgg))
 		}
-		if cAgg, nsAgg := clusterAggregate(cluster.AllSecrets), nsAggregate(space.AllSecrets); cAgg != nil && nsAgg != nil {
+		if cAgg, nsAgg := framework.FirstEdgeNode(cluster.AllSecrets), framework.FirstEdgeNode(space.AllSecrets); cAgg != nil && nsAgg != nil {
 			edges = append(edges, contains(cAgg, nsAgg))
 		}
-		if cAgg, nsAgg := clusterAggregate(cluster.AllConfigMaps), nsAggregate(space.AllConfigMaps); cAgg != nil && nsAgg != nil {
+		if cAgg, nsAgg := framework.FirstEdgeNode(cluster.AllConfigMaps), framework.FirstEdgeNode(space.AllConfigMaps); cAgg != nil && nsAgg != nil {
 			edges = append(edges, contains(cAgg, nsAgg))
 		}
-		if cAgg, nsAgg := clusterAggregate(cluster.AllServiceAccounts), nsAggregate(space.AllServiceAccounts); cAgg != nil && nsAgg != nil {
+		if cAgg, nsAgg := framework.FirstEdgeNode(cluster.AllServiceAccounts), framework.FirstEdgeNode(space.AllServiceAccounts); cAgg != nil && nsAgg != nil {
 			edges = append(edges, contains(cAgg, nsAgg))
 		}
-		if cAgg, nsAgg := clusterAggregate(cluster.AllDeployments), nsAggregate(space.AllDeployments); cAgg != nil && nsAgg != nil {
+		if cAgg, nsAgg := framework.FirstEdgeNode(cluster.AllDeployments), framework.FirstEdgeNode(space.AllDeployments); cAgg != nil && nsAgg != nil {
 			edges = append(edges, contains(cAgg, nsAgg))
 		}
-		if cAgg, nsAgg := clusterAggregate(cluster.AllDaemonSets), nsAggregate(space.AllDaemonSets); cAgg != nil && nsAgg != nil {
+		if cAgg, nsAgg := framework.FirstEdgeNode(cluster.AllDaemonSets), framework.FirstEdgeNode(space.AllDaemonSets); cAgg != nil && nsAgg != nil {
 			edges = append(edges, contains(cAgg, nsAgg))
 		}
-		if cAgg, nsAgg := clusterAggregate(cluster.AllStatefulSets), nsAggregate(space.AllStatefulSets); cAgg != nil && nsAgg != nil {
+		if cAgg, nsAgg := framework.FirstEdgeNode(cluster.AllStatefulSets), framework.FirstEdgeNode(space.AllStatefulSets); cAgg != nil && nsAgg != nil {
 			edges = append(edges, contains(cAgg, nsAgg))
 		}
-		if cAgg, nsAgg := clusterAggregate(cluster.AllJobs), nsAggregate(space.AllJobs); cAgg != nil && nsAgg != nil {
+		if cAgg, nsAgg := framework.FirstEdgeNode(cluster.AllJobs), framework.FirstEdgeNode(space.AllJobs); cAgg != nil && nsAgg != nil {
 			edges = append(edges, contains(cAgg, nsAgg))
 		}
-		if cAgg, nsAgg := clusterAggregate(cluster.AllCronJobs), nsAggregate(space.AllCronJobs); cAgg != nil && nsAgg != nil {
+		if cAgg, nsAgg := framework.FirstEdgeNode(cluster.AllCronJobs), framework.FirstEdgeNode(space.AllCronJobs); cAgg != nil && nsAgg != nil {
 			edges = append(edges, contains(cAgg, nsAgg))
 		}
 	}
 	return edges
-}
-
-// nsAggregate returns the namespace's aggregate node of the given kind, or
-// nil when none is present. Aggregates are emitted exactly once per
-// (kind, namespace), so taking [0] is safe.
-//
-// The returned EdgeNode is a value (not a pointer) because the generic type
-// parameter T already satisfies EdgeNode via the embedded GraphNodeBase's
-// value-receiver methods. A copy here is cheap (the struct only carries
-// metadata used by EdgeID/EdgeKind/etc.).
-func nsAggregate[T nodefw.EdgeNode](slice []T) nodefw.EdgeNode {
-	if len(slice) == 0 {
-		return nil
-	}
-	return slice[0]
-}
-
-// clusterAggregate is the cluster-scoped counterpart of nsAggregate.
-func clusterAggregate[T nodefw.EdgeNode](slice []T) nodefw.EdgeNode {
-	if len(slice) == 0 {
-		return nil
-	}
-	return slice[0]
 }
 
 func contains(start, end nodefw.EdgeNode) model.BloodHoundEdge {

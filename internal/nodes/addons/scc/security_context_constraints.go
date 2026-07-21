@@ -1,4 +1,4 @@
-package addons
+package scc
 
 import (
 	. "bloodhound-kube/internal/nodes/framework"
@@ -6,6 +6,13 @@ import (
 	securityv1 "github.com/openshift/api/security/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
+
+// SecurityContextConstraints (OpenShift) is not build-tag-gated — it's a
+// deliberate, always-on integration, unlike the other addon families.
+
+func Register() {
+	RegisterTyped(securityv1.SchemeGroupVersion.WithKind("SecurityContextConstraints"), BuildSecurityContextConstraintsNode)
+}
 
 type SecurityContextConstraints struct {
 	GraphNodeBase

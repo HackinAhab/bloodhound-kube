@@ -238,14 +238,6 @@ bloodhound-kube upload --queries-file='' --schema-file='' --upload-file data.jso
 Additionally, parsed collections can be uploaded directly to BloodHound with the `--upload-file` flag.
 In the latest versions of BloodHound, the custom types and queries can be uploaded directly through the UI, so this command is optional if you prefer to do it that way.
 
-### Report command
-The `report` command is used to generate a quick summary report of the collected data with common misconfigurations and potential attack paths. This is not meant to be comprehensive, but can be a useful starting point for analysis or to quickly identify common issues. This has received minimal testing and attention, so expect bugs and edge cases where it may not work as intended. It was included to bake in some existing scripts, but may recieve more development in the future.
- To generate report files from a collection file:
-
-```bash
-bloodhound-kube report -i /tmp/my-collection.jsonl
-```
-
 ## Design choices
 Relationships are implemented as Go edge rules for clarity, performance, and easier extension. Rules are registered explicitly in `internal/edges/edge_registry.go` and grouped by domain under `internal/edges/*`. Node definitions remain in Go for the same reasons.
 

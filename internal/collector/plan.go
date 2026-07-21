@@ -29,14 +29,6 @@ type CollectionPlan struct {
 	targetByKey map[string]CollectionTarget
 }
 
-func BuildCollectionPlan(resources []DiscoveryResource) (*CollectionPlan, error) {
-	collectionsCfg, err := BuildCollectionsConfigFromDiscovery(resources)
-	if err != nil {
-		return nil, err
-	}
-	return NewCollectionPlan(collectionsCfg), nil
-}
-
 func NewCollectionPlan(cfg *CollectionsConfig) *CollectionPlan {
 	plan := &CollectionPlan{
 		Targets:     make([]CollectionTarget, 0, len(cfg.Collections)),

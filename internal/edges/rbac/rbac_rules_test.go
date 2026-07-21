@@ -335,7 +335,7 @@ func TestRBACReadSecretsRule(t *testing.T) {
 	)
 
 	ctx := framework.NewContext(core)
-	edges := rbacReadSecretsEdgesRule{}.Apply(ctx)
+	edges := rbacReadSecretsEdgesRule.Apply(ctx)
 	if len(edges) != 1 {
 		t.Fatalf("expected 1 SAReadSecret edge, got %d", len(edges))
 	}
@@ -369,7 +369,7 @@ func TestRBACReadSecretsClusterAggregate(t *testing.T) {
 	)
 
 	ctx := framework.NewContext(core)
-	edges := rbacReadSecretsEdgesRule{}.Apply(ctx)
+	edges := rbacReadSecretsEdgesRule.Apply(ctx)
 	if len(edges) != 1 {
 		t.Fatalf("expected 1 aggregate SAReadSecret edge, got %d", len(edges))
 	}
@@ -411,7 +411,7 @@ func TestRBACReadSecretsNamespacedAggregate(t *testing.T) {
 	)
 
 	ctx := framework.NewContext(core)
-	edges := rbacReadSecretsEdgesRule{}.Apply(ctx)
+	edges := rbacReadSecretsEdgesRule.Apply(ctx)
 	if len(edges) != 1 {
 		t.Fatalf("expected 1 namespaced aggregate SAReadSecret edge, got %d", len(edges))
 	}
@@ -458,7 +458,7 @@ func TestRBACReadConfigMapsNamespacedAggregate(t *testing.T) {
 	)
 
 	ctx := framework.NewContext(core)
-	edges := rbacReadConfigMapsEdgesRule{}.Apply(ctx)
+	edges := rbacReadConfigMapsEdgesRule.Apply(ctx)
 	if len(edges) != 1 {
 		t.Fatalf("expected 1 namespaced aggregate ReadConfigMap edge, got %d", len(edges))
 	}
@@ -508,7 +508,7 @@ func TestRBACReadConfigMapsNamespacedNamed(t *testing.T) {
 	)
 
 	ctx := framework.NewContext(core)
-	edges := rbacReadConfigMapsEdgesRule{}.Apply(ctx)
+	edges := rbacReadConfigMapsEdgesRule.Apply(ctx)
 	if len(edges) != 1 {
 		t.Fatalf("expected 1 named ReadConfigMap edge, got %d", len(edges))
 	}
@@ -667,7 +667,7 @@ func TestRBACReadLogsNamespacedWildcard(t *testing.T) {
 	)
 
 	ctx := framework.NewContext(core)
-	edges := rbacReadLogsEdgesRule{}.Apply(ctx)
+	edges := rbacReadLogsEdgesRule.Apply(ctx)
 	if len(edges) != 1 {
 		t.Fatalf("expected 1 ReadLogs aggregate edge, got %d", len(edges))
 	}
@@ -704,7 +704,7 @@ func TestRBACReadLogsNamespacedNamedPod(t *testing.T) {
 	)
 
 	ctx := framework.NewContext(core)
-	edges := rbacReadLogsEdgesRule{}.Apply(ctx)
+	edges := rbacReadLogsEdgesRule.Apply(ctx)
 	if len(edges) != 1 {
 		t.Fatalf("expected 1 named-pod ReadLogs edge, got %d", len(edges))
 	}
@@ -745,7 +745,7 @@ func TestRBACReadLogsClusterAggregate(t *testing.T) {
 	)
 
 	ctx := framework.NewContext(core)
-	edges := rbacReadLogsEdgesRule{}.Apply(ctx)
+	edges := rbacReadLogsEdgesRule.Apply(ctx)
 	if len(edges) != 1 {
 		t.Fatalf("expected 1 aggregate ReadLogs edge, got %d", len(edges))
 	}
@@ -790,7 +790,7 @@ func TestRBACReadLogsClusterNamedPodsAcrossNamespaces(t *testing.T) {
 	)
 
 	ctx := framework.NewContext(core)
-	edges := rbacReadLogsEdgesRule{}.Apply(ctx)
+	edges := rbacReadLogsEdgesRule.Apply(ctx)
 	if len(edges) != 2 {
 		t.Fatalf("expected 2 named-pod cluster ReadLogs edges, got %d", len(edges))
 	}
@@ -829,7 +829,7 @@ func TestRBACReadLogsRejectsWrongVerb(t *testing.T) {
 	)
 
 	ctx := framework.NewContext(core)
-	edges := rbacReadLogsEdgesRule{}.Apply(ctx)
+	edges := rbacReadLogsEdgesRule.Apply(ctx)
 	if len(edges) != 0 {
 		t.Fatalf("expected 0 ReadLogs edges for wrong verb, got %d", len(edges))
 	}
@@ -859,7 +859,7 @@ func TestRBACReadLogsRejectsPodsResourceWithoutLogSubresource(t *testing.T) {
 	)
 
 	ctx := framework.NewContext(core)
-	edges := rbacReadLogsEdgesRule{}.Apply(ctx)
+	edges := rbacReadLogsEdgesRule.Apply(ctx)
 	if len(edges) != 0 {
 		t.Fatalf("expected 0 ReadLogs edges when only `pods` (without /log subresource) is granted, got %d", len(edges))
 	}
@@ -895,7 +895,7 @@ func TestRBACPodExecNamespacedWildcard(t *testing.T) {
 	)
 
 	ctx := framework.NewContext(core)
-	edges := rbacPodExecEdgesRule{}.Apply(ctx)
+	edges := rbacPodExecEdgesRule.Apply(ctx)
 	if len(edges) != 1 {
 		t.Fatalf("expected 1 PodExec aggregate edge, got %d", len(edges))
 	}
@@ -928,7 +928,7 @@ func TestRBACPodExecNamespacedNamedPod(t *testing.T) {
 	)
 
 	ctx := framework.NewContext(core)
-	edges := rbacPodExecEdgesRule{}.Apply(ctx)
+	edges := rbacPodExecEdgesRule.Apply(ctx)
 	if len(edges) != 1 {
 		t.Fatalf("expected 1 PodExec edge, got %d", len(edges))
 	}
@@ -963,7 +963,7 @@ func TestRBACPodExecClusterAggregate(t *testing.T) {
 	)
 
 	ctx := framework.NewContext(core)
-	edges := rbacPodExecEdgesRule{}.Apply(ctx)
+	edges := rbacPodExecEdgesRule.Apply(ctx)
 	if len(edges) != 1 {
 		t.Fatalf("expected 1 aggregate PodExec edge, got %d", len(edges))
 	}
@@ -995,7 +995,7 @@ func TestRBACPodExecClusterNamedCrossNamespace(t *testing.T) {
 	)
 
 	ctx := framework.NewContext(core)
-	edges := rbacPodExecEdgesRule{}.Apply(ctx)
+	edges := rbacPodExecEdgesRule.Apply(ctx)
 	if len(edges) != 2 {
 		t.Fatalf("expected 2 named PodExec edges across namespaces, got %d", len(edges))
 	}
@@ -1038,7 +1038,7 @@ func TestRBACPodPortForwardNamespacedWildcard(t *testing.T) {
 	)
 
 	ctx := framework.NewContext(core)
-	edges := rbacPodPortForwardEdgesRule{}.Apply(ctx)
+	edges := rbacPodPortForwardEdgesRule.Apply(ctx)
 	if len(edges) != 1 {
 		t.Fatalf("expected 1 PodPortForward aggregate edge, got %d", len(edges))
 	}
@@ -1070,7 +1070,7 @@ func TestRBACPodPortForwardClusterAggregate(t *testing.T) {
 	)
 
 	ctx := framework.NewContext(core)
-	edges := rbacPodPortForwardEdgesRule{}.Apply(ctx)
+	edges := rbacPodPortForwardEdgesRule.Apply(ctx)
 	if len(edges) != 1 {
 		t.Fatalf("expected 1 aggregate PodPortForward edge, got %d", len(edges))
 	}
@@ -1109,7 +1109,7 @@ func TestRBACPodAttachNamespacedWildcard(t *testing.T) {
 	)
 
 	ctx := framework.NewContext(core)
-	edges := rbacPodAttachEdgesRule{}.Apply(ctx)
+	edges := rbacPodAttachEdgesRule.Apply(ctx)
 	if len(edges) != 1 {
 		t.Fatalf("expected 1 PodAttach aggregate edge, got %d", len(edges))
 	}
@@ -1141,7 +1141,7 @@ func TestRBACPodAttachClusterAggregate(t *testing.T) {
 	)
 
 	ctx := framework.NewContext(core)
-	edges := rbacPodAttachEdgesRule{}.Apply(ctx)
+	edges := rbacPodAttachEdgesRule.Apply(ctx)
 	if len(edges) != 1 {
 		t.Fatalf("expected 1 aggregate PodAttach edge, got %d", len(edges))
 	}
@@ -1181,7 +1181,7 @@ func TestRBACPodDebugNamespacedWildcard(t *testing.T) {
 	)
 
 	ctx := framework.NewContext(core)
-	edges := rbacPodDebugEdgesRule{}.Apply(ctx)
+	edges := rbacPodDebugEdgesRule.Apply(ctx)
 	if len(edges) != 1 {
 		t.Fatalf("expected 1 PodDebug aggregate edge, got %d", len(edges))
 	}
@@ -1213,7 +1213,7 @@ func TestRBACPodDebugClusterNamedCrossNamespace(t *testing.T) {
 	)
 
 	ctx := framework.NewContext(core)
-	edges := rbacPodDebugEdgesRule{}.Apply(ctx)
+	edges := rbacPodDebugEdgesRule.Apply(ctx)
 	if len(edges) != 2 {
 		t.Fatalf("expected 2 named PodDebug edges across namespaces, got %d", len(edges))
 	}
@@ -1248,7 +1248,7 @@ func TestRBACPodDebugClusterAggregate(t *testing.T) {
 	)
 
 	ctx := framework.NewContext(core)
-	edges := rbacPodDebugEdgesRule{}.Apply(ctx)
+	edges := rbacPodDebugEdgesRule.Apply(ctx)
 	if len(edges) != 1 {
 		t.Fatalf("expected 1 aggregate PodDebug edge, got %d", len(edges))
 	}
@@ -1576,7 +1576,7 @@ func TestRBACSATokenRequestNamespacedWildcard(t *testing.T) {
 	)
 
 	ctx := framework.NewContext(core)
-	edges := rbacSATokenRequestEdgesRule{}.Apply(ctx)
+	edges := rbacSATokenRequestEdgesRule.Apply(ctx)
 	saID := nodefw.BuildID("BHK_ServiceAccount", "ns1", "token-minter")
 	aggID := nodefw.BuildID("BHK_AllServiceAccounts", "ns1", "BHK_AllServiceAccounts")
 	if !hasEdge(edges, saID, aggID, "BHK_SATokenRequest") {
@@ -1605,7 +1605,7 @@ func TestRBACSATokenRequestNamespacedNamed(t *testing.T) {
 	)
 
 	ctx := framework.NewContext(core)
-	edges := rbacSATokenRequestEdgesRule{}.Apply(ctx)
+	edges := rbacSATokenRequestEdgesRule.Apply(ctx)
 	saID := nodefw.BuildID("BHK_ServiceAccount", "ns1", "token-minter")
 	if !hasEdge(edges, saID, nodefw.BuildID("BHK_ServiceAccount", "ns1", "target-sa"), "BHK_SATokenRequest") {
 		t.Fatalf("missing SATokenRequest edge to target-sa")
@@ -1637,7 +1637,7 @@ func TestRBACSATokenRequestClusterAggregate(t *testing.T) {
 	)
 
 	ctx := framework.NewContext(core)
-	edges := rbacSATokenRequestEdgesRule{}.Apply(ctx)
+	edges := rbacSATokenRequestEdgesRule.Apply(ctx)
 	saID := nodefw.BuildID("BHK_ServiceAccount", "ns1", "token-minter")
 	aggID := nodefw.BuildID("BHK_AllServiceAccounts", "", "BHK_AllServiceAccounts")
 	if !hasEdge(edges, saID, aggID, "BHK_SATokenRequest") {
@@ -1669,7 +1669,7 @@ func TestRBACSATokenRequestClusterNamedCrossNamespace(t *testing.T) {
 	)
 
 	ctx := framework.NewContext(core)
-	edges := rbacSATokenRequestEdgesRule{}.Apply(ctx)
+	edges := rbacSATokenRequestEdgesRule.Apply(ctx)
 	saID := nodefw.BuildID("BHK_ServiceAccount", "ns1", "token-minter")
 	if !hasEdge(edges, saID, nodefw.BuildID("BHK_ServiceAccount", "ns1", "shared-sa"), "BHK_SATokenRequest") {
 		t.Fatalf("missing SATokenRequest edge to ns1/shared-sa")

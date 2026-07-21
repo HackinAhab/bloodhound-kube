@@ -1,4 +1,6 @@
-package addons
+//go:build all_addons || external_secrets
+
+package externalsecrets
 
 import (
 	"strings"
@@ -6,6 +8,10 @@ import (
 	"bloodhound-kube/internal/edges/framework"
 	"bloodhound-kube/internal/model"
 )
+
+func Register(reg *framework.Registry) {
+	reg.Register(externalSecretsEdgesRule{})
+}
 
 type externalSecretsEdgesRule struct{}
 

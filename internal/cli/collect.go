@@ -61,7 +61,7 @@ type CollectService struct{}
 
 type collectRuntime struct {
 	collector *collector.Collector
-	log       utils.Logger
+	log       *utils.Logger
 }
 
 type collectDiscoveryPolicy struct {
@@ -97,7 +97,7 @@ type outputCheckpointResolution struct {
 	checkpoint     *collector.Checkpoint
 }
 
-func (s CollectService) Run(ctx context.Context, req CollectRequest, out io.Writer, log utils.Logger) (CollectResponse, error) {
+func (s CollectService) Run(ctx context.Context, req CollectRequest, out io.Writer, log *utils.Logger) (CollectResponse, error) {
 	if out == nil {
 		out = os.Stdout
 	}
@@ -322,7 +322,7 @@ func applyDiscoveryFilterByScope(resources []collector.DiscoveryResource, scope 
 	return filtered, source, nil
 }
 
-func shouldIncludeCRDs(req CollectRequest, resources []collector.DiscoveryResource, log utils.Logger) (bool, error) {
+func shouldIncludeCRDs(req CollectRequest, resources []collector.DiscoveryResource, log *utils.Logger) (bool, error) {
 	crdCount := countCRDResources(resources)
 	if crdCount < defaultCRDPromptThreshold || req.DiscoveryAccept {
 		return true, nil

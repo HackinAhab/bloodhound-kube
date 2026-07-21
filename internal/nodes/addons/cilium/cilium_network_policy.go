@@ -1,4 +1,6 @@
-package addons
+//go:build all_addons || cilium
+
+package cilium
 
 import (
 	"fmt"
@@ -6,11 +8,12 @@ import (
 	"strings"
 
 	. "bloodhound-kube/internal/nodes/framework"
+
+	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
-type CiliumNetworkPolicy struct {
-	GraphNodeBase
-	PodSelectorLabels map[string]string
+func Register() {
+	RegisterTypedFromMapWithFetchMode(schema.GroupVersionKind{Group: "cilium.io", Version: "v2", Kind: "CiliumNetworkPolicy"}, BuildCiliumNetworkPolicyNode, FetchModeHintFull)
 }
 
 func BuildCiliumNetworkPolicyNode(resource map[string]any) (BuildResult, bool) {
@@ -68,16 +71,6 @@ func stringMapFromAny(m map[string]any) map[string]string {
 	return result
 }
 
-func stringSliceFromAny(items []any) []string {
-	result := make([]string, 0, len(items))
-	for _, item := range items {
-		if s, ok := item.(string); ok {
-			result = append(result, s)
-		}
-	}
-	return result
-}
-
 // summarizeCiliumSelector mirrors summarizeNetpolSelector, but operates on the
 // unstructured map form of a Cilium EndpointSelector (matchLabels/matchExpressions),
 // since CiliumNetworkPolicy has no typed Go struct in this repo's dependencies.
@@ -97,7 +90,7 @@ func summarizeCiliumSelector(sel map[string]any) []string {
 			continue
 		}
 		key := GetString(expr, "key")
-		values := strings.Join(stringSliceFromAny(GetSlice(expr, "values")), ",")
+		values := strings.Join(StringSliceFromAny(GetSlice(expr, "values")), ",")
 		switch GetString(expr, "operator") {
 		case "In":
 			parts = append(parts, fmt.Sprintf("%s In [%s]", key, values))
@@ -141,10 +134,10 @@ func summarizeCiliumRule(rule map[string]any, direction string) string {
 		}
 		parts = append(parts, "endpoints ["+strings.Join(selStrs, "; ")+"]")
 	}
-	if cidrs := stringSliceFromAny(GetSlice(rule, direction+"CIDR")); len(cidrs) > 0 {
+	if cidrs := StringSliceFromAny(GetSlice(rule, direction+"CIDR")); len(cidrs) > 0 {
 		parts = append(parts, "cidr ["+strings.Join(cidrs, ",")+"]")
 	}
-	if entities := stringSliceFromAny(GetSlice(rule, direction+"Entities")); len(entities) > 0 {
+	if entities := StringSliceFromAny(GetSlice(rule, direction+"Entities")); len(entities) > 0 {
 		parts = append(parts, "entities ["+strings.Join(entities, ",")+"]")
 	}
 	if ports := GetSlice(rule, "toPorts"); len(ports) > 0 {

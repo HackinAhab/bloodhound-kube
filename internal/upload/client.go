@@ -1,10 +1,8 @@
 package upload
 
 import (
-	"bytes"
 	"context"
 	"crypto/tls"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -14,8 +12,6 @@ import (
 	"time"
 
 	"bloodhound-kube/internal/utils"
-
-	"github.com/SpecterOps/bloodhound-go-sdk/sdk"
 )
 
 const DefaultBaseURL = "https://localhost:8080"
@@ -26,14 +22,14 @@ type Config struct {
 	TokenKey           string
 	InsecureSkipVerify bool
 	Timeout            time.Duration
-	Logger             utils.Logger
+	Logger             *utils.Logger
 }
 
 type Client struct {
 	baseURL    string
 	httpClient *http.Client
-	auth       *sdk.HMACCredentials
-	log        utils.Logger
+	auth       *hmacCredentials
+	log        *utils.Logger
 }
 
 type Extension struct {
@@ -68,10 +64,7 @@ func NewClient(cfg Config) (*Client, error) {
 		return nil, errors.New("token ID and token key are required")
 	}
 
-	auth, err := sdk.NewSecurityProviderHMACCredentials(cfg.TokenKey, cfg.TokenID)
-	if err != nil {
-		return nil, fmt.Errorf("initialize HMAC credentials: %w", err)
-	}
+	auth := newHMACCredentials(cfg.TokenKey, cfg.TokenID)
 
 	timeout := cfg.Timeout
 	if timeout == 0 {
@@ -105,29 +98,10 @@ func (c *Client) newRequest(ctx context.Context, method, url string, body io.Rea
 	if c.auth == nil {
 		return nil, errors.New("HMAC credentials not configured")
 	}
-	if err := c.auth.Intercept(ctx, req); err != nil {
+	if err := c.auth.intercept(ctx, req); err != nil {
 		return nil, fmt.Errorf("authenticate request: %w", err)
 	}
 	return req, nil
-}
-
-func validateJSON(data []byte) error {
-	decoder := json.NewDecoder(bytes.NewReader(data))
-	seenToken := false
-	for {
-		_, err := decoder.Token()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			return err
-		}
-		seenToken = true
-	}
-	if !seenToken {
-		return io.ErrUnexpectedEOF
-	}
-	return nil
 }
 
 func responseError(action string, resp *http.Response) error {

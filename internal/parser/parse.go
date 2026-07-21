@@ -19,6 +19,7 @@ import (
 	"github.com/TheManticoreProject/gopengraph/edge"
 	"github.com/TheManticoreProject/gopengraph/node"
 	"github.com/TheManticoreProject/gopengraph/properties"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
 const defaultClusterName = "default"
@@ -34,10 +35,7 @@ func ConvertToBloodHoundResultFromReader(reader io.Reader, clusterName string, p
 	log.Debug("Parsed resources and built core facts", "resources", parsedResources, "nodes", len(nodes), "duration", time.Since(processStart))
 
 	edgeStart := time.Now()
-	edges, err := createRelationships(coreFacts)
-	if err != nil {
-		return nil, err
-	}
+	edges := edges.BuildEdges(coreFacts)
 	log.Debug("Created edges", "edges", len(edges), "duration", time.Since(edgeStart))
 
 	applyClusterToGraph(nodes, edges, clusterName)
@@ -115,14 +113,6 @@ func clusterScopedID(clusterName, id string) string {
 	return clusterName + ":" + id
 }
 
-func createRelationships(coreFacts *model.CoreFacts) ([]model.BloodHoundEdge, error) {
-	if coreFacts == nil {
-		return nil, errors.New("create relationships failed")
-	}
-	edges := edges.BuildEdges(coreFacts)
-	return edges, nil
-}
-
 func createNodesAndCoreFactsFromReader(reader io.Reader, parseUndefinedNodes bool) ([]model.BloodHoundNode, *model.CoreFacts, int, error) {
 	if reader == nil {
 		return nil, nil, 0, errors.New("parse JSONL failed")
@@ -148,11 +138,13 @@ func createNodesAndCoreFactsFromReader(reader io.Reader, parseUndefinedNodes boo
 
 		parsedResources++
 
-		nodeList = append(nodeList, model.BloodHoundNode{
-			ID:         result.Node.ID,
-			Kinds:      result.Node.Kinds,
-			Properties: result.Node.Properties,
-		})
+		if result.Node.ID != "" {
+			nodeList = append(nodeList, model.BloodHoundNode{
+				ID:         result.Node.ID,
+				Kinds:      result.Node.Kinds,
+				Properties: result.Node.Properties,
+			})
+		}
 
 		for _, entry := range result.Core {
 			coreFacts.Add(entry)
@@ -282,10 +274,28 @@ func buildNodeFromMap(resource map[string]any, parseUndefinedNodes bool) (nodes.
 		return nodes.BuildResult{}, false, nil
 	}
 	result, ok := nodes.Build(resource)
+	if !ok {
+		if gvk, valid := gvkFromMap(resource); valid {
+			result, ok = nodes.BuildTypedFromMap(gvk, resource)
+		}
+	}
 	if !ok && parseUndefinedNodes {
 		result, ok = platform.BuildGenericNode(resource)
 	}
 	return result, ok, nil
+}
+
+func gvkFromMap(resource map[string]any) (schema.GroupVersionKind, bool) {
+	apiVersion, _ := resource["apiVersion"].(string)
+	kind, _ := resource["kind"].(string)
+	if apiVersion == "" || kind == "" {
+		return schema.GroupVersionKind{}, false
+	}
+	gv, err := schema.ParseGroupVersion(apiVersion)
+	if err != nil {
+		return schema.GroupVersionKind{}, false
+	}
+	return gv.WithKind(kind), true
 }
 
 func synthesizeUsersAndGroups(nodeList *[]model.BloodHoundNode, coreFacts *model.CoreFacts) {

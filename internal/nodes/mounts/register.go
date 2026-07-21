@@ -6,7 +6,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-func Register(reg *framework.Registry) {
-	reg.RegisterTyped(corev1.SchemeGroupVersion.WithKind("PersistentVolume"), BuildPVNode)
-	reg.RegisterTypedWithFetchMode(corev1.SchemeGroupVersion.WithKind("PersistentVolumeClaim"), BuildPVCNode, framework.FetchModeHintMetadata)
+func Register() {
+	framework.RegisterTyped(corev1.SchemeGroupVersion.WithKind("PersistentVolume"), BuildPVNode)
+	framework.RegisterTypedWithFetchMode(corev1.SchemeGroupVersion.WithKind("PersistentVolumeClaim"), BuildPVCNode, framework.FetchModeHintMetadata)
 }

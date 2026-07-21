@@ -6,20 +6,25 @@ type User struct {
 	fw.GraphNodeBase
 }
 
-func BuildUserNode(name string) (fw.BuildResult, bool) {
+// buildIdentityBase builds the shared GraphNodeBase and properties for a
+// cluster-scoped identity node (User, Group). Returns ok=false for an empty name.
+func buildIdentityBase(kind, name string) (fw.GraphNodeBase, map[string]any, bool) {
 	if name == "" {
-		return fw.BuildResult{}, false
+		return fw.GraphNodeBase{}, nil, false
 	}
-
 	base := fw.GraphNodeBase{
-		ID:        fw.BuildID("BHK_User", "", name),
-		Kinds:     []string{"BHK_User", "BHK_Identity"},
+		ID:        fw.BuildID(kind, "", name),
+		Kinds:     []string{kind, "BHK_Identity"},
 		Name:      name,
 		Namespace: "",
 	}
+	return base, map[string]any{"name": name}, true
+}
 
-	properties := map[string]any{
-		"name": name,
+func BuildUserNode(name string) (fw.BuildResult, bool) {
+	base, properties, ok := buildIdentityBase("BHK_User", name)
+	if !ok {
+		return fw.BuildResult{}, false
 	}
 
 	core := fw.CoreEntry{

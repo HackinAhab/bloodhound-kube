@@ -1,7 +1,10 @@
 package model
 
 import (
-	"bloodhound-kube/internal/nodes/addons"
+	"bloodhound-kube/internal/nodes/addons/calico"
+	"bloodhound-kube/internal/nodes/addons/cilium"
+	"bloodhound-kube/internal/nodes/addons/externalsecrets"
+	"bloodhound-kube/internal/nodes/addons/scc"
 	"bloodhound-kube/internal/nodes/mounts"
 	"bloodhound-kube/internal/nodes/networking"
 	"bloodhound-kube/internal/nodes/platform"
@@ -25,14 +28,17 @@ func init() {
 	registerClusterFactAdder(func(c *CoreFacts, v mounts.PersistentVolume) {
 		c.Cluster.PersistentVolumes = append(c.Cluster.PersistentVolumes, v)
 	})
-	registerClusterFactAdder(func(c *CoreFacts, v addons.ClusterSecretStore) {
+	registerClusterFactAdder(func(c *CoreFacts, v externalsecrets.ClusterSecretStore) {
 		c.Cluster.ClusterSecretStores = append(c.Cluster.ClusterSecretStores, v)
 	})
-	registerClusterFactAdder(func(c *CoreFacts, v addons.SecurityContextConstraints) {
+	registerClusterFactAdder(func(c *CoreFacts, v scc.SecurityContextConstraints) {
 		c.Cluster.SecurityContextConstraints = append(c.Cluster.SecurityContextConstraints, v)
 	})
-	registerClusterFactAdder(func(c *CoreFacts, v addons.GlobalNetworkPolicy) {
+	registerClusterFactAdder(func(c *CoreFacts, v calico.GlobalNetworkPolicy) {
 		c.Cluster.GlobalNetworkPolicies = append(c.Cluster.GlobalNetworkPolicies, v)
+	})
+	registerClusterFactAdder(func(c *CoreFacts, v calico.HostEndpoint) {
+		c.Cluster.HostEndpoints = append(c.Cluster.HostEndpoints, v)
 	})
 	registerClusterFactAdder(func(c *CoreFacts, v platform.External) { c.Cluster.External = append(c.Cluster.External, v) })
 	registerClusterFactAdder(func(c *CoreFacts, v platform.AllNodes) { c.Cluster.AllNodes = append(c.Cluster.AllNodes, v) })
@@ -80,7 +86,7 @@ func init() {
 	registerNamespacedFactAdder(func(ns *Namespace, v networking.NetworkPolicy) {
 		ns.NetworkPolicies = append(ns.NetworkPolicies, v)
 	})
-	registerNamespacedFactAdder(func(ns *Namespace, v addons.CiliumNetworkPolicy) {
+	registerNamespacedFactAdder(func(ns *Namespace, v cilium.CiliumNetworkPolicy) {
 		ns.CiliumNetworkPolicies = append(ns.CiliumNetworkPolicies, v)
 	})
 	registerNamespacedFactAdder(func(ns *Namespace, v networking.Ingress) { ns.Ingresses = append(ns.Ingresses, v) })
@@ -94,10 +100,10 @@ func init() {
 	})
 	registerNamespacedFactAdder(func(ns *Namespace, v rbac.Role) { ns.Roles = append(ns.Roles, v) })
 	registerNamespacedFactAdder(func(ns *Namespace, v rbac.RoleBinding) { ns.RoleBindings = append(ns.RoleBindings, v) })
-	registerNamespacedFactAdder(func(ns *Namespace, v addons.ExternalSecret) {
+	registerNamespacedFactAdder(func(ns *Namespace, v externalsecrets.ExternalSecret) {
 		ns.ExternalSecrets = append(ns.ExternalSecrets, v)
 	})
-	registerNamespacedFactAdder(func(ns *Namespace, v addons.SecretStore) { ns.SecretStores = append(ns.SecretStores, v) })
+	registerNamespacedFactAdder(func(ns *Namespace, v externalsecrets.SecretStore) { ns.SecretStores = append(ns.SecretStores, v) })
 
 	// Per-namespace aggregate adders. The same struct types are also registered
 	// as cluster adders above; CoreFacts.Add selects the map via entry.Cluster

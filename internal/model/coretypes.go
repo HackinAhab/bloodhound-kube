@@ -1,7 +1,10 @@
 package model
 
 import (
-	"bloodhound-kube/internal/nodes/addons"
+	"bloodhound-kube/internal/nodes/addons/calico"
+	"bloodhound-kube/internal/nodes/addons/cilium"
+	"bloodhound-kube/internal/nodes/addons/externalsecrets"
+	"bloodhound-kube/internal/nodes/addons/scc"
 	"bloodhound-kube/internal/nodes/mounts"
 	"bloodhound-kube/internal/nodes/networking"
 	"bloodhound-kube/internal/nodes/platform"
@@ -21,7 +24,7 @@ type Namespace struct {
 	Jobs                   []workload.Job
 	CronJobs               []workload.CronJob
 	NetworkPolicies        []networking.NetworkPolicy
-	CiliumNetworkPolicies  []addons.CiliumNetworkPolicy
+	CiliumNetworkPolicies  []cilium.CiliumNetworkPolicy
 	Ingresses              []networking.Ingress
 	Gateways               []networking.Gateway
 	HTTPRoutes             []networking.HTTPRoute
@@ -31,8 +34,8 @@ type Namespace struct {
 	PersistentVolumeClaims []mounts.PersistentVolumeClaim
 	Roles                  []rbac.Role
 	RoleBindings           []rbac.RoleBinding
-	ExternalSecrets        []addons.ExternalSecret
-	SecretStores           []addons.SecretStore
+	ExternalSecrets        []externalsecrets.ExternalSecret
+	SecretStores           []externalsecrets.SecretStore
 	AllPods                []platform.AllPods
 	AllSecrets             []platform.AllSecrets
 	AllConfigMaps          []platform.AllConfigMaps
@@ -53,9 +56,10 @@ type Cluster struct {
 	Users                      []rbac.User
 	Groups                     []rbac.Group
 	PersistentVolumes          []mounts.PersistentVolume
-	ClusterSecretStores        []addons.ClusterSecretStore
-	SecurityContextConstraints []addons.SecurityContextConstraints
-	GlobalNetworkPolicies      []addons.GlobalNetworkPolicy
+	ClusterSecretStores        []externalsecrets.ClusterSecretStore
+	SecurityContextConstraints []scc.SecurityContextConstraints
+	GlobalNetworkPolicies      []calico.GlobalNetworkPolicy
+	HostEndpoints              []calico.HostEndpoint
 	External                   []platform.External
 	AllPods                    []platform.AllPods
 	AllSecrets                 []platform.AllSecrets

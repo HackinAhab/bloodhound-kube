@@ -1,9 +1,15 @@
-package addons
+//go:build all_addons || cilium
+
+package cilium
 
 import (
 	"bloodhound-kube/internal/edges/framework"
 	"bloodhound-kube/internal/model"
 )
+
+func Register(reg *framework.Registry) {
+	reg.Register(ciliumNetworkPolicyEdgesRule{})
+}
 
 type ciliumNetworkPolicyEdgesRule struct{}
 

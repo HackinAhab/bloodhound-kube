@@ -487,12 +487,17 @@ Namespaced, mirrors the core `networkpolicy` rule (`internal/edges/networking/`)
 ### `globalnetworkpolicy` — Calico GlobalNetworkPolicy Application
 **File:** `calico_global_network_policy.go`
 
-Cluster-scoped: matches pods across every namespace instead of one. Calico's `spec.selector` is a string expression language, not a structured selector — only `all()` and simple `&&`/`,`-joined `key == 'value'` equality clauses are recognized (see `parseCalicoSelector`). Policies with an unrecognized selector (e.g. `has()`, `in {}`, `||`, negation) still get a node with the raw expression shown in properties, but produce **no** edges — this is a known limitation, not a silent misinterpretation.
+Cluster-scoped: matches across every namespace instead of one. Calico's `spec.selector` is a string expression language, not a structured selector — only `all()` and simple `&&`/`,`-joined `key == 'value'` equality clauses are recognized (see `parseCalicoSelector`). Policies with an unrecognized selector (e.g. `has()`, `in {}`, `||`, negation) still get a node with the raw expression shown in properties, but produce **no** edges — this is a known limitation, not a silent misinterpretation.
+
+A `GlobalNetworkPolicy` selector governs **both** endpoint types Calico supports: WorkloadEndpoints (Pods) and HostEndpoints (host/node network interfaces). Calico's `HostEndpoint` CRD (`crd.projectcalico.org/v1`) is collected and parsed into `CoreFacts` purely to resolve this — it is **not** rendered as its own graph node (see `internal/nodes/addons/calico_host_endpoint.go`). A HostEndpoint's `metadata.labels` are matched against the same parsed selector, and its `spec.node` resolves to the underlying `BHK_Node` via `ctx.Index.NodesByName`.
 
 | Edge | Source → Target | Trigger |
 |------|----------------|---------|
 | `BHK_AppliesTo` | GlobalNetworkPolicy → Pod | Pod labels satisfy the parsed equality clauses of `spec.selector` |
 | `BHK_AppliesTo` | GlobalNetworkPolicy → cluster `AllPods` aggregate | `spec.selector` is empty or `all()` |
+| `BHK_AppliesTo` | GlobalNetworkPolicy → Node | A collected `HostEndpoint`'s labels satisfy `spec.selector`, resolved via the HostEndpoint's `spec.node` |
+
+**Note:** there is no `AllNodes`-aggregate shortcut for the `all()` case — a `GlobalNetworkPolicy` only affects nodes that actually have a Calico `HostEndpoint` object, so an edge is only ever created per matching `HostEndpoint`, never to `BHK_AllNodes`.
 
 ---
 

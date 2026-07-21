@@ -15,9 +15,6 @@ import (
 
 // CertificateInfo represents parsed certificate metadata
 
-const stripManagedFieldsEnabled = true
-const omitHelmReleaseSecrets = true
-
 var commonSensitiveKeys = []string{
 	"tls.key", "ca.key", "key.pem", "private.key", "server.key", "client.key",
 	"tls-key", "ca-key", "private-key", "server-key", "client-key",
@@ -340,7 +337,7 @@ func applyCollectionHelpers(obj map[string]any, resourcePlural string, redacted 
 	if obj == nil {
 		return obj
 	}
-	if resourcePlural == "secrets" && omitHelmReleaseSecrets && isHelmReleaseSecret(obj) {
+	if resourcePlural == "secrets" && isHelmReleaseSecret(obj) {
 		return nil
 	}
 
@@ -360,9 +357,6 @@ func applyCollectionHelpers(obj map[string]any, resourcePlural string, redacted 
 }
 
 func stripManagedFields(obj map[string]any) {
-	if !stripManagedFieldsEnabled {
-		return
-	}
 	metadata, ok := obj["metadata"].(map[string]any)
 	if !ok || metadata == nil {
 		return

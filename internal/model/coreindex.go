@@ -1,7 +1,9 @@
 package model
 
 import (
+	"bloodhound-kube/internal/nodes/addons/certmanager"
 	"bloodhound-kube/internal/nodes/addons/externalsecrets"
+	"bloodhound-kube/internal/nodes/addons/istio"
 	"bloodhound-kube/internal/nodes/addons/scc"
 	"bloodhound-kube/internal/nodes/networking"
 	"bloodhound-kube/internal/nodes/platform"
@@ -14,6 +16,7 @@ type EdgeIndex struct {
 	ClusterRolesByName           map[string]*rbac.ClusterRole
 	ClusterRoleBindingsByName    map[string]*rbac.ClusterRoleBinding
 	ClusterSecretStoresByName    map[string]*externalsecrets.ClusterSecretStore
+	ClusterIssuersByName         map[string]*certmanager.ClusterIssuer
 	SecurityContextConstraintsBy map[string]*scc.SecurityContextConstraints
 	UsersByName                  map[string]*rbac.User
 	GroupsByName                 map[string]*rbac.Group
@@ -27,6 +30,8 @@ type EdgeIndex struct {
 	RolesByNamespace           map[string]map[string]*rbac.Role
 	RoleBindingsByNamespace    map[string]map[string]*rbac.RoleBinding
 	SecretStoresByNamespace    map[string]map[string]*externalsecrets.SecretStore
+	IssuersByNamespace         map[string]map[string]*certmanager.Issuer
+	IstioGatewaysByNamespace   map[string]map[string]*istio.IstioGateway
 }
 
 func NewEdgeIndex(core *CoreFacts) EdgeIndex {
@@ -35,6 +40,7 @@ func NewEdgeIndex(core *CoreFacts) EdgeIndex {
 		ClusterRolesByName:           map[string]*rbac.ClusterRole{},
 		ClusterRoleBindingsByName:    map[string]*rbac.ClusterRoleBinding{},
 		ClusterSecretStoresByName:    map[string]*externalsecrets.ClusterSecretStore{},
+		ClusterIssuersByName:         map[string]*certmanager.ClusterIssuer{},
 		SecurityContextConstraintsBy: map[string]*scc.SecurityContextConstraints{},
 		UsersByName:                  map[string]*rbac.User{},
 		GroupsByName:                 map[string]*rbac.Group{},
@@ -46,6 +52,8 @@ func NewEdgeIndex(core *CoreFacts) EdgeIndex {
 		RolesByNamespace:             map[string]map[string]*rbac.Role{},
 		RoleBindingsByNamespace:      map[string]map[string]*rbac.RoleBinding{},
 		SecretStoresByNamespace:      map[string]map[string]*externalsecrets.SecretStore{},
+		IssuersByNamespace:           map[string]map[string]*certmanager.Issuer{},
+		IstioGatewaysByNamespace:     map[string]map[string]*istio.IstioGateway{},
 	}
 
 	if core == nil {
@@ -74,6 +82,12 @@ func NewEdgeIndex(core *CoreFacts) EdgeIndex {
 		store := &core.Cluster.ClusterSecretStores[i]
 		if store.Name != "" {
 			index.ClusterSecretStoresByName[store.Name] = store
+		}
+	}
+	for i := range core.Cluster.ClusterIssuers {
+		issuer := &core.Cluster.ClusterIssuers[i]
+		if issuer.Name != "" {
+			index.ClusterIssuersByName[issuer.Name] = issuer
 		}
 	}
 	for i := range core.Cluster.SecurityContextConstraints {
@@ -110,6 +124,8 @@ func NewEdgeIndex(core *CoreFacts) EdgeIndex {
 		index.RolesByNamespace[ns] = indexByName(space.Roles)
 		index.RoleBindingsByNamespace[ns] = indexByName(space.RoleBindings)
 		index.SecretStoresByNamespace[ns] = indexByName(space.SecretStores)
+		index.IssuersByNamespace[ns] = indexByName(space.Issuers)
+		index.IstioGatewaysByNamespace[ns] = indexByName(space.IstioGateways)
 	}
 
 	return index

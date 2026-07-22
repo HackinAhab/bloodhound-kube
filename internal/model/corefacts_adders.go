@@ -2,8 +2,10 @@ package model
 
 import (
 	"bloodhound-kube/internal/nodes/addons/calico"
+	"bloodhound-kube/internal/nodes/addons/certmanager"
 	"bloodhound-kube/internal/nodes/addons/cilium"
 	"bloodhound-kube/internal/nodes/addons/externalsecrets"
+	"bloodhound-kube/internal/nodes/addons/istio"
 	"bloodhound-kube/internal/nodes/addons/scc"
 	"bloodhound-kube/internal/nodes/mounts"
 	"bloodhound-kube/internal/nodes/networking"
@@ -30,6 +32,9 @@ func init() {
 	})
 	registerClusterFactAdder(func(c *CoreFacts, v externalsecrets.ClusterSecretStore) {
 		c.Cluster.ClusterSecretStores = append(c.Cluster.ClusterSecretStores, v)
+	})
+	registerClusterFactAdder(func(c *CoreFacts, v certmanager.ClusterIssuer) {
+		c.Cluster.ClusterIssuers = append(c.Cluster.ClusterIssuers, v)
 	})
 	registerClusterFactAdder(func(c *CoreFacts, v scc.SecurityContextConstraints) {
 		c.Cluster.SecurityContextConstraints = append(c.Cluster.SecurityContextConstraints, v)
@@ -104,6 +109,18 @@ func init() {
 		ns.ExternalSecrets = append(ns.ExternalSecrets, v)
 	})
 	registerNamespacedFactAdder(func(ns *Namespace, v externalsecrets.SecretStore) { ns.SecretStores = append(ns.SecretStores, v) })
+	registerNamespacedFactAdder(func(ns *Namespace, v certmanager.Certificate) { ns.Certificates = append(ns.Certificates, v) })
+	registerNamespacedFactAdder(func(ns *Namespace, v certmanager.Issuer) { ns.Issuers = append(ns.Issuers, v) })
+	registerNamespacedFactAdder(func(ns *Namespace, v istio.IstioGateway) { ns.IstioGateways = append(ns.IstioGateways, v) })
+	registerNamespacedFactAdder(func(ns *Namespace, v istio.VirtualService) {
+		ns.VirtualServices = append(ns.VirtualServices, v)
+	})
+	registerNamespacedFactAdder(func(ns *Namespace, v istio.PeerAuthentication) {
+		ns.PeerAuthentications = append(ns.PeerAuthentications, v)
+	})
+	registerNamespacedFactAdder(func(ns *Namespace, v istio.AuthorizationPolicy) {
+		ns.AuthorizationPolicies = append(ns.AuthorizationPolicies, v)
+	})
 
 	// Per-namespace aggregate adders. The same struct types are also registered
 	// as cluster adders above; CoreFacts.Add selects the map via entry.Cluster

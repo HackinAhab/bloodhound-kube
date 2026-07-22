@@ -1,4 +1,4 @@
-//go:build all_addons || cilium
+//go:build !no_addons && !no_cilium
 
 package cilium
 

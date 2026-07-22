@@ -12,21 +12,22 @@ import (
 )
 
 type UploadRequest struct {
-	SchemaFile           string
-	QueriesFile         string
-	UploadFile          string
-	BaseURL             string
-	TokenID             string
-	TokenKey            string
-	Insecure            bool
-	TimeoutSeconds      int
-	Reset               bool
-	ResetDB             bool
-	HasSchemaFlag        bool
-	HasQueriesFlag      bool
-	HasUploadFlag       bool
-	UseEmbeddedConfigs  bool
-	ClusterName         string
+	SchemaFile                string
+	QueriesFile               string
+	UploadFile                string
+	BaseURL                   string
+	TokenID                   string
+	TokenKey                  string
+	Insecure                  bool
+	TimeoutSeconds            int
+	Reset                     bool
+	ResetDB                   bool
+	HasSchemaFlag             bool
+	HasQueriesFlag            bool
+	HasUploadFlag             bool
+	UseEmbeddedConfigs        bool
+	ClusterName               string
+	EnableOpenGraphExtensions bool
 }
 
 type UploadService struct{}
@@ -35,8 +36,8 @@ func (s UploadService) Run(req UploadRequest, log *utils.Logger) error {
 	if req.TokenID == "" || req.TokenKey == "" {
 		return fmt.Errorf("token ID and token key are required")
 	}
-	if !req.HasSchemaFlag && !req.HasQueriesFlag && !req.Reset && !req.HasUploadFlag && !req.UseEmbeddedConfigs {
-		return fmt.Errorf("provide --schema-file, --queries-file, --upload-file, --configs, or --reset")
+	if !req.HasSchemaFlag && !req.HasQueriesFlag && !req.Reset && !req.HasUploadFlag && !req.UseEmbeddedConfigs && !req.EnableOpenGraphExtensions {
+		return fmt.Errorf("provide --schema-file, --queries-file, --upload-file, --configs, --enable-extension, or --reset")
 	}
 
 	if req.UseEmbeddedConfigs {
@@ -70,6 +71,18 @@ func (s UploadService) Run(req UploadRequest, log *utils.Logger) error {
 			return fmt.Errorf("failed to reset database: %w", err)
 		}
 		fmt.Println("Database reset successfully.")
+	}
+
+	if req.EnableOpenGraphExtensions {
+		toggled, err := client.EnableOpenGraphExtensions(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to enable opengraph extension management: %w", err)
+		}
+		if toggled {
+			fmt.Println("OpenGraph extension management enabled.")
+		} else {
+			fmt.Println("OpenGraph extension management already enabled.")
+		}
 	}
 
 	if req.Reset && !req.HasSchemaFlag && !req.HasQueriesFlag && !req.ResetDB && !req.HasUploadFlag {

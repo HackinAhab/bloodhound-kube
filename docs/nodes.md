@@ -70,6 +70,13 @@ Nodes are organized by domain. Each domain has its own subdirectory under `inter
 | `BHK_CiliumNetworkPolicy` | `addons/cilium_network_policy.go` | namespace | `cilium.io/v2`; unstructured, full spec fetch |
 | `BHK_GlobalNetworkPolicy` | `addons/calico_global_network_policy.go` | cluster | `crd.projectcalico.org/v1`; unstructured, full spec fetch |
 | _(no node — `HostEndpoint`)_ | `addons/calico_host_endpoint.go` | cluster | `crd.projectcalico.org/v1`; parsed into `CoreFacts` only, to resolve `BHK_GlobalNetworkPolicy` edges to `BHK_Node` — never rendered as a graph node (see "CoreEntry and CoreFacts" below) |
+| `BHK_Certificate` | `addons/certmanager/cert_manager.go` | namespace | `cert-manager.io/v1`; unstructured, kind-name dispatch |
+| `BHK_Issuer` | `addons/certmanager/cert_manager.go` | namespace | `cert-manager.io/v1`; CA/Vault secret refs only (ACME/SelfSigned not parsed) |
+| `BHK_ClusterIssuer` | `addons/certmanager/cert_manager.go` | cluster | `cert-manager.io/v1`; CA/Vault secret refs only |
+| `BHK_IstioGateway` | `addons/istio/istio.go` | namespace | `networking.istio.io/v1` Gateway; named to avoid collision with Gateway API's `BHK_Gateway` |
+| `BHK_VirtualService` | `addons/istio/istio.go` | namespace | `networking.istio.io/v1` |
+| `BHK_PeerAuthentication` | `addons/istio/istio.go` | namespace | `security.istio.io/v1`; `PERMISSIVE` mode flagged in properties |
+| `BHK_AuthorizationPolicy` | `addons/istio/istio.go` | namespace | `security.istio.io/v1`; allow-all (`ALLOW` with no rules) flagged in properties |
 
 ---
 
@@ -287,4 +294,4 @@ The following are not currently implemented:
 
 - `ListenerSet` / `ListenerSetGroup` (Gateway API extension)
 - OpenShift `BHK_SecurityContextConstraint` node (builder exists in `addons/security_context_constraints.go` but is not yet registered)
-- Istio resources (stub file exists but is not implemented)
+- Istio `DestinationRule`, `ServiceEntry`, `Sidecar`, `WorkloadEntry`, `RequestAuthentication`, `EnvoyFilter` (Gateway, VirtualService, PeerAuthentication, and AuthorizationPolicy are implemented; see the addons table above)

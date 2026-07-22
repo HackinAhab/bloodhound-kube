@@ -4,7 +4,7 @@ import . "bloodhound-kube/internal/nodes/framework"
 
 // external-secrets type structs live here (untagged) because internal/model
 // embeds them in CoreFacts. The parse/build logic is gated in
-// external_secrets.go (//go:build all_addons || external_secrets).
+// external_secrets.go (//go:build !no_addons && !no_external_secrets).
 
 type SecretStore struct {
 	GraphNodeBase

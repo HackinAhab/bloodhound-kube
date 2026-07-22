@@ -1,4 +1,4 @@
-//go:build !all_addons && !external_secrets
+//go:build no_addons || no_external_secrets
 
 package externalsecrets
 

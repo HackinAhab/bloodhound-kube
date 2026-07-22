@@ -2,8 +2,10 @@ package model
 
 import (
 	"bloodhound-kube/internal/nodes/addons/calico"
+	"bloodhound-kube/internal/nodes/addons/certmanager"
 	"bloodhound-kube/internal/nodes/addons/cilium"
 	"bloodhound-kube/internal/nodes/addons/externalsecrets"
+	"bloodhound-kube/internal/nodes/addons/istio"
 	"bloodhound-kube/internal/nodes/addons/scc"
 	"bloodhound-kube/internal/nodes/mounts"
 	"bloodhound-kube/internal/nodes/networking"
@@ -36,6 +38,12 @@ type Namespace struct {
 	RoleBindings           []rbac.RoleBinding
 	ExternalSecrets        []externalsecrets.ExternalSecret
 	SecretStores           []externalsecrets.SecretStore
+	Certificates           []certmanager.Certificate
+	Issuers                []certmanager.Issuer
+	IstioGateways          []istio.IstioGateway
+	VirtualServices        []istio.VirtualService
+	PeerAuthentications    []istio.PeerAuthentication
+	AuthorizationPolicies  []istio.AuthorizationPolicy
 	AllPods                []platform.AllPods
 	AllSecrets             []platform.AllSecrets
 	AllConfigMaps          []platform.AllConfigMaps
@@ -57,6 +65,7 @@ type Cluster struct {
 	Groups                     []rbac.Group
 	PersistentVolumes          []mounts.PersistentVolume
 	ClusterSecretStores        []externalsecrets.ClusterSecretStore
+	ClusterIssuers             []certmanager.ClusterIssuer
 	SecurityContextConstraints []scc.SecurityContextConstraints
 	GlobalNetworkPolicies      []calico.GlobalNetworkPolicy
 	HostEndpoints              []calico.HostEndpoint

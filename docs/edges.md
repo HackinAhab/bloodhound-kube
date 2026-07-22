@@ -469,8 +469,6 @@ Maps the ExternalSecrets Operator graph: ExternalSecret objects pull secrets fro
 | `BHK_ManagedBy` | ExternalSecret → ClusterSecretStore | ExternalSecret's `storeRef.kind` is `BHK_ClusterSecretStore` and the name matches |
 | `BHK_ManagedBy` | Secret → ExternalSecret | Secret name matches ExternalSecret's `target.name` (or the ExternalSecret's own name as fallback) |
 
-> **Note:** `cert_manager.go` and `istio.go` are present but currently empty stubs.
-
 ---
 
 ### `ciliumnetworkpolicy` — Cilium CiliumNetworkPolicy Application
@@ -498,6 +496,40 @@ A `GlobalNetworkPolicy` selector governs **both** endpoint types Calico supports
 | `BHK_AppliesTo` | GlobalNetworkPolicy → Node | A collected `HostEndpoint`'s labels satisfy `spec.selector`, resolved via the HostEndpoint's `spec.node` |
 
 **Note:** there is no `AllNodes`-aggregate shortcut for the `all()` case — a `GlobalNetworkPolicy` only affects nodes that actually have a Calico `HostEndpoint` object, so an edge is only ever created per matching `HostEndpoint`, never to `BHK_AllNodes`.
+
+---
+
+### `cert_manager` — cert-manager Certificate Issuance
+**File:** `certmanager/cert_manager.go`
+
+Maps the cert-manager escalation graph: a `Certificate` requests a TLS keypair be issued into a Secret by an `Issuer`/`ClusterIssuer`, and CA/Vault issuers themselves hold a standing secret (signing key or auth credential) whose compromise lets an attacker forge arbitrary certificates trusted by that issuer. ACME and SelfSigned issuers have no equivalent standing secret and are not parsed.
+
+| Edge | Source → Target | Trigger |
+|------|----------------|---------|
+| `BHK_ManagedBy` | Certificate → Secret | Certificate's `spec.secretName` matches a Secret in the same namespace (the issued keypair) |
+| `BHK_ManagedBy` | Certificate → Issuer | Certificate's `spec.issuerRef.kind` is `Issuer` (default) and `name` matches an Issuer in the same namespace |
+| `BHK_ManagedBy` | Certificate → ClusterIssuer | Certificate's `spec.issuerRef.kind` is `ClusterIssuer` and `name` matches |
+| `BHK_ManagedBy` | Issuer/ClusterIssuer → Secret | Issuer's `spec.ca.secretName` (CA signing key) or `spec.vault.auth.*.secretRef.name` (Vault auth credential) matches a Secret — **this is the escalation edge** |
+
+`ClusterIssuer` secret refs have no namespace on the object itself; the rule resolves the referenced secret name against every namespace's secrets (same tradeoff `external_secrets` makes for `ClusterSecretStore` lookups).
+
+---
+
+### `istio` — Istio Traffic and Identity Policy
+**File:** `istio/istio.go`
+
+Covers the Istio surface with the most direct attack-path relevance: Gateway TLS termination, VirtualService routing, mTLS enforcement, and authorization. `DestinationRule`, `ServiceEntry`, `Sidecar`, `WorkloadEntry`, `RequestAuthentication`, and `EnvoyFilter` are not modeled.
+
+| Edge | Source → Target | Trigger |
+|------|----------------|---------|
+| `BHK_ManagedBy` | IstioGateway → Secret | Gateway listener's `servers[].tls.credentialName` matches a Secret in the same namespace as the Gateway |
+| `BHK_AppliesTo` | VirtualService → IstioGateway | VirtualService's `spec.gateways` entry (bare name or `namespace/name`; `mesh` is skipped) resolves to a Gateway |
+| `BHK_RoutesTo` | VirtualService → Service | A route rule's `destination.host` resolves to a Service (bare name, `name.namespace`, or FQDN form) |
+| `BHK_AppliesTo` | PeerAuthentication → Pod | Pod labels satisfy `spec.selector.matchLabels`; empty selector applies to the namespace's `AllPods` aggregate. Edge carries an `mtlsMode` property (`PERMISSIVE` indicates mTLS bypass is allowed) |
+| `BHK_AppliesTo` | AuthorizationPolicy → Pod | Pod labels satisfy `spec.selector.matchLabels`; empty selector applies to the namespace's `AllPods` aggregate. Edge carries an `action` property |
+| `BHK_AppliesTo` | AuthorizationPolicy → ServiceAccount | A `rules[].from[].source.principals` SPIFFE string (`cluster.local/ns/<namespace>/sa/<name>`) resolves to a ServiceAccount |
+
+An `AuthorizationPolicy` with `action: ALLOW` and no `rules` is an allow-all policy; this is flagged via the node's `allowAll` property rather than a distinct edge kind.
 
 ---
 

@@ -213,6 +213,12 @@ BloodHound API access uses HMAC credentials via token ID + token key created in 
 bloodhound-kube upload --schema-file config/schema.json --queries-file config/custom_queries.json --token-id $BLOODHOUND_TOKEN_ID --token-key $BLOODHOUND_TOKEN_KEY
 ```
 
+#### Enabling OpenGraph Extension Management
+```bash
+bloodhound-kube upload --enable-extension --token-id $BLOODHOUND_TOKEN_ID --token-key $BLOODHOUND_TOKEN_KEY
+```
+This enables the `opengraph_extension_management` feature flag on the BloodHound server (looked up by key, not ID, since flag IDs are not stable across instances). It is a no-op if the flag is already enabled.
+
 #### Embedded Build Usage
 When using a binary built with `-tags embedded`:
 

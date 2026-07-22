@@ -1,4 +1,4 @@
-//go:build all_addons
+//go:build !no_addons && !no_calico
 
 package calico
 

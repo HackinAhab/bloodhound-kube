@@ -389,6 +389,78 @@
       "is_display_kind": true,
       "icon": "box-archive",
       "color": "#F97316"
+    },
+    {
+      "name": "BHK_CiliumNetworkPolicy",
+      "display_name": "Cilium Network Policy",
+      "description": "Cilium CiliumNetworkPolicy controlling pod-level network traffic rules at Layer 3/4/7.",
+      "is_display_kind": true,
+      "icon": "shield-halved",
+      "color": "#0EA5E9"
+    },
+    {
+      "name": "BHK_GlobalNetworkPolicy",
+      "display_name": "Global Network Policy",
+      "description": "Calico GlobalNetworkPolicy controlling cluster-wide network traffic rules.",
+      "is_display_kind": true,
+      "icon": "shield-halved",
+      "color": "#F97300"
+    },
+    {
+      "name": "BHK_Certificate",
+      "display_name": "Certificate",
+      "description": "cert-manager Certificate requesting a TLS keypair be issued into a Secret.",
+      "is_display_kind": true,
+      "icon": "file-certificate",
+      "color": "#0D9488"
+    },
+    {
+      "name": "BHK_Issuer",
+      "display_name": "Issuer",
+      "description": "cert-manager Issuer defining a namespaced certificate signing authority.",
+      "is_display_kind": true,
+      "icon": "stamp",
+      "color": "#0F766E"
+    },
+    {
+      "name": "BHK_ClusterIssuer",
+      "display_name": "Cluster Issuer",
+      "description": "cert-manager ClusterIssuer defining a cluster-wide certificate signing authority.",
+      "is_display_kind": true,
+      "icon": "stamp",
+      "color": "#115E59"
+    },
+    {
+      "name": "BHK_IstioGateway",
+      "display_name": "Istio Gateway",
+      "description": "Istio Gateway (networking.istio.io) describing a mesh-managed load balancer's exposed ports and TLS termination.",
+      "is_display_kind": true,
+      "icon": "door-open",
+      "color": "#4338CA"
+    },
+    {
+      "name": "BHK_VirtualService",
+      "display_name": "Virtual Service",
+      "description": "Istio VirtualService defining traffic routing rules to destination Services.",
+      "is_display_kind": true,
+      "icon": "route",
+      "color": "#4F46E5"
+    },
+    {
+      "name": "BHK_PeerAuthentication",
+      "display_name": "Peer Authentication",
+      "description": "Istio PeerAuthentication configuring mTLS requirements for workloads; PERMISSIVE mode allows plaintext traffic.",
+      "is_display_kind": true,
+      "icon": "user-lock",
+      "color": "#6D28D9"
+    },
+    {
+      "name": "BHK_AuthorizationPolicy",
+      "display_name": "Authorization Policy",
+      "description": "Istio AuthorizationPolicy controlling which principals may access selected workloads; an ALLOW action with no rules permits all traffic.",
+      "is_display_kind": true,
+      "icon": "user-shield",
+      "color": "#7C3AED"
     }
   ],
   "relationship_kinds": [

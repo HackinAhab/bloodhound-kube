@@ -5,7 +5,7 @@ import . "bloodhound-kube/internal/nodes/framework"
 // Calico type structs live here (untagged) because internal/model embeds them in
 // CoreFacts, and Go cannot conditionally compile struct fields. The parse/build
 // logic that populates them is gated in global_network_policy.go and
-// host_endpoint.go (//go:build all_addons || calico).
+// host_endpoint.go (//go:build !no_addons && !no_calico).
 
 type GlobalNetworkPolicy struct {
 	GraphNodeBase

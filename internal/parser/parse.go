@@ -118,9 +118,23 @@ func createNodesAndCoreFactsFromReader(reader io.Reader, parseUndefinedNodes boo
 		return nil, nil, 0, errors.New("parse JSONL failed")
 	}
 
+	log := utils.DefaultLogger().Component("parser")
+
 	nodeList := []model.BloodHoundNode{}
 	coreFacts := model.NewCoreFacts()
 	parsedResources := 0
+
+	// Typed-wins dedup: a resource served under multiple API groups (e.g.
+	// Calico's crd.projectcalico.org/v1 and projectcalico.org/v3) resolves to
+	// the same canonical node ID. Track the winning node per ID and its
+	// index in nodeList so a later typed result can replace an earlier generic
+	// one. GenericNode CoreEntries are inert (no edge rule consumes them), so a
+	// superseded generic's already-added Core fact is harmless (see plan A).
+	type seenNode struct {
+		index   int
+		generic bool
+	}
+	seen := map[string]seenNode{}
 
 	err := utils.ReadJSONL(reader, func(line int, raw []byte) error {
 		decoded, err := utils.DecodeJSON(raw)
@@ -128,7 +142,7 @@ func createNodesAndCoreFactsFromReader(reader io.Reader, parseUndefinedNodes boo
 			return fmt.Errorf("parse JSONL resource %d: %w", line, err)
 		}
 
-		result, ok, err := buildNodeFromDecoded(decoded, parseUndefinedNodes)
+		result, ok, generic, err := buildNodeFromDecoded(decoded, parseUndefinedNodes)
 		if err != nil {
 			return fmt.Errorf("build resource %d: %w", line, err)
 		}
@@ -136,15 +150,43 @@ func createNodesAndCoreFactsFromReader(reader io.Reader, parseUndefinedNodes boo
 			return nil
 		}
 
-		parsedResources++
+		id := result.Node.ID
+		if id != "" {
+			if prev, dup := seen[id]; dup {
+				kind := firstKind(result.Node.Kinds)
+				if prev.generic && !generic {
+					// Typed result supersedes an earlier generic node: replace
+					// the node entry in place and add the typed Core facts.
+					nodeList[prev.index] = model.BloodHoundNode{
+						ID:         result.Node.ID,
+						Kinds:      result.Node.Kinds,
+						Properties: result.Node.Properties,
+					}
+					seen[id] = seenNode{index: prev.index, generic: false}
+					for _, entry := range result.Core {
+						coreFacts.Add(entry)
+					}
+					parsedResources++
+					log.Debug("Replaced generic node with typed builder result", "id", id, "kind", kind)
+					return nil
+				}
+				reason := "duplicate-generic"
+				if !prev.generic {
+					reason = "already-typed"
+				}
+				log.Debug("Skipped duplicate node", "id", id, "kind", kind, "reason", reason)
+				return nil
+			}
 
-		if result.Node.ID != "" {
+			seen[id] = seenNode{index: len(nodeList), generic: generic}
 			nodeList = append(nodeList, model.BloodHoundNode{
 				ID:         result.Node.ID,
 				Kinds:      result.Node.Kinds,
 				Properties: result.Node.Properties,
 			})
 		}
+
+		parsedResources++
 
 		for _, entry := range result.Core {
 			coreFacts.Add(entry)
@@ -250,14 +292,14 @@ func appendBuildResult(nodeList *[]model.BloodHoundNode, coreFacts *model.CoreFa
 	}
 }
 
-func buildNodeFromDecoded(decoded utils.DecodedResource, parseUndefinedNodes bool) (nodes.BuildResult, bool, error) {
+func buildNodeFromDecoded(decoded utils.DecodedResource, parseUndefinedNodes bool) (nodes.BuildResult, bool, bool, error) {
 	if decoded.Object != nil {
 		if result, ok := nodes.BuildTyped(decoded.GVK, decoded.Object); ok {
-			return result, true, nil
+			return result, true, false, nil
 		}
 		resource, err := utils.ToMap(decoded.Object)
 		if err != nil {
-			return nodes.BuildResult{}, false, err
+			return nodes.BuildResult{}, false, false, err
 		}
 		return buildNodeFromMap(resource, parseUndefinedNodes)
 	}
@@ -266,12 +308,15 @@ func buildNodeFromDecoded(decoded utils.DecodedResource, parseUndefinedNodes boo
 		return buildNodeFromMap(decoded.Raw, parseUndefinedNodes)
 	}
 
-	return nodes.BuildResult{}, false, nil
+	return nodes.BuildResult{}, false, false, nil
 }
 
-func buildNodeFromMap(resource map[string]any, parseUndefinedNodes bool) (nodes.BuildResult, bool, error) {
+// buildNodeFromMap returns (result, ok, generic, err). generic is true only
+// when the result came from BuildGenericNode (i.e. no typed builder matched),
+// so the caller can apply typed-wins dedup.
+func buildNodeFromMap(resource map[string]any, parseUndefinedNodes bool) (nodes.BuildResult, bool, bool, error) {
 	if resource == nil {
-		return nodes.BuildResult{}, false, nil
+		return nodes.BuildResult{}, false, false, nil
 	}
 	result, ok := nodes.Build(resource)
 	if !ok {
@@ -279,10 +324,21 @@ func buildNodeFromMap(resource map[string]any, parseUndefinedNodes bool) (nodes.
 			result, ok = nodes.BuildTypedFromMap(gvk, resource)
 		}
 	}
-	if !ok && parseUndefinedNodes {
-		result, ok = platform.BuildGenericNode(resource)
+	if ok {
+		return result, true, false, nil
 	}
-	return result, ok, nil
+	if parseUndefinedNodes {
+		result, ok = platform.BuildGenericNode(resource)
+		return result, ok, ok, nil
+	}
+	return nodes.BuildResult{}, false, false, nil
+}
+
+func firstKind(kinds []string) string {
+	if len(kinds) == 0 {
+		return ""
+	}
+	return kinds[0]
 }
 
 func gvkFromMap(resource map[string]any) (schema.GroupVersionKind, bool) {

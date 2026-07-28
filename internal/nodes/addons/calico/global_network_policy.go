@@ -13,8 +13,16 @@ import (
 )
 
 func Register() {
+	// Calico serves these under two API groups: the internal storage CRD
+	// (crd.projectcalico.org/v1) and its canonical aggregated apiserver
+	// (projectcalico.org/v3). The spec field paths the builders read are
+	// identical across both, so both GVKs map to the same builder. A cluster
+	// may expose either or both; parser-level typed-wins dedup collapses the
+	// two representations (identical node IDs — IDs omit the group) into one.
 	RegisterTypedFromMapWithFetchMode(schema.GroupVersionKind{Group: "crd.projectcalico.org", Version: "v1", Kind: "GlobalNetworkPolicy"}, BuildGlobalNetworkPolicyMapNode, FetchModeHintFull)
 	RegisterTypedFromMapWithFetchMode(schema.GroupVersionKind{Group: "crd.projectcalico.org", Version: "v1", Kind: "HostEndpoint"}, BuildHostEndpointMapNode, FetchModeHintFull)
+	RegisterTypedFromMapWithFetchMode(schema.GroupVersionKind{Group: "projectcalico.org", Version: "v3", Kind: "GlobalNetworkPolicy"}, BuildGlobalNetworkPolicyMapNode, FetchModeHintFull)
+	RegisterTypedFromMapWithFetchMode(schema.GroupVersionKind{Group: "projectcalico.org", Version: "v3", Kind: "HostEndpoint"}, BuildHostEndpointMapNode, FetchModeHintFull)
 }
 
 func BuildGlobalNetworkPolicyMapNode(resource map[string]any) (BuildResult, bool) {

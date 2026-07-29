@@ -102,7 +102,7 @@ func TestPodHostMountReadCheck(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			gotPath, gotOK := podHostMountReadCheck(tc.pod)
+			gotPath, gotOK := HostMountReadEdgeRule.check(tc.pod)
 			if gotPath != tc.wantPath || gotOK != tc.wantOK {
 				t.Fatalf("got (%q,%v) want (%q,%v)", gotPath, gotOK, tc.wantPath, tc.wantOK)
 			}
@@ -155,7 +155,7 @@ func TestPodHostMountKubeletCheck(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			gotPath, gotOK := podHostMountKubeletCheck(tc.pod)
+			gotPath, gotOK := HostMountKubeletEdgeRule.check(tc.pod)
 			if gotPath != tc.wantPath || gotOK != tc.wantOK {
 				t.Fatalf("got (%q,%v) want (%q,%v)", gotPath, gotOK, tc.wantPath, tc.wantOK)
 			}

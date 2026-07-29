@@ -9,19 +9,20 @@ import (
 )
 
 var (
-	uploadSchemaFile   string
-	uploadQueriesFile string
-	uploadUploadFile  string
-	uploadBaseURL     string
-	uploadTokenID     string
-	uploadTokenKey    string
-	uploadInsecure    bool
-	uploadTimeout     int
-	uploadLogLevel    string
-	uploadReset       bool
-	uploadResetDB     bool
-	uploadCluster     string
-	uploadConfigs     bool
+	uploadSchemaFile         string
+	uploadQueriesFile        string
+	uploadUploadFile         string
+	uploadBaseURL            string
+	uploadTokenID            string
+	uploadTokenKey           string
+	uploadInsecure           bool
+	uploadTimeout            int
+	uploadLogLevel           string
+	uploadReset              bool
+	uploadResetDB            bool
+	uploadCluster            string
+	uploadConfigs            bool
+	uploadEnableOpengraphExt bool
 )
 
 var uploadCmd = &cobra.Command{
@@ -40,7 +41,10 @@ Examples:
   bloodhound-kube upload --configs --token-id $BLOODHOUND_TOKEN_ID --token-key $BLOODHOUND_TOKEN_KEY
 
   # Upload data only (no config changes)
-  bloodhound-kube upload --upload-file data.json --token-id $BLOODHOUND_TOKEN_ID --token-key $BLOODHOUND_TOKEN_KEY`,
+  bloodhound-kube upload --upload-file data.json --token-id $BLOODHOUND_TOKEN_ID --token-key $BLOODHOUND_TOKEN_KEY
+
+  # Enable OpenGraph extension management
+  bloodhound-kube upload --enable-extension --token-id $BLOODHOUND_TOKEN_ID --token-key $BLOODHOUND_TOKEN_KEY`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		effectiveLogLevel := uploadLogLevel
 		if !cmd.Flags().Changed("log") && globalLogLevel != "" {
@@ -59,21 +63,22 @@ Examples:
 		hasQueriesFlag := cmd.Flags().Changed("queries-file")
 		hasUpload := cmd.Flags().Changed("upload-file")
 		return cli.UploadService{}.Run(cli.UploadRequest{
-			SchemaFile:          uploadSchemaFile,
-			QueriesFile:        uploadQueriesFile,
-			UploadFile:         uploadUploadFile,
-			BaseURL:            uploadBaseURL,
-			TokenID:            uploadTokenID,
-			TokenKey:           uploadTokenKey,
-			Insecure:           uploadInsecure,
-			TimeoutSeconds:     uploadTimeout,
-			Reset:              uploadReset,
-			ResetDB:            uploadResetDB,
-			HasSchemaFlag:       hasSchemaFlag,
-			HasQueriesFlag:     hasQueriesFlag,
-			HasUploadFlag:      hasUpload,
-			UseEmbeddedConfigs: uploadConfigs,
-			ClusterName:        uploadCluster,
+			SchemaFile:                uploadSchemaFile,
+			QueriesFile:               uploadQueriesFile,
+			UploadFile:                uploadUploadFile,
+			BaseURL:                   uploadBaseURL,
+			TokenID:                   uploadTokenID,
+			TokenKey:                  uploadTokenKey,
+			Insecure:                  uploadInsecure,
+			TimeoutSeconds:            uploadTimeout,
+			Reset:                     uploadReset,
+			ResetDB:                   uploadResetDB,
+			HasSchemaFlag:             hasSchemaFlag,
+			HasQueriesFlag:            hasQueriesFlag,
+			HasUploadFlag:             hasUpload,
+			UseEmbeddedConfigs:        uploadConfigs,
+			ClusterName:               uploadCluster,
+			EnableOpenGraphExtensions: uploadEnableOpengraphExt,
 		}, log)
 	},
 }
@@ -92,6 +97,7 @@ func init() {
 	uploadCmd.Flags().BoolVar(&uploadResetDB, "reset-db", false, "Reset the entire database before uploading")
 	uploadCmd.Flags().StringVar(&uploadCluster, "cluster", "default", "Cluster name to substitute in saved query filters")
 	uploadCmd.Flags().BoolVar(&uploadConfigs, "configs", false, "Upload embedded queries and schema (embedded build only; shorthand for --queries-file='' --schema-file='')")
+	uploadCmd.Flags().BoolVar(&uploadEnableOpengraphExt, "enable-extension", false, "Enable the OpenGraph Extension Management feature flag on the BloodHound server")
 
 	rootCmd.AddCommand(uploadCmd)
 }

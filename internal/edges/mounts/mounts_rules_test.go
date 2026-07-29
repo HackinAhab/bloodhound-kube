@@ -70,7 +70,7 @@ func TestHostMountReadEdgeRuleSensitivePath(t *testing.T) {
 	)
 
 	ctx := framework.NewContext(core)
-	edges := HostMountReadEdgeRule{}.Apply(ctx)
+	edges := HostMountReadEdgeRule.Apply(ctx)
 	if !hasEdge(edges, nodefw.BuildID("BHK_Pod", "ns1", "my-pod"), nodefw.BuildID("BHK_Node", "", "node-1"), "BHK_hostMountSensitive") {
 		t.Fatalf("missing hostMountSensitive edge from pod to node")
 	}
@@ -96,7 +96,7 @@ func TestHostMountReadEdgeRulePodWithoutNode(t *testing.T) {
 	})
 
 	ctx := framework.NewContext(core)
-	edges := HostMountReadEdgeRule{}.Apply(ctx)
+	edges := HostMountReadEdgeRule.Apply(ctx)
 	if len(edges) != 0 {
 		t.Fatalf("expected no edges for pod without node, got %d", len(edges))
 	}
@@ -129,7 +129,7 @@ func TestHostMountReadEdgeRuleNonSensitivePath(t *testing.T) {
 	)
 
 	ctx := framework.NewContext(core)
-	edges := HostMountReadEdgeRule{}.Apply(ctx)
+	edges := HostMountReadEdgeRule.Apply(ctx)
 	if len(edges) != 0 {
 		t.Fatalf("expected no edges for non-sensitive path, got %d", len(edges))
 	}
@@ -164,7 +164,7 @@ func TestHostMountReadEdgeRuleSkipsSocketPath(t *testing.T) {
 	)
 
 	ctx := framework.NewContext(core)
-	edges := HostMountReadEdgeRule{}.Apply(ctx)
+	edges := HostMountReadEdgeRule.Apply(ctx)
 	if len(edges) != 0 {
 		t.Fatalf("expected no hostMountSensitive edges for socket path, got %d", len(edges))
 	}
@@ -201,7 +201,7 @@ func TestHostMountKubeletEdgeRuleKubeletPath(t *testing.T) {
 	)
 
 	ctx := framework.NewContext(core)
-	edges := HostMountKubeletEdgeRule{}.Apply(ctx)
+	edges := HostMountKubeletEdgeRule.Apply(ctx)
 	if !hasEdge(edges, nodefw.BuildID("BHK_Pod", "ns1", "my-pod"), nodefw.BuildID("BHK_Node", "", "node-1"), "BHK_mountedKubelet") {
 		t.Fatalf("missing mountedKubelet edge from pod to node")
 	}
@@ -227,7 +227,7 @@ func TestHostMountKubeletEdgeRulePodWithoutNode(t *testing.T) {
 	})
 
 	ctx := framework.NewContext(core)
-	edges := HostMountKubeletEdgeRule{}.Apply(ctx)
+	edges := HostMountKubeletEdgeRule.Apply(ctx)
 	if len(edges) != 0 {
 		t.Fatalf("expected no edges for pod without node, got %d", len(edges))
 	}

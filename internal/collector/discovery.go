@@ -25,7 +25,7 @@ type DiscoveryResource struct {
 	IsCRD        bool
 }
 
-func DiscoverResources(ctx context.Context, clients *utils.Clients, log utils.Logger) ([]DiscoveryResource, error) {
+func DiscoverResources(ctx context.Context, clients *utils.Clients, log *utils.Logger) ([]DiscoveryResource, error) {
 	discoveryClient := clients.Kubernetes.Discovery()
 	resourceLists, err := discoveryClient.ServerPreferredResources()
 	if err != nil {

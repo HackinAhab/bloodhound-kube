@@ -9,27 +9,17 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-type Logger interface {
-	Trace(msg string, kv ...any)
-	Debug(msg string, kv ...any)
-	Info(msg string, kv ...any)
-	Warn(msg string, kv ...any)
-	Error(msg string, kv ...any)
-	With(kv ...any) Logger
-	Component(name string) Logger
-}
-
-type logWrapper struct {
+type Logger struct {
 	entry *logrus.Entry
 }
 
-var defaultLogger Logger = New("info", false)
+var defaultLogger *Logger = New("info", false)
 
-func New(level string, noColor bool) Logger {
+func New(level string, noColor bool) *Logger {
 	return NewWithOutput(level, noColor, os.Stderr)
 }
 
-func NewWithOutput(level string, noColor bool, output io.Writer) Logger {
+func NewWithOutput(level string, noColor bool, output io.Writer) *Logger {
 	logger := logrus.New()
 
 	parsedLevel, err := logrus.ParseLevel(strings.ToLower(level))
@@ -48,40 +38,40 @@ func NewWithOutput(level string, noColor bool, output io.Writer) Logger {
 		TimestampFormat: "2006-01-02 15:04:05",
 	})
 
-	return &logWrapper{entry: logrus.NewEntry(logger)}
+	return &Logger{entry: logrus.NewEntry(logger)}
 }
 
-func DefaultLogger() Logger {
+func DefaultLogger() *Logger {
 	return defaultLogger
 }
 
-func SetDefaultLogger(logger Logger) {
+func SetDefaultLogger(logger *Logger) {
 	if logger != nil {
 		defaultLogger = logger
 	}
 }
 
-func (l *logWrapper) Debug(msg string, kv ...any) {
+func (l *Logger) Debug(msg string, kv ...any) {
 	l.logWith(logrus.DebugLevel, msg, kv...)
 }
 
-func (l *logWrapper) Trace(msg string, kv ...any) {
+func (l *Logger) Trace(msg string, kv ...any) {
 	l.logWith(logrus.TraceLevel, msg, kv...)
 }
 
-func (l *logWrapper) Info(msg string, kv ...any) {
+func (l *Logger) Info(msg string, kv ...any) {
 	l.logWith(logrus.InfoLevel, msg, kv...)
 }
 
-func (l *logWrapper) Warn(msg string, kv ...any) {
+func (l *Logger) Warn(msg string, kv ...any) {
 	l.logWith(logrus.WarnLevel, msg, kv...)
 }
 
-func (l *logWrapper) Error(msg string, kv ...any) {
+func (l *Logger) Error(msg string, kv ...any) {
 	l.logWith(logrus.ErrorLevel, msg, kv...)
 }
 
-func (l *logWrapper) With(kv ...any) Logger {
+func (l *Logger) With(kv ...any) *Logger {
 	entry := l.entry
 	fields, errField := parseFields(kv...)
 	if len(fields) > 0 {
@@ -91,14 +81,14 @@ func (l *logWrapper) With(kv ...any) Logger {
 		entry = entry.WithError(errField)
 	}
 
-	return &logWrapper{entry: entry}
+	return &Logger{entry: entry}
 }
 
-func (l *logWrapper) Component(name string) Logger {
+func (l *Logger) Component(name string) *Logger {
 	return l.With("component", name)
 }
 
-func (l *logWrapper) logWith(level logrus.Level, msg string, kv ...any) {
+func (l *Logger) logWith(level logrus.Level, msg string, kv ...any) {
 	entry := l.entry
 	fields, errField := parseFields(kv...)
 	if len(fields) > 0 {

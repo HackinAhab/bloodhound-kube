@@ -10,12 +10,12 @@ import (
 
 type Collector struct {
 	clients       *utils.Clients
-	logger        utils.Logger
+	logger        *utils.Logger
 	redacted      bool
 	paginateLimit int
 }
 
-func New(cfg utils.ClientConfig, log utils.Logger) (*Collector, error) {
+func New(cfg utils.ClientConfig, log *utils.Logger) (*Collector, error) {
 	clients, err := utils.NewClient(cfg)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create kubernetes clients: %w", err)

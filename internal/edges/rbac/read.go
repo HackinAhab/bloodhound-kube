@@ -1,232 +1,33 @@
 package rbac
 
 import (
-	"bloodhound-kube/internal/edges/framework"
 	"bloodhound-kube/internal/model"
+	"bloodhound-kube/internal/nodes/platform"
+	"bloodhound-kube/internal/nodes/workload"
 )
 
-type rbacReadSecretsEdgesRule struct{}
-
-func (r rbacReadSecretsEdgesRule) Name() string { return "rbac_read_secrets" }
-
-var edgePropertiesRBACReadSecrets = map[string]any{
-	"Description": "Identity has RBAC permissions to read secrets.",
+var rbacReadSecretsEdgesRule = simpleAccessRule[workload.Secret, platform.AllSecrets]{
+	name:         "rbac_read_secrets",
+	resourceKeys: []string{"secrets"},
+	verbs:        []string{"get", "list", "watch"},
+	edgeKind:     "BHK_ReadSecret",
+	props: map[string]any{
+		"Description": "Identity has RBAC permissions to read secrets.",
+	},
+	namespacedTargets: func(space *model.Namespace) []workload.Secret { return space.Secrets },
+	namespacedAll:     func(space *model.Namespace) []platform.AllSecrets { return space.AllSecrets },
+	clusterAll:        func(c *model.Cluster) []platform.AllSecrets { return c.AllSecrets },
 }
 
-func (r rbacReadSecretsEdgesRule) Apply(ctx *framework.Context) []model.BloodHoundEdge {
-	if ctx == nil || ctx.Core == nil {
-		return nil
-	}
-	var edges []model.BloodHoundEdge
-	for ns, space := range ctx.Core.Namespaces {
-		if space == nil {
-			continue
-		}
-		edges = append(edges, saReadSecretNamespaced(ctx, ns, space)...)
-	}
-	edges = append(edges, saReadSecretCluster(ctx)...)
-	return edges
-}
-
-func saReadSecretNamespaced(ctx *framework.Context, namespace string, space *model.Namespace) []model.BloodHoundEdge {
-	if ctx == nil || space == nil {
-		return nil
-	}
-	resourceKeys := []string{"secrets"}
-	verbs := []string{"get", "list", "watch"}
-
-	roleBindings := ctx.Index.RoleBindingsByNamespace[namespace]
-	var edges []model.BloodHoundEdge
-	for _, binding := range roleBindings {
-		perms := permsForBinding(ctx, namespace, binding.RoleKind, binding.RoleName)
-		if len(perms) == 0 {
-			continue
-		}
-		all, names := accessForResource(perms, resourceKeys, verbs)
-		if !all && len(names) == 0 {
-			continue
-		}
-		for _, subject := range binding.Subjects {
-			principal := resolveNamespacedSubject(ctx, namespace, binding.Namespace, subject)
-			if principal == nil {
-				continue
-			}
-			if all {
-				if len(space.AllSecrets) > 0 {
-					agg := &space.AllSecrets[0]
-					edges = append(edges, framework.CreateEdgeWithProperties(principal, agg, "BHK_ReadSecret", edgePropertiesRBACReadSecrets))
-				}
-				continue
-			}
-			// Named-only path: emit edges to specifically-named secrets only.
-			for i := range space.Secrets {
-				secret := &space.Secrets[i]
-				if _, ok := names[secret.Name]; ok {
-					edges = append(edges, framework.CreateEdgeWithProperties(principal, secret, "BHK_ReadSecret", edgePropertiesRBACReadSecrets))
-				}
-			}
-		}
-	}
-	return edges
-}
-
-func saReadSecretCluster(ctx *framework.Context) []model.BloodHoundEdge {
-	if ctx == nil || ctx.Core == nil {
-		return nil
-	}
-	resourceKeys := []string{"secrets"}
-	verbs := []string{"get", "list", "watch"}
-
-	var edges []model.BloodHoundEdge
-	for _, binding := range ctx.Index.ClusterRoleBindingsByName {
-		if binding.RoleKind != "ClusterRole" {
-			continue
-		}
-		clusterRole := ctx.Index.ClusterRolesByName[binding.RoleName]
-		if clusterRole == nil {
-			continue
-		}
-		all, names := accessForResource(clusterRole.PermsDisplay, resourceKeys, verbs)
-		if !all && len(names) == 0 {
-			continue
-		}
-		for _, subject := range binding.Subjects {
-			principal := resolveClusterSubject(ctx, subject)
-			if principal == nil {
-				continue
-			}
-			if all {
-				if len(ctx.Core.Cluster.AllSecrets) > 0 {
-					agg := &ctx.Core.Cluster.AllSecrets[0]
-					edges = append(edges, framework.CreateEdgeWithProperties(principal, agg, "BHK_ReadSecret", edgePropertiesRBACReadSecrets))
-				}
-				continue
-			}
-			for _, space := range ctx.Core.Namespaces {
-				if space == nil {
-					continue
-				}
-				for i := range space.Secrets {
-					secret := &space.Secrets[i]
-					if _, ok := names[secret.Name]; ok {
-						edges = append(edges, framework.CreateEdgeWithProperties(principal, secret, "BHK_ReadSecret", edgePropertiesRBACReadSecrets))
-					}
-				}
-			}
-		}
-	}
-	return edges
-}
-
-type rbacReadConfigMapsEdgesRule struct{}
-
-func (r rbacReadConfigMapsEdgesRule) Name() string { return "rbac_read_configmaps" }
-
-var edgePropertiesRBACReadConfigMaps = map[string]any{
-	"Description": "Identity has RBAC permissions to read configmaps.",
-}
-
-func (r rbacReadConfigMapsEdgesRule) Apply(ctx *framework.Context) []model.BloodHoundEdge {
-	if ctx == nil || ctx.Core == nil {
-		return nil
-	}
-	var edges []model.BloodHoundEdge
-	for ns, space := range ctx.Core.Namespaces {
-		if space == nil {
-			continue
-		}
-		edges = append(edges, saReadConfigMapNamespaced(ctx, ns, space)...)
-	}
-	edges = append(edges, saReadConfigMapCluster(ctx)...)
-	return edges
-}
-
-func saReadConfigMapNamespaced(ctx *framework.Context, namespace string, space *model.Namespace) []model.BloodHoundEdge {
-	if ctx == nil || space == nil {
-		return nil
-	}
-	resourceKeys := []string{"configmaps"}
-	verbs := []string{"get", "list", "watch"}
-
-	roleBindings := ctx.Index.RoleBindingsByNamespace[namespace]
-	var edges []model.BloodHoundEdge
-	for _, binding := range roleBindings {
-		perms := permsForBinding(ctx, namespace, binding.RoleKind, binding.RoleName)
-		if len(perms) == 0 {
-			continue
-		}
-		all, names := accessForResource(perms, resourceKeys, verbs)
-		if !all && len(names) == 0 {
-			continue
-		}
-		for _, subject := range binding.Subjects {
-			principal := resolveNamespacedSubject(ctx, namespace, binding.Namespace, subject)
-			if principal == nil {
-				continue
-			}
-			if all {
-				if len(space.AllConfigMaps) > 0 {
-					agg := &space.AllConfigMaps[0]
-					edges = append(edges, framework.CreateEdgeWithProperties(principal, agg, "BHK_ReadConfigMap", edgePropertiesRBACReadConfigMaps))
-				}
-				continue
-			}
-			// Named-only path: emit edges to specifically-named configmaps only.
-			for i := range space.ConfigMaps {
-				configMap := &space.ConfigMaps[i]
-				if _, ok := names[configMap.Name]; ok {
-					edges = append(edges, framework.CreateEdgeWithProperties(principal, configMap, "BHK_ReadConfigMap", edgePropertiesRBACReadConfigMaps))
-				}
-			}
-		}
-	}
-	return edges
-}
-
-func saReadConfigMapCluster(ctx *framework.Context) []model.BloodHoundEdge {
-	if ctx == nil || ctx.Core == nil {
-		return nil
-	}
-	resourceKeys := []string{"configmaps"}
-	verbs := []string{"get", "list", "watch"}
-
-	var edges []model.BloodHoundEdge
-	for _, binding := range ctx.Index.ClusterRoleBindingsByName {
-		if binding.RoleKind != "ClusterRole" {
-			continue
-		}
-		clusterRole := ctx.Index.ClusterRolesByName[binding.RoleName]
-		if clusterRole == nil {
-			continue
-		}
-		all, names := accessForResource(clusterRole.PermsDisplay, resourceKeys, verbs)
-		if !all && len(names) == 0 {
-			continue
-		}
-		for _, subject := range binding.Subjects {
-			principal := resolveClusterSubject(ctx, subject)
-			if principal == nil {
-				continue
-			}
-			if all {
-				if len(ctx.Core.Cluster.AllConfigMaps) > 0 {
-					agg := &ctx.Core.Cluster.AllConfigMaps[0]
-					edges = append(edges, framework.CreateEdgeWithProperties(principal, agg, "BHK_ReadConfigMap", edgePropertiesRBACReadConfigMaps))
-				}
-				continue
-			}
-			for _, space := range ctx.Core.Namespaces {
-				if space == nil {
-					continue
-				}
-				for i := range space.ConfigMaps {
-					configMap := &space.ConfigMaps[i]
-					if _, ok := names[configMap.Name]; ok {
-						edges = append(edges, framework.CreateEdgeWithProperties(principal, configMap, "BHK_ReadConfigMap", edgePropertiesRBACReadConfigMaps))
-					}
-				}
-			}
-		}
-	}
-	return edges
+var rbacReadConfigMapsEdgesRule = simpleAccessRule[workload.ConfigMap, platform.AllConfigMaps]{
+	name:         "rbac_read_configmaps",
+	resourceKeys: []string{"configmaps"},
+	verbs:        []string{"get", "list", "watch"},
+	edgeKind:     "BHK_ReadConfigMap",
+	props: map[string]any{
+		"Description": "Identity has RBAC permissions to read configmaps.",
+	},
+	namespacedTargets: func(space *model.Namespace) []workload.ConfigMap { return space.ConfigMaps },
+	namespacedAll:     func(space *model.Namespace) []platform.AllConfigMaps { return space.AllConfigMaps },
+	clusterAll:        func(c *model.Cluster) []platform.AllConfigMaps { return c.AllConfigMaps },
 }

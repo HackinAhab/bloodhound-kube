@@ -5,8 +5,8 @@ import (
 
 	"bloodhound-kube/internal/edges/framework"
 	"bloodhound-kube/internal/model"
+	"bloodhound-kube/internal/nodes/addons/scc"
 	nodefw "bloodhound-kube/internal/nodes/framework"
-	addonsnodes "bloodhound-kube/internal/nodes/addons"
 	"bloodhound-kube/internal/nodes/platform"
 	"bloodhound-kube/internal/nodes/workload"
 )
@@ -322,7 +322,7 @@ func TestSCCEdgesRuleEnforcedSCC(t *testing.T) {
 		),
 	})
 	core.Cluster.SecurityContextConstraints = append(core.Cluster.SecurityContextConstraints,
-		addonsnodes.SecurityContextConstraints{
+		scc.SecurityContextConstraints{
 			GraphNodeBase: nodefw.GraphNodeBase{
 				ID:    nodefw.BuildID("BHK_SecurityContextConstraints", "", "restricted"),
 				Kinds: []string{"BHK_SecurityContextConstraints"},
@@ -349,7 +349,7 @@ func TestSCCEdgesRuleNoAnnotationSkipped(t *testing.T) {
 		GraphNodeBase: base("BHK_Pod", "ns1", "unannotated-pod"),
 	})
 	core.Cluster.SecurityContextConstraints = append(core.Cluster.SecurityContextConstraints,
-		addonsnodes.SecurityContextConstraints{
+		scc.SecurityContextConstraints{
 			GraphNodeBase: nodefw.GraphNodeBase{
 				ID:    nodefw.BuildID("BHK_SecurityContextConstraints", "", "restricted"),
 				Kinds: []string{"BHK_SecurityContextConstraints"},

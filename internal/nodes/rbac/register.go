@@ -7,10 +7,10 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 )
 
-func Register(reg *framework.Registry) {
-	reg.RegisterTyped(rbacv1.SchemeGroupVersion.WithKind("Role"), BuildRoleNode)
-	reg.RegisterTyped(rbacv1.SchemeGroupVersion.WithKind("RoleBinding"), BuildRoleBindingNode)
-	reg.RegisterTyped(rbacv1.SchemeGroupVersion.WithKind("ClusterRole"), BuildClusterRoleNode)
-	reg.RegisterTyped(rbacv1.SchemeGroupVersion.WithKind("ClusterRoleBinding"), BuildClusterRoleBindingNode)
-	reg.RegisterTyped(corev1.SchemeGroupVersion.WithKind("ServiceAccount"), BuildServiceAccountNode)
+func Register() {
+	framework.RegisterTyped(rbacv1.SchemeGroupVersion.WithKind("Role"), BuildRoleNode)
+	framework.RegisterTyped(rbacv1.SchemeGroupVersion.WithKind("RoleBinding"), BuildRoleBindingNode)
+	framework.RegisterTyped(rbacv1.SchemeGroupVersion.WithKind("ClusterRole"), BuildClusterRoleNode)
+	framework.RegisterTyped(rbacv1.SchemeGroupVersion.WithKind("ClusterRoleBinding"), BuildClusterRoleBindingNode)
+	framework.RegisterTyped(corev1.SchemeGroupVersion.WithKind("ServiceAccount"), BuildServiceAccountNode)
 }

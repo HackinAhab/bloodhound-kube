@@ -83,7 +83,7 @@
         {
             "name": "Full Identity Attack Paths",
             "description": "Variable-length paths from Users or Groups to critical targets.",
-            "query": "MATCH p=(src)-[*1..6]->(target)\nWHERE src.cluster = '{{.Cluster}}' AND (src:BHK_User OR src:BHK_Group) AND (target:BHK_Pod OR target:BHK_Secret OR target:BHK_Node)\nRETURN p\nLIMIT 500"
+            "query": "MATCH p=(s)-[*1..6]->(t)\nWHERE src.cluster = '{{.Cluster}}' AND (s:BHK_User OR s:BHK_Group) AND (t:BHK_Pod OR t:BHK_Secret OR t:BHK_Node)\nRETURN p\nLIMIT 500"
         }
     ]
 }

@@ -20,8 +20,8 @@ func (c *Client) UploadExtension(ctx context.Context, modelFile string) error {
 		return fmt.Errorf("read model file %s: %w", modelFile, err)
 	}
 
-	if err := validateJSON(data); err != nil {
-		return fmt.Errorf("invalid JSON in %s: %w", modelFile, err)
+	if !json.Valid(data) {
+		return fmt.Errorf("invalid JSON in %s", modelFile)
 	}
 
 	resp, err := c.doRequest(ctx, http.MethodPut, c.extensionsURL(), "upload extension", bytes.NewReader(data), http.StatusOK, http.StatusCreated)

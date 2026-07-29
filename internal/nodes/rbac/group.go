@@ -7,19 +7,9 @@ type Group struct {
 }
 
 func BuildGroupNode(name string) (fw.BuildResult, bool) {
-	if name == "" {
+	base, properties, ok := buildIdentityBase("BHK_Group", name)
+	if !ok {
 		return fw.BuildResult{}, false
-	}
-
-	base := fw.GraphNodeBase{
-		ID:        fw.BuildID("BHK_Group", "", name),
-		Kinds:     []string{"BHK_Group", "BHK_Identity"},
-		Name:      name,
-		Namespace: "",
-	}
-
-	properties := map[string]any{
-		"name": name,
 	}
 
 	core := fw.CoreEntry{

@@ -7,8 +7,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
-func Register(reg *framework.Registry) {
-	reg.Register("Namespace", BuildNamespaceNode)
-	reg.RegisterTypedFromMapWithFetchMode(corev1.SchemeGroupVersion.WithKind("Namespace"), BuildNamespaceNode, framework.FetchModeHintMetadata)
-	reg.RegisterTypedWithFetchMode(schema.GroupVersion{Group: "", Version: "v1"}.WithKind("Node"), BuildNodeNode, framework.FetchModeHintMetadata)
+func Register() {
+	framework.RegisterKind("Namespace", BuildNamespaceNode)
+	framework.RegisterTypedFromMapWithFetchMode(corev1.SchemeGroupVersion.WithKind("Namespace"), BuildNamespaceNode, framework.FetchModeHintMetadata)
+	framework.RegisterTypedWithFetchMode(schema.GroupVersion{Group: "", Version: "v1"}.WithKind("Node"), BuildNodeNode, framework.FetchModeHintMetadata)
 }

@@ -15,7 +15,7 @@ var (
 	globalLogFile  string
 )
 
-func buildLogger(level string, includeFile bool) (utils.Logger, func(), error) {
+func buildLogger(level string, includeFile bool) (*utils.Logger, func(), error) {
 	var file *os.File
 	output := io.Writer(os.Stderr)
 	if includeFile && globalLogFile != "" {

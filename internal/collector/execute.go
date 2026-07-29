@@ -30,7 +30,7 @@ type CollectionResult struct {
 	Error     error
 }
 
-func RunCollectionWithCheckpoint(ctx context.Context, c *Collector, w *utils.AsyncWriter, targets []CollectionTarget, namespacesToCollect []string, filename string, concurrency int, log utils.Logger, existingCheckpoint *Checkpoint, checkpointFile string) (time.Duration, map[string]int, int, []error) {
+func RunCollectionWithCheckpoint(ctx context.Context, c *Collector, w *utils.AsyncWriter, targets []CollectionTarget, namespacesToCollect []string, filename string, concurrency int, log *utils.Logger, existingCheckpoint *Checkpoint, checkpointFile string) (time.Duration, map[string]int, int, []error) {
 	startTime := time.Now()
 	counts := make(map[string]int)
 	totalCollected := 0
@@ -182,7 +182,7 @@ func RunCollectionWithCheckpoint(ctx context.Context, c *Collector, w *utils.Asy
 	return time.Since(startTime), finalCounts, finalTotal, finalErrors
 }
 
-func checkpointWorker(ctx context.Context, c *Collector, jobs <-chan CollectionJob, results chan<- CollectionResult, log utils.Logger) {
+func checkpointWorker(ctx context.Context, c *Collector, jobs <-chan CollectionJob, results chan<- CollectionResult, log *utils.Logger) {
 	for job := range jobs {
 		select {
 		case <-ctx.Done():

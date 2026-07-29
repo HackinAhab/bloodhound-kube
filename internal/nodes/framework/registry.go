@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"path/filepath"
 	goruntime "runtime"
-	"slices"
 
 	"bloodhound-kube/internal/utils"
 
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
@@ -35,12 +35,6 @@ type TypedBuilder func(obj runtime.Object) (BuildResult, bool)
 
 type FetchModeHint string
 
-type Registry struct{}
-
-func NewRegistry() *Registry {
-	return &Registry{}
-}
-
 const (
 	FetchModeHintFull     FetchModeHint = "full"
 	FetchModeHintMetadata FetchModeHint = "metadata"
@@ -64,24 +58,12 @@ func RegisterKind(kind string, builder Builder) {
 	builderSources[kind] = source
 }
 
-func (r *Registry) Register(kind string, builder Builder) {
-	RegisterKind(kind, builder)
-}
-
 func RegisterTyped(gvk schema.GroupVersionKind, builder TypedBuilder) {
 	registerTypedWithMode(gvk, builder, "")
 }
 
-func (r *Registry) RegisterTyped(gvk schema.GroupVersionKind, builder TypedBuilder) {
-	RegisterTyped(gvk, builder)
-}
-
 func RegisterTypedWithFetchMode(gvk schema.GroupVersionKind, builder TypedBuilder, mode FetchModeHint) {
 	registerTypedWithMode(gvk, builder, mode)
-}
-
-func (r *Registry) RegisterTypedWithFetchMode(gvk schema.GroupVersionKind, builder TypedBuilder, mode FetchModeHint) {
-	RegisterTypedWithFetchMode(gvk, builder, mode)
 }
 
 func registerTypedWithMode(gvk schema.GroupVersionKind, builder TypedBuilder, mode FetchModeHint) {
@@ -114,25 +96,20 @@ func BuildTyped(gvk schema.GroupVersionKind, obj runtime.Object) (BuildResult, b
 	return BuildResult{}, false
 }
 
+func BuildTypedFromMap(gvk schema.GroupVersionKind, resource map[string]any) (BuildResult, bool) {
+	builder, ok := typedBuilders[GVKKey(gvk)]
+	if !ok {
+		return BuildResult{}, false
+	}
+	obj := &unstructured.Unstructured{Object: resource}
+	return builder(obj)
+}
+
 func GVKKey(gvk schema.GroupVersionKind) string {
 	if gvk.Group == "" {
 		return gvk.Version + "/" + gvk.Kind
 	}
 	return gvk.Group + "/" + gvk.Version + "/" + gvk.Kind
-}
-
-func RegisterTypedFromMap(gvk schema.GroupVersionKind, builder Builder) {
-	RegisterTypedWithFetchMode(gvk, func(obj runtime.Object) (BuildResult, bool) {
-		resource, err := runtime.DefaultUnstructuredConverter.ToUnstructured(obj)
-		if err != nil {
-			return BuildResult{}, false
-		}
-		return builder(resource)
-	}, "")
-}
-
-func (r *Registry) RegisterTypedFromMap(gvk schema.GroupVersionKind, builder Builder) {
-	RegisterTypedFromMap(gvk, builder)
 }
 
 func RegisterTypedFromMapWithFetchMode(gvk schema.GroupVersionKind, builder Builder, mode FetchModeHint) {
@@ -145,38 +122,13 @@ func RegisterTypedFromMapWithFetchMode(gvk schema.GroupVersionKind, builder Buil
 	}, mode)
 }
 
-func (r *Registry) RegisterTypedFromMapWithFetchMode(gvk schema.GroupVersionKind, builder Builder, mode FetchModeHint) {
-	RegisterTypedFromMapWithFetchMode(gvk, builder, mode)
-}
-
-func RegistrationConflictCount() int {
-	return registrationConflicts
-}
-
 func LogRegistrationSummary() {
 	registryLogger().Info("Node registration summary", "builders", len(builders), "typed_builders", len(typedBuilders), "conflicts", registrationConflicts)
-}
-
-func RegisteredKinds() []string {
-	return sortedKeys(builders)
-}
-
-func RegisteredTypedGVKs() []string {
-	return sortedKeys(typedBuilders)
 }
 
 func TypedFetchModeHint(gvk schema.GroupVersionKind) (FetchModeHint, bool) {
 	mode, ok := typedBuilderFetchModeHints[GVKKey(gvk)]
 	return mode, ok
-}
-
-func sortedKeys[T any](items map[string]T) []string {
-	keys := make([]string, 0, len(items))
-	for key := range items {
-		keys = append(keys, key)
-	}
-	slices.Sort(keys)
-	return keys
 }
 
 func callerSource(skip int) string {
@@ -192,6 +144,6 @@ func callerSource(skip int) string {
 	return fmt.Sprintf("%s:%d (%s)", filepath.Base(file), line, fnName)
 }
 
-func registryLogger() utils.Logger {
+func registryLogger() *utils.Logger {
 	return utils.DefaultLogger().Component("nodes.registry")
 }

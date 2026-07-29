@@ -2,6 +2,8 @@ package framework
 
 import (
 	"fmt"
+	"maps"
+	"slices"
 	"sort"
 	"strings"
 
@@ -126,6 +128,18 @@ func MapToSortedList(m map[string]any) []string {
 	return items
 }
 
+// StringSliceFromAny filters a []any down to its string elements. Shared by
+// addon builders (calico, cilium) that parse unstructured CRD specs.
+func StringSliceFromAny(items []any) []string {
+	result := make([]string, 0, len(items))
+	for _, item := range items {
+		if s, ok := item.(string); ok {
+			result = append(result, s)
+		}
+	}
+	return result
+}
+
 func StringMapToAnyMap(input map[string]string) map[string]any {
 	if len(input) == 0 {
 		return map[string]any{}
@@ -170,26 +184,13 @@ func Props(name, namespace string, labelsMap, annotationsMap map[string]any) map
 // MapKeysSorted returns sorted keys for a map.
 // Example: MapKeysSorted(map[string]any{"b": 2, "a": 1}) -> []string{"a", "b"}.
 func MapKeysSorted(m map[string]any) []string {
-	keys := make([]string, 0, len(m))
-	for k := range m {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-	return keys
+	return slices.Sorted(maps.Keys(m))
 }
 
 // SortedSetKeys returns sorted keys from a set.
 // Example: SortedSetKeys(map[string]struct{}{"b": {}, "a": {}}) -> []string{"a", "b"}.
 func SortedSetKeys(set map[string]struct{}) []string {
-	if len(set) == 0 {
-		return []string{}
-	}
-	items := make([]string, 0, len(set))
-	for key := range set {
-		items = append(items, key)
-	}
-	sort.Strings(items)
-	return items
+	return slices.Sorted(maps.Keys(set))
 }
 
 // SeLinuxSummary formats an SELinux options map into a summary string.
@@ -246,7 +247,7 @@ func BuildRbacRulesDisplay(rules []RbacRule) []string {
 		} else {
 			prefix = rule.APIGroup + "/" + rule.Resource
 		}
-		verbStr := joinWithComma(rule.Verbs)
+		verbStr := strings.Join(rule.Verbs, ", ")
 		if len(rule.ResourceNames) == 0 {
 			entries = append(entries, prefix+": "+verbStr)
 		} else {
@@ -278,13 +279,6 @@ func BuildRbacRules(rules []rbacv1.PolicyRule) []RbacRule {
 		}
 	}
 	return parsedRules
-}
-
-func joinWithComma(items []string) string {
-	if len(items) == 0 {
-		return ""
-	}
-	return strings.Join(items, ", ")
 }
 
 func SummarizeRbacSubjects(subjects []rbacv1.Subject, defaultNamespace string) []string {

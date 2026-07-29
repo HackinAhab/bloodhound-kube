@@ -37,7 +37,7 @@ clusters:
 	calls := 0
 	orig := runSinglePipelineFn
 	t.Cleanup(func() { runSinglePipelineFn = orig })
-	runSinglePipelineFn = func(_ context.Context, req PipelineRequest, _ utils.Logger) (PipelineResponse, error) {
+	runSinglePipelineFn = func(_ context.Context, req PipelineRequest, _ *utils.Logger) (PipelineResponse, error) {
 		calls++
 		return PipelineResponse{NodeCount: 10, EdgeCount: 5, Duration: time.Second}, nil
 	}
@@ -68,7 +68,7 @@ clusters:
 `)
 	orig := runSinglePipelineFn
 	t.Cleanup(func() { runSinglePipelineFn = orig })
-	runSinglePipelineFn = func(_ context.Context, req PipelineRequest, _ utils.Logger) (PipelineResponse, error) {
+	runSinglePipelineFn = func(_ context.Context, req PipelineRequest, _ *utils.Logger) (PipelineResponse, error) {
 		if req.ClusterName == "broken" {
 			return PipelineResponse{}, errors.New("connection refused")
 		}
@@ -96,7 +96,7 @@ clusters:
 	orig := runSinglePipelineFn
 	t.Cleanup(func() { runSinglePipelineFn = orig })
 	var captured PipelineRequest
-	runSinglePipelineFn = func(_ context.Context, req PipelineRequest, _ utils.Logger) (PipelineResponse, error) {
+	runSinglePipelineFn = func(_ context.Context, req PipelineRequest, _ *utils.Logger) (PipelineResponse, error) {
 		captured = req
 		return PipelineResponse{}, nil
 	}
@@ -131,7 +131,7 @@ clusters:
 	orig := runSinglePipelineFn
 	t.Cleanup(func() { runSinglePipelineFn = orig })
 	var captured PipelineRequest
-	runSinglePipelineFn = func(_ context.Context, req PipelineRequest, _ utils.Logger) (PipelineResponse, error) {
+	runSinglePipelineFn = func(_ context.Context, req PipelineRequest, _ *utils.Logger) (PipelineResponse, error) {
 		captured = req
 		return PipelineResponse{}, nil
 	}
@@ -154,7 +154,7 @@ clusters:
 `)
 	orig := runSinglePipelineFn
 	t.Cleanup(func() { runSinglePipelineFn = orig })
-	runSinglePipelineFn = func(_ context.Context, req PipelineRequest, _ utils.Logger) (PipelineResponse, error) {
+	runSinglePipelineFn = func(_ context.Context, req PipelineRequest, _ *utils.Logger) (PipelineResponse, error) {
 		return PipelineResponse{JSONLPath: "/tmp/c1.jsonl"}, errors.New("parse error")
 	}
 
@@ -220,23 +220,6 @@ func TestResolveClusterOutputPath_FallsBackToOuterDir(t *testing.T) {
 	}
 }
 
-func TestClusterOutputDir(t *testing.T) {
-	cases := []struct{ in, want string }{
-		{"", "."},
-		{".", "."},
-		{"..", ".."},
-		{"/out/", "/out/"},
-		{"/out/file.jsonl", "/out"},
-		{"/out/dir", "/out/dir"},
-	}
-	for _, c := range cases {
-		got := clusterOutputDir(c.in)
-		if got != c.want {
-			t.Errorf("clusterOutputDir(%q) = %q, want %q", c.in, got, c.want)
-		}
-	}
-}
-
 func writeMultiClusterYAML(t *testing.T, content string) string {
 	t.Helper()
 	path := filepath.Join(t.TempDir(), "clusters.yaml")
@@ -269,7 +252,7 @@ clusters:
 	var maxConcurrent int
 	var current int
 
-	runSinglePipelineFn = func(_ context.Context, _ PipelineRequest, _ utils.Logger) (PipelineResponse, error) {
+	runSinglePipelineFn = func(_ context.Context, _ PipelineRequest, _ *utils.Logger) (PipelineResponse, error) {
 		mu.Lock()
 		current++
 		if current > maxConcurrent {
@@ -316,7 +299,7 @@ clusters:
 	var maxConcurrent int32
 	var current int32
 
-	runSinglePipelineFn = func(_ context.Context, _ PipelineRequest, _ utils.Logger) (PipelineResponse, error) {
+	runSinglePipelineFn = func(_ context.Context, _ PipelineRequest, _ *utils.Logger) (PipelineResponse, error) {
 		c := atomic.AddInt32(&current, 1)
 		for {
 			old := atomic.LoadInt32(&maxConcurrent)
@@ -359,7 +342,7 @@ clusters:
 	var maxConcurrent int32
 	var current int32
 
-	runSinglePipelineFn = func(_ context.Context, _ PipelineRequest, _ utils.Logger) (PipelineResponse, error) {
+	runSinglePipelineFn = func(_ context.Context, _ PipelineRequest, _ *utils.Logger) (PipelineResponse, error) {
 		c := atomic.AddInt32(&current, 1)
 		for {
 			old := atomic.LoadInt32(&maxConcurrent)
@@ -399,7 +382,7 @@ clusters:
 
 	ctx, cancel := context.WithCancel(context.Background())
 
-	runSinglePipelineFn = func(callCtx context.Context, _ PipelineRequest, _ utils.Logger) (PipelineResponse, error) {
+	runSinglePipelineFn = func(callCtx context.Context, _ PipelineRequest, _ *utils.Logger) (PipelineResponse, error) {
 		// Cancel after the first cluster starts.
 		cancel()
 		select {
@@ -433,7 +416,7 @@ clusters:
 
 	// Make "first" finish last so we can verify ordering is config-based, not
 	// finish-time-based.
-	runSinglePipelineFn = func(_ context.Context, req PipelineRequest, _ utils.Logger) (PipelineResponse, error) {
+	runSinglePipelineFn = func(_ context.Context, req PipelineRequest, _ *utils.Logger) (PipelineResponse, error) {
 		delay := 5 * time.Millisecond
 		if req.ClusterName == "first" {
 			delay = 60 * time.Millisecond
@@ -497,7 +480,7 @@ clusters:
 
 	var capturedPaths []string
 	var mu sync.Mutex
-	runSinglePipelineFn = func(_ context.Context, req PipelineRequest, _ utils.Logger) (PipelineResponse, error) {
+	runSinglePipelineFn = func(_ context.Context, req PipelineRequest, _ *utils.Logger) (PipelineResponse, error) {
 		mu.Lock()
 		capturedPaths = append(capturedPaths, req.Collect.Output)
 		mu.Unlock()

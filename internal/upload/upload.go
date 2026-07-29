@@ -74,8 +74,8 @@ func (c *Client) UploadOutput(ctx context.Context, outputFile string) error {
 		return fmt.Errorf("read collections file %s: %w", outputFile, err)
 	}
 
-	if err := validateJSON(data); err != nil {
-		return fmt.Errorf("invalid JSON in %s: %w", outputFile, err)
+	if !json.Valid(data) {
+		return fmt.Errorf("invalid JSON in %s", outputFile)
 	}
 
 	jobID, err := c.createUploadJob(ctx)

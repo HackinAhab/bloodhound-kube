@@ -1,25 +1,14 @@
-package addons
+//go:build !no_addons && !no_external_secrets
+
+package externalsecrets
 
 import . "bloodhound-kube/internal/nodes/framework"
 
-type SecretStore struct {
-	GraphNodeBase
-	ProviderType string
+func Register() {
+	RegisterKind("SecretStore", BuildSecretStoreNode)
+	RegisterKind("ClusterSecretStore", BuildClusterSecretStoreNode)
+	RegisterKind("ExternalSecret", BuildExternalSecretNode)
 }
-
-type ClusterSecretStore struct {
-	GraphNodeBase
-	ProviderType string
-}
-
-type ExternalSecret struct {
-	GraphNodeBase
-	StoreName  string
-	StoreKind  string
-	TargetName string
-}
-
-
 
 func BuildSecretStoreNode(resource map[string]any) (BuildResult, bool) {
 	metadata := GetMap(resource, "metadata")

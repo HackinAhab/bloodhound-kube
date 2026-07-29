@@ -7,68 +7,21 @@ import (
 	"strings"
 )
 
-// NamespaceMode defines how namespaces should be filtered
-type NamespaceMode string
-
 type FetchMode string
 
 const (
-	NamespaceModeAll     NamespaceMode = "all"     // Collect from all namespaces
-	NamespaceModeInclude NamespaceMode = "include" // Only collect from listed namespaces
-	NamespaceModeExclude NamespaceMode = "exclude" // Collect from all except listed namespaces
-
 	FetchModeFull     FetchMode = "full"
 	FetchModeMetadata FetchMode = "metadata"
 )
 
-// NamespaceFilter defines namespace filtering configuration
-type NamespaceFilter struct {
-	Mode NamespaceMode
-	List []string
-}
-
-// Validate checks if the namespace filter is valid
-func (nf *NamespaceFilter) Validate() error {
-	switch nf.Mode {
-	case NamespaceModeAll, NamespaceModeInclude, NamespaceModeExclude:
-		// Valid modes
-	case "":
-		nf.Mode = NamespaceModeAll // Default
-	default:
-		return fmt.Errorf("invalid namespace mode: %s (valid: all, include, exclude)", nf.Mode)
-	}
-
-	if (nf.Mode == NamespaceModeInclude || nf.Mode == NamespaceModeExclude) && len(nf.List) == 0 {
-		return fmt.Errorf("namespace list cannot be empty when mode is %s", nf.Mode)
-	}
-
-	return nil
-}
-
-// ShouldCollectNamespace checks if a namespace should be collected based on the filter
-func (nf *NamespaceFilter) ShouldCollectNamespace(namespace string) bool {
-	switch nf.Mode {
-	case NamespaceModeAll:
-		return true
-	case NamespaceModeInclude:
-		return slices.Contains(nf.List, namespace)
-	case NamespaceModeExclude:
-		return !slices.Contains(nf.List, namespace)
-	default:
-		return true
-	}
-}
-
 // CollectionsConfig represents the root configuration for resource collection
 type CollectionsConfig struct {
-	Namespaces  NamespaceFilter
 	Collections []ResourceCollection
 }
 
 // ResourceCollection defines how to collect a specific resource type
 type ResourceCollection struct {
 	Name              string
-	Nicknames         []string
 	ResourceType      string
 	Kind              string
 	ShortNames        []string
@@ -83,16 +36,10 @@ type ResourceCollection struct {
 	FetchMode         FetchMode
 	SupportedClusters []utils.ClusterType
 	Custom            bool // Flag for CRDs
-	RateLimit         int  // Per-resource rate limit
 }
 
 // Validate checks if the collections configuration is valid
 func (c *CollectionsConfig) Validate() error {
-	// Validate namespace filter
-	if err := c.Namespaces.Validate(); err != nil {
-		return fmt.Errorf("namespace filter validation failed: %w", err)
-	}
-
 	// Validate collections
 	if len(c.Collections) == 0 {
 		return fmt.Errorf("at least one collection must be defined")
@@ -118,14 +65,6 @@ func (c *CollectionsConfig) Validate() error {
 			return fmt.Errorf("duplicate resource type: %s (in collection: %s)", collection.ResourceType, collection.Name)
 		}
 		resourceTypes[collection.ResourceType] = true
-
-		// Check for duplicate nicknames
-		for _, nickname := range collection.Nicknames {
-			if names[nickname] {
-				return fmt.Errorf("duplicate nickname: %s (conflicts with collection: %s)", nickname, collection.Name)
-			}
-			names[nickname] = true
-		}
 	}
 
 	return nil
@@ -133,11 +72,6 @@ func (c *CollectionsConfig) Validate() error {
 
 // SetDefaults sets default values for the configuration
 func (c *CollectionsConfig) SetDefaults() {
-	// Set default namespace mode if not specified
-	if c.Namespaces.Mode == "" {
-		c.Namespaces.Mode = NamespaceModeAll
-	}
-
 	// Set defaults for each collection
 	for i := range c.Collections {
 		c.Collections[i].SetDefaults()
@@ -177,13 +111,6 @@ func (rc *ResourceCollection) Validate() error {
 		return fmt.Errorf("invalid resource_type format: %s (must be lowercase alphanumeric with underscores)", rc.ResourceType)
 	}
 
-	// Validate nicknames
-	for _, nickname := range rc.Nicknames {
-		if !isValidName(nickname) {
-			return fmt.Errorf("invalid nickname format: %s (must be lowercase alphanumeric with hyphens)", nickname)
-		}
-	}
-
 	// Validate supported clusters
 	if len(rc.SupportedClusters) == 0 {
 		return fmt.Errorf("at least one supported cluster type must be specified")
@@ -200,11 +127,6 @@ func (rc *ResourceCollection) Validate() error {
 		return fmt.Errorf("resource cannot be both namespaced and cluster_scoped")
 	}
 
-	// Validate rate limit
-	if rc.RateLimit < 0 {
-		return fmt.Errorf("rate_limit must be >= 0")
-	}
-
 	return nil
 }
 
@@ -213,11 +135,6 @@ func (rc *ResourceCollection) SetDefaults() {
 	// Default: enabled
 	// (We don't set this here because the zero value for bool is false,
 	// and we want to allow explicit false values. The loader should handle this.)
-
-	// Set default rate limit from global settings if not specified
-	if rc.RateLimit == 0 {
-		rc.RateLimit = 10 // Default per-resource rate limit
-	}
 
 	if rc.FetchMode == "" {
 		rc.FetchMode = FetchModeFull
@@ -237,40 +154,6 @@ func (rc *ResourceCollection) SetDefaults() {
 		// Default to namespaced
 		rc.Namespaced = true
 	}
-}
-
-// GetByName returns a collection by name or nickname
-func (c *CollectionsConfig) GetByName(name string) *ResourceCollection {
-	for i := range c.Collections {
-		if c.Collections[i].Name == name {
-			return &c.Collections[i]
-		}
-		if slices.Contains(c.Collections[i].Nicknames, name) {
-			return &c.Collections[i]
-		}
-	}
-	return nil
-}
-
-// GetByResourceType returns a collection by resource type
-func (c *CollectionsConfig) GetByResourceType(resourceType string) *ResourceCollection {
-	for i := range c.Collections {
-		if c.Collections[i].ResourceType == resourceType {
-			return &c.Collections[i]
-		}
-	}
-	return nil
-}
-
-// GetEnabledCollections returns all enabled collections
-func (c *CollectionsConfig) GetEnabledCollections() []ResourceCollection {
-	var enabled []ResourceCollection
-	for _, collection := range c.Collections {
-		if collection.Enabled {
-			enabled = append(enabled, collection)
-		}
-	}
-	return enabled
 }
 
 // GetCollectionsForCluster returns collections supported by the given cluster type

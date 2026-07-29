@@ -1,7 +1,10 @@
 package model
 
 import (
-	"bloodhound-kube/internal/nodes/addons"
+	"bloodhound-kube/internal/nodes/addons/certmanager"
+	"bloodhound-kube/internal/nodes/addons/externalsecrets"
+	"bloodhound-kube/internal/nodes/addons/istio"
+	"bloodhound-kube/internal/nodes/addons/scc"
 	"bloodhound-kube/internal/nodes/networking"
 	"bloodhound-kube/internal/nodes/platform"
 	"bloodhound-kube/internal/nodes/rbac"
@@ -12,8 +15,9 @@ type EdgeIndex struct {
 	NodesByName                  map[string]*platform.Node
 	ClusterRolesByName           map[string]*rbac.ClusterRole
 	ClusterRoleBindingsByName    map[string]*rbac.ClusterRoleBinding
-	ClusterSecretStoresByName    map[string]*addons.ClusterSecretStore
-	SecurityContextConstraintsBy map[string]*addons.SecurityContextConstraints
+	ClusterSecretStoresByName    map[string]*externalsecrets.ClusterSecretStore
+	ClusterIssuersByName         map[string]*certmanager.ClusterIssuer
+	SecurityContextConstraintsBy map[string]*scc.SecurityContextConstraints
 	UsersByName                  map[string]*rbac.User
 	GroupsByName                 map[string]*rbac.Group
 	External                     *platform.External
@@ -23,14 +27,11 @@ type EdgeIndex struct {
 	SecretsByNamespace         map[string]map[string]*workload.Secret
 	ConfigMapsByNamespace      map[string]map[string]*workload.ConfigMap
 	ServicesByNamespace        map[string]map[string]*networking.Service
-	DeploymentsByNamespace     map[string]map[string]*workload.Deployment
-	DaemonSetsByNamespace      map[string]map[string]*workload.DaemonSetCore
-	StatefulSetsByNamespace    map[string]map[string]*workload.StatefulSetCore
-	JobsByNamespace            map[string]map[string]*workload.Job
-	CronJobsByNamespace        map[string]map[string]*workload.CronJob
 	RolesByNamespace           map[string]map[string]*rbac.Role
 	RoleBindingsByNamespace    map[string]map[string]*rbac.RoleBinding
-	SecretStoresByNamespace    map[string]map[string]*addons.SecretStore
+	SecretStoresByNamespace    map[string]map[string]*externalsecrets.SecretStore
+	IssuersByNamespace         map[string]map[string]*certmanager.Issuer
+	IstioGatewaysByNamespace   map[string]map[string]*istio.IstioGateway
 }
 
 func NewEdgeIndex(core *CoreFacts) EdgeIndex {
@@ -38,8 +39,9 @@ func NewEdgeIndex(core *CoreFacts) EdgeIndex {
 		NodesByName:                  map[string]*platform.Node{},
 		ClusterRolesByName:           map[string]*rbac.ClusterRole{},
 		ClusterRoleBindingsByName:    map[string]*rbac.ClusterRoleBinding{},
-		ClusterSecretStoresByName:    map[string]*addons.ClusterSecretStore{},
-		SecurityContextConstraintsBy: map[string]*addons.SecurityContextConstraints{},
+		ClusterSecretStoresByName:    map[string]*externalsecrets.ClusterSecretStore{},
+		ClusterIssuersByName:         map[string]*certmanager.ClusterIssuer{},
+		SecurityContextConstraintsBy: map[string]*scc.SecurityContextConstraints{},
 		UsersByName:                  map[string]*rbac.User{},
 		GroupsByName:                 map[string]*rbac.Group{},
 		PodsByNamespace:              map[string]map[string]*workload.Pod{},
@@ -47,14 +49,11 @@ func NewEdgeIndex(core *CoreFacts) EdgeIndex {
 		SecretsByNamespace:           map[string]map[string]*workload.Secret{},
 		ConfigMapsByNamespace:        map[string]map[string]*workload.ConfigMap{},
 		ServicesByNamespace:          map[string]map[string]*networking.Service{},
-		DeploymentsByNamespace:       map[string]map[string]*workload.Deployment{},
-		DaemonSetsByNamespace:        map[string]map[string]*workload.DaemonSetCore{},
-		StatefulSetsByNamespace:      map[string]map[string]*workload.StatefulSetCore{},
-		JobsByNamespace:              map[string]map[string]*workload.Job{},
-		CronJobsByNamespace:          map[string]map[string]*workload.CronJob{},
 		RolesByNamespace:             map[string]map[string]*rbac.Role{},
 		RoleBindingsByNamespace:      map[string]map[string]*rbac.RoleBinding{},
-		SecretStoresByNamespace:      map[string]map[string]*addons.SecretStore{},
+		SecretStoresByNamespace:      map[string]map[string]*externalsecrets.SecretStore{},
+		IssuersByNamespace:           map[string]map[string]*certmanager.Issuer{},
+		IstioGatewaysByNamespace:     map[string]map[string]*istio.IstioGateway{},
 	}
 
 	if core == nil {
@@ -83,6 +82,12 @@ func NewEdgeIndex(core *CoreFacts) EdgeIndex {
 		store := &core.Cluster.ClusterSecretStores[i]
 		if store.Name != "" {
 			index.ClusterSecretStoresByName[store.Name] = store
+		}
+	}
+	for i := range core.Cluster.ClusterIssuers {
+		issuer := &core.Cluster.ClusterIssuers[i]
+		if issuer.Name != "" {
+			index.ClusterIssuersByName[issuer.Name] = issuer
 		}
 	}
 	for i := range core.Cluster.SecurityContextConstraints {
@@ -116,14 +121,11 @@ func NewEdgeIndex(core *CoreFacts) EdgeIndex {
 		index.SecretsByNamespace[ns] = indexByName(space.Secrets)
 		index.ConfigMapsByNamespace[ns] = indexByName(space.ConfigMaps)
 		index.ServicesByNamespace[ns] = indexByName(space.Services)
-		index.DeploymentsByNamespace[ns] = indexByName(space.Deployments)
-		index.DaemonSetsByNamespace[ns] = indexByName(space.DaemonSets)
-		index.StatefulSetsByNamespace[ns] = indexByName(space.StatefulSets)
-		index.JobsByNamespace[ns] = indexByName(space.Jobs)
-		index.CronJobsByNamespace[ns] = indexByName(space.CronJobs)
 		index.RolesByNamespace[ns] = indexByName(space.Roles)
 		index.RoleBindingsByNamespace[ns] = indexByName(space.RoleBindings)
 		index.SecretStoresByNamespace[ns] = indexByName(space.SecretStores)
+		index.IssuersByNamespace[ns] = indexByName(space.Issuers)
+		index.IstioGatewaysByNamespace[ns] = indexByName(space.IstioGateways)
 	}
 
 	return index

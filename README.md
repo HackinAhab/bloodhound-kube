@@ -7,8 +7,6 @@ This tool was built to help visualize attack paths and relationships in Kubernet
 
 I'm not a software engineer, so this is a first pass at a tool to solve this problem, and there are very **many** improvements that could be made, but it works for now and I'm open to contributions. 
 
-As a disclaimer, I have used AI to help write/refactor chunks of the code and documentation, but I have reviewed and tested it to ensure it works as intended for most common use-cases.
-
 ## Example Graphs
 
 Paths to all pods:
@@ -245,16 +243,14 @@ Additionally, parsed collections can be uploaded directly to BloodHound with the
 In the latest versions of BloodHound, the custom types and queries can be uploaded directly through the UI, so this command is optional if you prefer to do it that way.
 
 ## Design choices
-Relationships are implemented as Go edge rules for clarity, performance, and easier extension. Rules are registered explicitly in `internal/edges/edge_registry.go` and grouped by domain under `internal/edges/*`. Node definitions remain in Go for the same reasons.
-
-Architecture reference: see `docs/architecture-v2.md` for collect/parse/edge execution flow and extension points.
+Relationships are implemented as Go for clarity, performance, and easier extension. Rules are registered explicitly in `internal/edges/edge_registry.go` and grouped by domain under `internal/edges/*`. Node definitions remain in Go for the same reasons. Originally I tried to reinvent the wheel with a rego parsing engine, but after that got horribly complex.
 
 The tool uses the Kubernetes API to discover resources present in the cluster. Collection scope is explicit: `core` (default curated set), `all` (all discovered resources), or `allowlist` (curated set plus file entries). CRD-backed resources still require confirmation unless `--accept-crds` is used.
 
-Data collected is output as a raw kubernetes resource dump in JSONL format, which *should* be easy to parse with `jq --slurp`.
+Data collected is output as a raw kubernetes resource dump in JSONL format, which *should* be easy to parse with `jq`.
 
 ## Future improvements
-- Add more commonly deployed CRDs to the edge rules to improve visibility in clusters using popular tools like ArgoCD, cert-manager, etc.
+- Add more commonly deployed CRDs to the nodes/edges to improve visibility in clusters using popular tools like ArgoCD, cert-manager, etc.
 - Add more queries to the BloodHound UI for common attack paths and misconfigurations.
 
 ## Acknowledgements
@@ -263,7 +259,6 @@ These projects were instrumental in inspiring and informing the development of B
 - [KubeHound](https://kubehound.io/) for their attack reference library and as a major inspiration for this project. 
 - [Trivy](https://trivy.dev/) which inspired some of the edge checks.
 - [BloodHound OpenGraph](https://bloodhound.specterops.io/opengraph/overview), which enabled the use of BloodHound for Kubernetes.
-- [ClusterHound](https://github.com/dovesec/ClusterHound) is another tool that does some of the same stuff as this one, and is alot less complicated. I found out about it's existence after the work for this project was complete, and I was waiting for approval to release. 
 
 ### People
 Credit to the people who listened to my rambling about this project and providing exceptional feedback, suggestions, and beta testing my first janky golang tool.

@@ -68,8 +68,8 @@ Nodes are organized by domain. Each domain has its own subdirectory under `inter
 | `BHK_ExternalSecret` | `addons/external_secrets.go` | namespace | external-secrets operator |
 | `BHK_SecurityContextConstraint` | `addons/security_context_constraints.go` | cluster | OpenShift only; builder implemented but not yet registered |
 | `BHK_CiliumNetworkPolicy` | `addons/cilium_network_policy.go` | namespace | `cilium.io/v2`; unstructured, full spec fetch |
-| `BHK_GlobalNetworkPolicy` | `addons/calico_global_network_policy.go` | cluster | `crd.projectcalico.org/v1`; unstructured, full spec fetch |
-| _(no node — `HostEndpoint`)_ | `addons/calico_host_endpoint.go` | cluster | `crd.projectcalico.org/v1`; parsed into `CoreFacts` only, to resolve `BHK_GlobalNetworkPolicy` edges to `BHK_Node` — never rendered as a graph node (see "CoreEntry and CoreFacts" below) |
+| `BHK_GlobalNetworkPolicy` | `addons/calico_global_network_policy.go` | cluster | `projectcalico.org/v3` (canonical) and `crd.projectcalico.org/v1` (internal CRD); both groups map to the same builder, deduped by node ID at parse time; unstructured, full spec fetch |
+| _(no node — `HostEndpoint`)_ | `addons/calico_host_endpoint.go` | cluster | `projectcalico.org/v3` and `crd.projectcalico.org/v1`; parsed into `CoreFacts` only, to resolve `BHK_GlobalNetworkPolicy` edges to `BHK_Node` — never rendered as a graph node (see "CoreEntry and CoreFacts" below) |
 | `BHK_Certificate` | `addons/certmanager/cert_manager.go` | namespace | `cert-manager.io/v1`; unstructured, kind-name dispatch |
 | `BHK_Issuer` | `addons/certmanager/cert_manager.go` | namespace | `cert-manager.io/v1`; CA/Vault secret refs only (ACME/SelfSigned not parsed) |
 | `BHK_ClusterIssuer` | `addons/certmanager/cert_manager.go` | cluster | `cert-manager.io/v1`; CA/Vault secret refs only |
@@ -165,9 +165,7 @@ type Cluster struct {
 
 Dispatch into the correct field is handled by reflection in `internal/model/corefacts_adders.go`. If you add a new typed struct that edge rules need to look up, add the slice field to `model.Namespace` or `model.Cluster` and register an adder in `corefacts_adders.go`.
 
-Edge rules receive `CoreFacts` via `*framework.Context` and can also use the pre-built `model.EdgeIndex` (`ctx.Index`, pointer maps keyed by name/namespace for O(1) lookup).
-
-A builder may return a zero-value `Node` (empty `ID`) alongside populated `Core` entries when the resource has no independent graph representation of its own — the parser skips adding a node in that case but still processes `Core`. `internal/nodes/addons/calico_host_endpoint.go` (`BuildHostEndpointMapNode`) is the example: Calico `HostEndpoint` objects are parsed purely to resolve `GlobalNetworkPolicy` selectors down to the `BHK_Node` they govern, and never appear as a node themselves.
+Edge rules receive `CoreFacts` via `*framework.Context` and can also use the pre-built `*model.CoreIndex` (pointer maps keyed by name/namespace for O(1) lookup).
 
 ---
 
@@ -294,4 +292,4 @@ The following are not currently implemented:
 
 - `ListenerSet` / `ListenerSetGroup` (Gateway API extension)
 - OpenShift `BHK_SecurityContextConstraint` node (builder exists in `addons/security_context_constraints.go` but is not yet registered)
-- Istio `DestinationRule`, `ServiceEntry`, `Sidecar`, `WorkloadEntry`, `RequestAuthentication`, `EnvoyFilter` (Gateway, VirtualService, PeerAuthentication, and AuthorizationPolicy are implemented; see the addons table above)
+- Istio resources (stub file exists but is not implemented)

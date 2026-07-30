@@ -261,7 +261,7 @@ These projects were instrumental in inspiring and informing the development of B
 - [BloodHound OpenGraph](https://bloodhound.specterops.io/opengraph/overview), which enabled the use of BloodHound for Kubernetes.
 
 ### People
-Credit to the people who listened to my rambling about this project and providing exceptional feedback, suggestions, and beta testing my first janky golang tool.
+Credit and appreciation to the people who listened to my rambling about this project and providing exceptional feedback, suggestions, and beta testing my first janky golang tool.
 - [Josh Neimann]()
-- [Lukas Harris]()
-- [Michael Mitchell]() 
+- [Lukas Harris](https://lukasharris.com/)
+- [Michael Mitchell](https://byte.farm/) 

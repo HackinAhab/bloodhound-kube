@@ -5,9 +5,28 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"runtime/debug"
 
 	"github.com/spf13/cobra"
 )
+
+// Version is stamped at build time via -ldflags "-X bloodhound-kube/cmd.Version=...".
+var Version = "dev"
+
+// versionString appends build tags (read from the binary's embedded build
+// info) to Version, e.g. "dev (tags: embedded,no_calico)".
+func versionString() string {
+	v := Version
+	if info, ok := debug.ReadBuildInfo(); ok {
+		for _, s := range info.Settings {
+			if s.Key == "-tags" && s.Value != "" {
+				v = fmt.Sprintf("%s (tags: %s)", v, s.Value)
+				break
+			}
+		}
+	}
+	return v
+}
 
 var (
 	globalLogLevel string
@@ -39,6 +58,7 @@ func buildLogger(level string, includeFile bool) (*utils.Logger, func(), error) 
 
 var rootCmd = &cobra.Command{
 	Use:           "bloodhound-kube",
+	Version:       versionString(),
 	Short:         "A Kubernetes resource collector for Bloodhound",
 	Long:          "A CLI tool to collect and format Kubernetes resources into Bloodhound OpenGraph compatible JSON",
 	SilenceErrors: true,

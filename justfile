@@ -4,13 +4,15 @@ token_key := "token-key-here"
 token_id := "token-id-here"
 queries := "./config/custom_queries.json"
 schema := "./config/schema.json"
+version := `git describe --tags --always 2>/dev/null || echo dev`
+ldflags := "-s -w -X bloodhound-kube/cmd.Version=" + version
 
 # Addons (calico, cilium, external_secrets, cert_manager, istio) are compiled
 # in by default. Pass addons=no_addons to exclude all of them, or a comma list
 # like addons=no_calico,no_cilium to exclude specific families.
 build addons="":
     mkdir -p {{bin_dir}}
-    go build {{ if addons != "" { "-tags " + addons } else { "" } }} -trimpath -ldflags "-s -w" -o {{bin_dir}}/{{binary}} .
+    go build {{ if addons != "" { "-tags " + addons } else { "" } }} -trimpath -ldflags "{{ldflags}}" -o {{bin_dir}}/{{binary}} .
 
 test:
     go test ./...
@@ -27,16 +29,13 @@ build-all:
         name="{{binary}}-${os}-${arch}"; \
         if [ "$${os}" = "windows" ]; then name="$${name}.exe"; fi; \
         CGO_ENABLED=0 GOOS="$${os}" GOARCH="$${arch}" \
-          go build -trimpath -ldflags "-s -w" -o "{{bin_dir}}/$${name}" .; \
+          go build -trimpath -ldflags "{{ldflags}}" -o "{{bin_dir}}/${name}" .; \
       done; \
     done
 
-build-docker:
-    docker build -t {{image}} .
-
 build-embedded:
     mkdir -p {{bin_dir}}
-    go build -tags embedded -trimpath -ldflags "-s -w" -o {{bin_dir}}/{{binary}} .
+    go build -tags embedded -trimpath -ldflags "{{ldflags}}" -o {{bin_dir}}/{{binary}} .
 
 build-all-embedded:
     mkdir -p {{bin_dir}}
@@ -45,7 +44,7 @@ build-all-embedded:
         name="{{binary}}-${os}-${arch}"; \
         if [ "$${os}" = "windows" ]; then name="$${name}.exe"; fi; \
         CGO_ENABLED=0 GOOS="$${os}" GOARCH="$${arch}" \
-          go build -trimpath -ldflags "-s -w" -o "{{bin_dir}}/$${name}" .; \
+          go build -trimpath -ldflags "{{ldflags}}" -o "{{bin_dir}}/${name}" .; \
       done; \
     done
 

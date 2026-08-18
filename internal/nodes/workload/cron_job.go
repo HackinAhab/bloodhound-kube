@@ -14,6 +14,8 @@ type CronJob struct {
 	EnvDefinitions []EnvDefinition
 }
 
+func (c *CronJob) GetSelectorLabels() map[string]string { return c.SelectorLabels }
+
 func BuildCronJobNode(obj runtime.Object) (BuildResult, bool) {
 	cronJob, ok := obj.(*batchv1.CronJob)
 	if !ok || cronJob == nil {

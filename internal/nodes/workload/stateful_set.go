@@ -14,6 +14,8 @@ type StatefulSetCore struct {
 	EnvDefinitions []EnvDefinition
 }
 
+func (s *StatefulSetCore) GetSelectorLabels() map[string]string { return s.SelectorLabels }
+
 func BuildStatefulSetNode(obj runtime.Object) (BuildResult, bool) {
 	set, ok := obj.(*appsv1.StatefulSet)
 	if !ok || set == nil {

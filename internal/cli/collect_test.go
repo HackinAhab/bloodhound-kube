@@ -178,28 +178,8 @@ func TestResolveCollectScope(t *testing.T) {
 	}
 }
 
-func TestDecideCRDExclusionMode(t *testing.T) {
-	tests := []struct {
-		name        string
-		includeCRDs bool
-		want        crdExclusionMode
-	}{
-		{name: "include crds", includeCRDs: true, want: crdExclusionNone},
-		{name: "strip when declined", includeCRDs: false, want: crdExclusionStrip},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := decideCRDExclusionMode(tt.includeCRDs)
-			if got != tt.want {
-				t.Fatalf("expected %q, got %q", tt.want, got)
-			}
-		})
-	}
-}
-
 func TestApplyDiscoveryFilterByScopeRejectsEmpty(t *testing.T) {
-	_, _, err := applyDiscoveryFilterByScope(nil, collectScopeAll, nil)
+	_, err := applyDiscoveryFilterByScope(nil, collectScopeAll, nil)
 	if err == nil {
 		t.Fatalf("expected error for empty resources")
 	}

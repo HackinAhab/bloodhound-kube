@@ -14,6 +14,8 @@ type Deployment struct {
 	EnvDefinitions []EnvDefinition
 }
 
+func (d *Deployment) GetSelectorLabels() map[string]string { return d.SelectorLabels }
+
 func BuildDeploymentNode(obj runtime.Object) (BuildResult, bool) {
 	deploy, ok := obj.(*appsv1.Deployment)
 	if !ok || deploy == nil {

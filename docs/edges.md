@@ -391,6 +391,8 @@ Maps route objects to their backend Services.
 
 Services of type `NodePort` or `LoadBalancer` are accessible from outside the cluster. `LoadBalancer` services include their external IPs in the edge properties. All Services with a non-empty label selector emit `BHK_RoutesTo` edges to the pods they select, completing the external path chain: `External → Service → Pod`.
 
+The `BHK_RoutesTo` edge from Service to Pod carries a `networkPolicyRestricted: true` property when any NetworkPolicy in the same namespace selects the target pod. Per Kubernetes semantics, once a pod is selected by any NetworkPolicy all ingress not explicitly allowed is denied by default. The edge always exists (it models the potential routing path); this property allows Cypher queries to distinguish open paths from restricted ones.
+
 | Edge | Source → Target | Trigger |
 |------|----------------|---------|
 | `BHK_ExternalRoutesTo` | External → Service | Service type is `NodePort` or `LoadBalancer` |
@@ -522,10 +524,13 @@ Maps the cert-manager escalation graph: a `Certificate` requests a TLS keypair b
 
 Covers the Istio surface with the most direct attack-path relevance: Gateway TLS termination, VirtualService routing, mTLS enforcement, and authorization. `DestinationRule`, `ServiceEntry`, `Sidecar`, `WorkloadEntry`, `RequestAuthentication`, and `EnvoyFilter` are not modeled.
 
+The full external-to-pod path through Istio is: `External →[ExternalRoutesTo]→ IstioGateway →[RoutesTo]→ VirtualService →[RoutesTo]→ Service →[RoutesTo]→ Pod`.
+
 | Edge | Source → Target | Trigger |
 |------|----------------|---------|
+| `BHK_ExternalRoutesTo` | External → IstioGateway | Any IstioGateway exists and an External node is present |
 | `BHK_ManagedBy` | IstioGateway → Secret | Gateway listener's `servers[].tls.credentialName` matches a Secret in the same namespace as the Gateway |
-| `BHK_AppliesTo` | VirtualService → IstioGateway | VirtualService's `spec.gateways` entry (bare name or `namespace/name`; `mesh` is skipped) resolves to a Gateway |
+| `BHK_RoutesTo` | IstioGateway → VirtualService | VirtualService's `spec.gateways` entry (bare name or `namespace/name`; `mesh` is skipped) resolves to this Gateway |
 | `BHK_RoutesTo` | VirtualService → Service | A route rule's `destination.host` resolves to a Service (bare name, `name.namespace`, or FQDN form) |
 | `BHK_AppliesTo` | PeerAuthentication → Pod | Pod labels satisfy `spec.selector.matchLabels`; empty selector applies to the namespace's `AllPods` aggregate. Edge carries an `mtlsMode` property (`PERMISSIVE` indicates mTLS bypass is allowed) |
 | `BHK_AppliesTo` | AuthorizationPolicy → Pod | Pod labels satisfy `spec.selector.matchLabels`; empty selector applies to the namespace's `AllPods` aggregate. Edge carries an `action` property |

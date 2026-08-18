@@ -78,7 +78,7 @@
 | networking | `tcproutes` | `BHK_RoutesTo` | TCPRoute → Service | Route backendRef names the service |
 | networking | `tlsroutes` | `BHK_RoutesTo` | TLSRoute → Service | Route backendRef names the service |
 | networking | `services` | `BHK_ExternalRoutesTo` | External → Service | Service type is `NodePort` or `LoadBalancer` |
-| networking | `services` | `BHK_RoutesTo` | Service → Pod | Service has a non-empty `spec.selector` matching pod labels |
+| networking | `services` | `BHK_RoutesTo` | Service → Pod | Service has a non-empty `spec.selector` matching pod labels; edge carries `networkPolicyRestricted: true` when any NetworkPolicy selects the target pod |
 | workload | `deployment` | `BHK_ManagedBy` | Deployment → Pod | Pod labels match the Deployment's selector |
 | workload | `daemonset` | `BHK_ManagedBy` | DaemonSet → Pod | Pod labels match the DaemonSet's selector |
 | workload | `statefulset` | `BHK_ManagedBy` | StatefulSet → Pod | Pod labels match the StatefulSet's selector |
@@ -93,6 +93,13 @@
 | addons | `external_secrets` | `BHK_ManagedBy` | ExternalSecret → SecretStore | ExternalSecret's `storeRef.name` matches a SecretStore in the same namespace |
 | addons | `external_secrets` | `BHK_ManagedBy` | ExternalSecret → ClusterSecretStore | ExternalSecret's `storeRef.kind` is `BHK_ClusterSecretStore` and the name matches |
 | addons | `external_secrets` | `BHK_ManagedBy` | Secret → ExternalSecret | Secret name matches ExternalSecret's `target.name` (or the ExternalSecret's own name as fallback) |
+| addons | `istio` | `BHK_ExternalRoutesTo` | External → IstioGateway | Any IstioGateway exists and an External node is present |
+| addons | `istio` | `BHK_ManagedBy` | IstioGateway → Secret | Gateway listener's `servers[].tls.credentialName` matches a Secret in the same namespace |
+| addons | `istio` | `BHK_RoutesTo` | IstioGateway → VirtualService | VirtualService's `spec.gateways` entry resolves to this Gateway |
+| addons | `istio` | `BHK_RoutesTo` | VirtualService → Service | Route rule's `destination.host` resolves to a Service |
+| addons | `istio` | `BHK_AppliesTo` | PeerAuthentication → Pod | Pod labels satisfy `spec.selector.matchLabels`; empty selector → AllPods aggregate; edge carries `mtlsMode` property |
+| addons | `istio` | `BHK_AppliesTo` | AuthorizationPolicy → Pod | Pod labels satisfy `spec.selector.matchLabels`; empty selector → AllPods aggregate; edge carries `action` property |
+| addons | `istio` | `BHK_AppliesTo` | AuthorizationPolicy → ServiceAccount | SPIFFE principal string in `rules[].from[].source.principals` resolves to a ServiceAccount |
 | aggregates | `aggregate_contains` | `BHK_Contains` | Cluster aggregate → Namespace aggregate | Both aggregate nodes exist for the same resource kind (namespace-scoped kinds only) |
 | aggregates | `aggregate_contains` | `BHK_Contains` | Namespace aggregate → Individual resource | A resource of the matching kind exists in that namespace |
 | aggregates | `aggregate_contains` | `BHK_Contains` | AllClusterRoles → ClusterRole | ClusterRole exists in the cluster |

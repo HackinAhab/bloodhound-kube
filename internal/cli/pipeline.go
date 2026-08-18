@@ -44,18 +44,12 @@ func (s PipelineService) Run(ctx context.Context, req PipelineRequest, log *util
 	return runSinglePipeline(ctx, req, log)
 }
 
-// pipelineOut returns the effective output writer for a request: the
-// caller-provided Out writer, or os.Stdout when nil.
-func pipelineOut(req PipelineRequest) io.Writer {
-	if req.Out != nil {
-		return req.Out
-	}
-	return os.Stdout
-}
-
 func runSinglePipeline(ctx context.Context, req PipelineRequest, log *utils.Logger) (PipelineResponse, error) {
 	start := time.Now()
-	out := pipelineOut(req)
+	out := req.Out
+	if out == nil {
+		out = os.Stdout
+	}
 
 	collectResp, err := CollectService{}.Run(ctx, req.Collect, out, log)
 	if err != nil {

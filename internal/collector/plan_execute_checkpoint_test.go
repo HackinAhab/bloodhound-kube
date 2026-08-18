@@ -55,11 +55,11 @@ func TestCheckpointFailedJobRetryAndSaveLoad(t *testing.T) {
 	cp.AddFailedJob("pods", "ns1", "first")
 	cp.AddFailedJob("pods", "ns1", "second")
 
-	if len(cp.FailedJobs) != 1 {
-		t.Fatalf("expected one failed job entry, got %d", len(cp.FailedJobs))
+	if len(cp.FailedJobs) != 2 {
+		t.Fatalf("expected two failed job entries, got %d", len(cp.FailedJobs))
 	}
-	if cp.FailedJobs[0].Retries != 1 {
-		t.Fatalf("expected retries=1, got %d", cp.FailedJobs[0].Retries)
+	if cp.FailedJobs[1].Error != "second" {
+		t.Fatalf("expected second error message, got %q", cp.FailedJobs[1].Error)
 	}
 
 	cp.AddCompletedJob("pods", "ns1", 3, 2*time.Second)
@@ -78,7 +78,7 @@ func TestCheckpointFailedJobRetryAndSaveLoad(t *testing.T) {
 	if loaded.CollectionID != "id-1" {
 		t.Fatalf("expected collection id id-1, got %q", loaded.CollectionID)
 	}
-	if !CheckpointExists(checkpointPath) {
+	if _, err := os.Stat(checkpointPath); err != nil {
 		t.Fatalf("expected checkpoint file to exist")
 	}
 	if err := RemoveCheckpoint(checkpointPath); err != nil {

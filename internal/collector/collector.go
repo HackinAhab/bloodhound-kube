@@ -15,15 +15,17 @@ type Collector struct {
 	paginateLimit int
 }
 
-func New(cfg utils.ClientConfig, log *utils.Logger) (*Collector, error) {
+func New(cfg utils.ClientConfig, log *utils.Logger, redacted bool, paginateLimit int) (*Collector, error) {
 	clients, err := utils.NewClient(cfg)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create kubernetes clients: %w", err)
 	}
 
 	return &Collector{
-		clients: clients,
-		logger:  log,
+		clients:       clients,
+		logger:        log,
+		redacted:      redacted,
+		paginateLimit: paginateLimit,
 	}, nil
 }
 
@@ -62,14 +64,6 @@ func (c *Collector) GetClusterType() utils.ClusterType {
 	return c.clients.ClusterType
 }
 
-func (c *Collector) SetRedacted(redacted bool) {
-	c.redacted = redacted
-}
-
-func (c *Collector) SetPaginateLimit(limit int) {
-	c.paginateLimit = limit
-}
-
 func (c *Collector) IsRedacted() bool {
 	return c.redacted
 }
@@ -81,7 +75,7 @@ func (c *Collector) GetPaginateLimit(defaultLimit int) int {
 	return defaultLimit
 }
 
-// GetClients returns the Kubernetes clients
-func (c *Collector) GetClients() *utils.Clients {
-	return c.clients
+// Discover returns all API resources available in the cluster.
+func (c *Collector) Discover(ctx context.Context) ([]DiscoveryResource, error) {
+	return DiscoverResources(ctx, c.clients, c.logger)
 }

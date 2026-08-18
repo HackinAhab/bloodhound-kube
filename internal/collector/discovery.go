@@ -5,6 +5,7 @@ import (
 	"bloodhound-kube/internal/utils"
 	"context"
 	"errors"
+	"slices"
 	"sort"
 	"strings"
 
@@ -62,7 +63,7 @@ func DiscoverResources(ctx context.Context, clients *utils.Clients, log *utils.L
 			if strings.Contains(res.Name, "/") {
 				continue
 			}
-			if !hasVerb(res.Verbs, "list") {
+			if !slices.Contains(res.Verbs, "list") {
 				continue
 			}
 
@@ -136,12 +137,16 @@ func BuildCollectionsConfigFromDiscovery(resources []DiscoveryResource) (*Collec
 		}
 		seen[name] = struct{}{}
 
+		apiPath := res.Resource
+		if res.GroupVersion != "" {
+			apiPath = res.GroupVersion + "/" + res.Resource
+		}
 		collections = append(collections, ResourceCollection{
 			Name:              name,
-			ResourceType:      normalizeResourceType(name),
+			ResourceType:      strings.ReplaceAll(name, "-", "_"),
 			Kind:              res.Kind,
 			ShortNames:        res.ShortNames,
-			APIPath:           buildAPIPath(res.GroupVersion, res.Resource),
+			APIPath:           apiPath,
 			APIVersion:        res.GroupVersion,
 			APIGroup:          res.Group,
 			Plural:            res.Resource,

@@ -74,7 +74,10 @@ func ConvertToBloodHoundResultFromReader(reader io.Reader, clusterName string, p
 }
 
 func applyClusterToGraph(nodes []model.BloodHoundNode, edges []model.BloodHoundEdge, clusterName string) {
-	normalizedCluster := normalizeClusterName(clusterName)
+	normalizedCluster := strings.TrimSpace(clusterName)
+	if normalizedCluster == "" {
+		normalizedCluster = defaultClusterName
+	}
 	idMap := make(map[string]string, len(nodes))
 
 	for i := range nodes {
@@ -99,14 +102,6 @@ func applyClusterToGraph(nodes []model.BloodHoundNode, edges []model.BloodHoundE
 			edges[i].End.Value = clusterScopedID(normalizedCluster, edges[i].End.Value)
 		}
 	}
-}
-
-func normalizeClusterName(clusterName string) string {
-	trimmed := strings.TrimSpace(clusterName)
-	if trimmed == "" {
-		return defaultClusterName
-	}
-	return trimmed
 }
 
 func clusterScopedID(clusterName, id string) string {
@@ -153,7 +148,10 @@ func createNodesAndCoreFactsFromReader(reader io.Reader, parseUndefinedNodes boo
 		id := result.Node.ID
 		if id != "" {
 			if prev, dup := seen[id]; dup {
-				kind := firstKind(result.Node.Kinds)
+				kind := ""
+				if len(result.Node.Kinds) > 0 {
+					kind = result.Node.Kinds[0]
+				}
 				if prev.generic && !generic {
 					// Typed result supersedes an earlier generic node: replace
 					// the node entry in place and add the typed Core facts.
@@ -332,13 +330,6 @@ func buildNodeFromMap(resource map[string]any, parseUndefinedNodes bool) (nodes.
 		return result, ok, ok, nil
 	}
 	return nodes.BuildResult{}, false, false, nil
-}
-
-func firstKind(kinds []string) string {
-	if len(kinds) == 0 {
-		return ""
-	}
-	return kinds[0]
 }
 
 func gvkFromMap(resource map[string]any) (schema.GroupVersionKind, bool) {

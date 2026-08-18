@@ -371,18 +371,3 @@ func isHelmReleaseSecret(obj map[string]any) bool {
 	}
 	return secretType == "helm.sh/release.v1"
 }
-
-func normalizeResourceType(name string) string {
-	return strings.ReplaceAll(name, "-", "_")
-}
-
-func buildAPIPath(groupVersion, resource string) string {
-	if groupVersion == "" {
-		return resource
-	}
-	return groupVersion + "/" + resource
-}
-
-func hasVerb(verbs []string, verb string) bool {
-	return slices.Contains(verbs, verb)
-}

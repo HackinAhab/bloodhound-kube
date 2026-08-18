@@ -404,3 +404,99 @@ func TestNetworkPolicyEdgesRule_LabelSelectorMatchesSpecificPods(t *testing.T) {
 		t.Fatalf("unexpected AppliesTo edge to aggregate when selector is non-empty")
 	}
 }
+
+// ---------------------------------------------------------------------------
+// serviceRoutesToRule - networkPolicyRestricted property
+// ---------------------------------------------------------------------------
+
+func TestServiceRoutesToPods_NetworkPolicyRestricted(t *testing.T) {
+	core := newCore()
+	ns := ensureNamespace(core, "ns1")
+	ns.Services = append(ns.Services, netnodes.Service{
+		GraphNodeBase: base("BHK_Service", "ns1", "web-svc"),
+		SelectorMap:   map[string]string{"app": "web"},
+	})
+	ns.Pods = append(ns.Pods, workload.Pod{
+		GraphNodeBase: nodefw.NewGraphNodeBase("BHK_Pod", "ns1", "web-pod", map[string]any{"app": "web"}, nil),
+	})
+	ns.NetworkPolicies = append(ns.NetworkPolicies, netnodes.NetworkPolicy{
+		GraphNodeBase:     base("BHK_NetworkPolicy", "ns1", "deny-all"),
+		PodSelectorLabels: map[string]string{"app": "web"},
+	})
+
+	ctx := framework.NewContext(core)
+	edges := serviceRoutesToRule{}.Apply(ctx)
+
+	svcID := nodefw.BuildID("BHK_Service", "ns1", "web-svc")
+	podID := nodefw.BuildID("BHK_Pod", "ns1", "web-pod")
+
+	if !hasEdge(edges, svcID, podID, "BHK_RoutesTo") {
+		t.Fatalf("expected RoutesTo edge from service to pod, got %v", edges)
+	}
+	for _, e := range edges {
+		if e.Kind == "BHK_RoutesTo" && e.Start.Value == svcID && e.End.Value == podID {
+			if e.Properties["networkPolicyRestricted"] != true {
+				t.Fatalf("expected networkPolicyRestricted=true, got %v", e.Properties)
+			}
+		}
+	}
+}
+
+func TestServiceRoutesToPods_NoNetworkPolicy(t *testing.T) {
+	core := newCore()
+	ns := ensureNamespace(core, "ns1")
+	ns.Services = append(ns.Services, netnodes.Service{
+		GraphNodeBase: base("BHK_Service", "ns1", "web-svc"),
+		SelectorMap:   map[string]string{"app": "web"},
+	})
+	ns.Pods = append(ns.Pods, workload.Pod{
+		GraphNodeBase: nodefw.NewGraphNodeBase("BHK_Pod", "ns1", "web-pod", map[string]any{"app": "web"}, nil),
+	})
+
+	ctx := framework.NewContext(core)
+	edges := serviceRoutesToRule{}.Apply(ctx)
+
+	svcID := nodefw.BuildID("BHK_Service", "ns1", "web-svc")
+	podID := nodefw.BuildID("BHK_Pod", "ns1", "web-pod")
+
+	if !hasEdge(edges, svcID, podID, "BHK_RoutesTo") {
+		t.Fatalf("expected RoutesTo edge from service to pod, got %v", edges)
+	}
+	for _, e := range edges {
+		if e.Kind == "BHK_RoutesTo" && e.Start.Value == svcID && e.End.Value == podID {
+			if e.Properties != nil {
+				t.Fatalf("expected nil properties when no NetworkPolicy selects pod, got %v", e.Properties)
+			}
+		}
+	}
+}
+
+func TestServiceRoutesToPods_EmptyNetworkPolicySelectorMatchesAll(t *testing.T) {
+	core := newCore()
+	ns := ensureNamespace(core, "ns1")
+	ns.Services = append(ns.Services, netnodes.Service{
+		GraphNodeBase: base("BHK_Service", "ns1", "web-svc"),
+		SelectorMap:   map[string]string{"app": "web"},
+	})
+	ns.Pods = append(ns.Pods, workload.Pod{
+		GraphNodeBase: nodefw.NewGraphNodeBase("BHK_Pod", "ns1", "web-pod", map[string]any{"app": "web"}, nil),
+	})
+	ns.NetworkPolicies = append(ns.NetworkPolicies, netnodes.NetworkPolicy{
+		GraphNodeBase:     base("BHK_NetworkPolicy", "ns1", "blanket-deny"),
+		PodSelectorLabels: nil,
+	})
+
+	ctx := framework.NewContext(core)
+	edges := serviceRoutesToRule{}.Apply(ctx)
+
+	svcID := nodefw.BuildID("BHK_Service", "ns1", "web-svc")
+	podID := nodefw.BuildID("BHK_Pod", "ns1", "web-pod")
+
+	for _, e := range edges {
+		if e.Kind == "BHK_RoutesTo" && e.Start.Value == svcID && e.End.Value == podID {
+			if e.Properties["networkPolicyRestricted"] != true {
+				t.Fatalf("expected networkPolicyRestricted=true for empty selector (matches all), got %v", e.Properties)
+			}
+		}
+	}
+}

@@ -14,6 +14,8 @@ type DaemonSetCore struct {
 	EnvDefinitions []EnvDefinition
 }
 
+func (d *DaemonSetCore) GetSelectorLabels() map[string]string { return d.SelectorLabels }
+
 func BuildDaemonSetNode(obj runtime.Object) (BuildResult, bool) {
 	set, ok := obj.(*appsv1.DaemonSet)
 	if !ok || set == nil {

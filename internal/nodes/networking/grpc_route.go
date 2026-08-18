@@ -16,6 +16,9 @@ type GRPCRoute struct {
 	ParentGatewayRefs []ParentGatewayRef
 }
 
+func (r *GRPCRoute) GetParentGatewayRefs() []ParentGatewayRef { return r.ParentGatewayRefs }
+func (r *GRPCRoute) GetBackendRefs() []HTTPRouteBackendRef     { return r.BackendRefs }
+
 func BuildGRPCRouteNode(obj runtime.Object) (BuildResult, bool) {
 	switch typed := obj.(type) {
 	case *gatewayv1.GRPCRoute:

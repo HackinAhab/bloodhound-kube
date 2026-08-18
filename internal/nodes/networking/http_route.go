@@ -16,6 +16,9 @@ type HTTPRoute struct {
 	ParentGatewayRefs []ParentGatewayRef
 }
 
+func (r *HTTPRoute) GetParentGatewayRefs() []ParentGatewayRef { return r.ParentGatewayRefs }
+func (r *HTTPRoute) GetBackendRefs() []HTTPRouteBackendRef     { return r.BackendRefs }
+
 type HTTPRouteBackendRef struct {
 	Namespace string
 	Name      string

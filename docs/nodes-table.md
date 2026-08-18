@@ -48,6 +48,15 @@
 | addons | `BHK_ClusterSecretStore` | `addons/external_secrets.go` | cluster | external-secrets operator |
 | addons | `BHK_ExternalSecret` | `addons/external_secrets.go` | namespace | external-secrets operator |
 | addons | `BHK_SecurityContextConstraint` | `addons/security_context_constraints.go` | cluster | OpenShift only; builder exists but not yet registered |
+| addons | `BHK_CiliumNetworkPolicy` | `addons/cilium/cilium_network_policy.go` | namespace | `cilium.io/v2`; unstructured, full spec fetch |
+| addons | `BHK_GlobalNetworkPolicy` | `addons/calico/calico_global_network_policy.go` | cluster | `projectcalico.org/v3` and `crd.projectcalico.org/v1`; both groups map to the same builder, deduped at parse time |
+| addons | `BHK_Certificate` | `addons/certmanager/cert_manager.go` | namespace | `cert-manager.io/v1` |
+| addons | `BHK_Issuer` | `addons/certmanager/cert_manager.go` | namespace | `cert-manager.io/v1`; CA/Vault secret refs only |
+| addons | `BHK_ClusterIssuer` | `addons/certmanager/cert_manager.go` | cluster | `cert-manager.io/v1`; CA/Vault secret refs only |
+| addons | `BHK_IstioGateway` | `addons/istio/istio.go` | namespace | `networking.istio.io/v1`; named to avoid collision with Gateway API's `BHK_Gateway` |
+| addons | `BHK_VirtualService` | `addons/istio/istio.go` | namespace | `networking.istio.io/v1` |
+| addons | `BHK_PeerAuthentication` | `addons/istio/istio.go` | namespace | `security.istio.io/v1`; `PERMISSIVE` mode flagged in properties |
+| addons | `BHK_AuthorizationPolicy` | `addons/istio/istio.go` | namespace | `security.istio.io/v1`; allow-all (`ALLOW` with no rules) flagged in properties |
 
 ## Secondary Types (Cypher Query Helpers)
 

@@ -48,6 +48,24 @@ func hasEdge(edges []model.BloodHoundEdge, startID, endID, kind string) bool {
 	return false
 }
 
+func TestIstioEdgesRule_ExternalToIstioGateway(t *testing.T) {
+	core := newCore()
+	ns := ensureNamespace(core, "ns1")
+	ns.IstioGateways = append(ns.IstioGateways, nodeistio.IstioGateway{
+		GraphNodeBase: base("BHK_IstioGateway", "ns1", "ingress-gw"),
+	})
+	core.Cluster.External = append(core.Cluster.External, platform.ExternalCoreEntry())
+
+	ctx := framework.NewContext(core)
+	edges := istioEdgesRule{}.Apply(ctx)
+
+	externalID := nodefw.BuildID("BHK_External", "", "external")
+	gwID := nodefw.BuildID("BHK_IstioGateway", "ns1", "ingress-gw")
+	if !hasEdge(edges, externalID, gwID, "BHK_ExternalRoutesTo") {
+		t.Fatalf("expected External -> IstioGateway edge, got %v", edges)
+	}
+}
+
 func TestIstioEdgesRule_GatewayCredentialToSecret(t *testing.T) {
 	core := newCore()
 	ns := ensureNamespace(core, "ns1")
@@ -88,8 +106,11 @@ func TestIstioEdgesRule_VirtualServiceRoutesToGatewayAndService(t *testing.T) {
 	gwID := nodefw.BuildID("BHK_IstioGateway", "ns1", "ingress-gw")
 	svcID := nodefw.BuildID("BHK_Service", "ns1", "web")
 
-	if !hasEdge(edges, vsID, gwID, "BHK_AppliesTo") {
-		t.Fatalf("expected VirtualService -> IstioGateway edge, got %v", edges)
+	if !hasEdge(edges, gwID, vsID, "BHK_RoutesTo") {
+		t.Fatalf("expected IstioGateway -> VirtualService forward routing edge, got %v", edges)
+	}
+	if hasEdge(edges, vsID, gwID, "BHK_AppliesTo") {
+		t.Fatalf("unexpected reverse VirtualService -> IstioGateway AppliesTo edge")
 	}
 	if !hasEdge(edges, vsID, svcID, "BHK_RoutesTo") {
 		t.Fatalf("expected VirtualService -> Service edge, got %v", edges)

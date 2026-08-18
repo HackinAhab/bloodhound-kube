@@ -29,6 +29,9 @@ func (r istioEdgesRule) Apply(ctx *framework.Context) []model.BloodHoundEdge {
 
 		for i := range space.IstioGateways {
 			gw := &space.IstioGateways[i]
+			if ctx.Index.External != nil {
+				edges = append(edges, framework.CreateEdge(ctx.Index.External, gw, "BHK_ExternalRoutesTo"))
+			}
 			for _, ref := range gw.SecretRefs {
 				if secrets := ctx.Index.SecretsByNamespace[ref.Namespace]; secrets != nil {
 					if secret := secrets[ref.Name]; secret != nil {
@@ -43,7 +46,7 @@ func (r istioEdgesRule) Apply(ctx *framework.Context) []model.BloodHoundEdge {
 			for _, ref := range vs.GatewayRefs {
 				if gateways := ctx.Index.IstioGatewaysByNamespace[ref.Namespace]; gateways != nil {
 					if gw := gateways[ref.Name]; gw != nil {
-						edges = append(edges, framework.CreateEdge(vs, gw, "BHK_AppliesTo"))
+						edges = append(edges, framework.CreateEdge(gw, vs, "BHK_RoutesTo"))
 					}
 				}
 			}

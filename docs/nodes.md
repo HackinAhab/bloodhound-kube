@@ -292,4 +292,3 @@ The following are not currently implemented:
 
 - `ListenerSet` / `ListenerSetGroup` (Gateway API extension)
 - OpenShift `BHK_SecurityContextConstraint` node (builder exists in `addons/security_context_constraints.go` but is not yet registered)
-- Istio resources (stub file exists but is not implemented)

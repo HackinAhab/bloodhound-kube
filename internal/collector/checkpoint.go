@@ -40,7 +40,6 @@ type FailedJob struct {
 	Namespace string `json:"namespace"`
 	Error     string `json:"error"`
 	Timestamp string `json:"timestamp"`
-	Retries   int    `json:"retries"`
 }
 
 func NewCheckpoint(collectionID, outputFile string, clusterType utils.ClusterType, clusterInfo *utils.ClusterInfo, totalJobs int) *Checkpoint {
@@ -83,28 +82,12 @@ func (c *Checkpoint) AddCompletedJob(jobType, namespace string, count int, durat
 }
 
 func (c *Checkpoint) AddFailedJob(jobType, namespace, error string) {
-	existingIndex := -1
-	for i, job := range c.FailedJobs {
-		if job.Type == jobType && job.Namespace == namespace {
-			existingIndex = i
-			break
-		}
-	}
-
-	if existingIndex >= 0 {
-		c.FailedJobs[existingIndex].Retries++
-		c.FailedJobs[existingIndex].Error = error
-		c.FailedJobs[existingIndex].Timestamp = time.Now().Format(time.RFC3339)
-	} else {
-		job := FailedJob{
-			Type:      jobType,
-			Namespace: namespace,
-			Error:     error,
-			Timestamp: time.Now().Format(time.RFC3339),
-			Retries:   0,
-		}
-		c.FailedJobs = append(c.FailedJobs, job)
-	}
+	c.FailedJobs = append(c.FailedJobs, FailedJob{
+		Type:      jobType,
+		Namespace: namespace,
+		Error:     error,
+		Timestamp: time.Now().Format(time.RFC3339),
+	})
 }
 
 func (c *Checkpoint) IsJobCompleted(jobType, namespace string) bool {
@@ -170,11 +153,6 @@ func DefaultCheckpointPath(outputDir, filename string) string {
 	ext := filepath.Ext(base)
 	name := base[:len(base)-len(ext)]
 	return filepath.Join(outputDir, "."+name+".checkpoint.json")
-}
-
-func CheckpointExists(checkpointFile string) bool {
-	_, err := os.Stat(checkpointFile)
-	return err == nil
 }
 
 func RemoveCheckpoint(checkpointFile string) error {

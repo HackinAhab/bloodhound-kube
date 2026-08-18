@@ -25,86 +25,32 @@ func (r gatewayEdgesRule) Apply(ctx *framework.Context) []model.BloodHoundEdge {
 			if ctx.Index.External != nil {
 				edges = append(edges, framework.CreateEdge(ctx.Index.External, gateway, "BHK_ExternalRoutesTo"))
 			}
-			edges = append(edges, gatewayHTTPRouteEdges(ctx, gateway, ns)...)
-			edges = append(edges, gatewayGRPCRouteEdges(ctx, gateway, ns)...)
-			edges = append(edges, gatewayTCPRouteEdges(ctx, gateway, ns)...)
-			edges = append(edges, gatewayTLSRouteEdges(ctx, gateway, ns)...)
-		}
-	}
-	return edges
-}
-
-func gatewayHTTPRouteEdges(ctx *framework.Context, gatewayRef *networking.Gateway, gatewayNS string) []model.BloodHoundEdge {
-	if ctx == nil || ctx.Core == nil {
-		return nil
-	}
-	edges := []model.BloodHoundEdge{}
-	for _, space := range ctx.Core.Namespaces {
-		if space == nil {
-			continue
-		}
-		for i := range space.HTTPRoutes {
-			route := &space.HTTPRoutes[i]
-			if routeAttachedToGateway(route.ParentGatewayRefs, gatewayRef.Name, gatewayNS) {
-				edges = append(edges, framework.CreateEdge(gatewayRef, route, "BHK_RoutesTo"))
+			for _, routeSpace := range ctx.Core.Namespaces {
+				if routeSpace == nil {
+					continue
+				}
+				edges = append(edges, gatewayRouteEdges[networking.HTTPRoute, *networking.HTTPRoute](gateway, ns, routeSpace.HTTPRoutes)...)
+				edges = append(edges, gatewayRouteEdges[networking.GRPCRoute, *networking.GRPCRoute](gateway, ns, routeSpace.GRPCRoutes)...)
+				edges = append(edges, gatewayRouteEdges[networking.TCPRoute, *networking.TCPRoute](gateway, ns, routeSpace.TCPRoutes)...)
+				edges = append(edges, gatewayRouteEdges[networking.TLSRoute, *networking.TLSRoute](gateway, ns, routeSpace.TLSRoutes)...)
 			}
 		}
 	}
 	return edges
 }
 
-func gatewayGRPCRouteEdges(ctx *framework.Context, gatewayRef *networking.Gateway, gatewayNS string) []model.BloodHoundEdge {
-	if ctx == nil || ctx.Core == nil {
-		return nil
-	}
-	edges := []model.BloodHoundEdge{}
-	for _, space := range ctx.Core.Namespaces {
-		if space == nil {
-			continue
-		}
-		for i := range space.GRPCRoutes {
-			route := &space.GRPCRoutes[i]
-			if routeAttachedToGateway(route.ParentGatewayRefs, gatewayRef.Name, gatewayNS) {
-				edges = append(edges, framework.CreateEdge(gatewayRef, route, "BHK_RoutesTo"))
-			}
-		}
-	}
-	return edges
+type gatewayRoute[P any] interface {
+	*P
+	nodefw.EdgeNode
+	GetParentGatewayRefs() []nodefw.ParentGatewayRef
 }
 
-func gatewayTCPRouteEdges(ctx *framework.Context, gatewayRef *networking.Gateway, gatewayNS string) []model.BloodHoundEdge {
-	if ctx == nil || ctx.Core == nil {
-		return nil
-	}
-	edges := []model.BloodHoundEdge{}
-	for _, space := range ctx.Core.Namespaces {
-		if space == nil {
-			continue
-		}
-		for i := range space.TCPRoutes {
-			route := &space.TCPRoutes[i]
-			if routeAttachedToGateway(route.ParentGatewayRefs, gatewayRef.Name, gatewayNS) {
-				edges = append(edges, framework.CreateEdge(gatewayRef, route, "BHK_RoutesTo"))
-			}
-		}
-	}
-	return edges
-}
-
-func gatewayTLSRouteEdges(ctx *framework.Context, gatewayRef *networking.Gateway, gatewayNS string) []model.BloodHoundEdge {
-	if ctx == nil || ctx.Core == nil {
-		return nil
-	}
-	edges := []model.BloodHoundEdge{}
-	for _, space := range ctx.Core.Namespaces {
-		if space == nil {
-			continue
-		}
-		for i := range space.TLSRoutes {
-			route := &space.TLSRoutes[i]
-			if routeAttachedToGateway(route.ParentGatewayRefs, gatewayRef.Name, gatewayNS) {
-				edges = append(edges, framework.CreateEdge(gatewayRef, route, "BHK_RoutesTo"))
-			}
+func gatewayRouteEdges[T any, P gatewayRoute[T]](gw *networking.Gateway, gwNS string, routes []T) []model.BloodHoundEdge {
+	var edges []model.BloodHoundEdge
+	for i := range routes {
+		route := P(&routes[i])
+		if routeAttachedToGateway(route.GetParentGatewayRefs(), gw.Name, gwNS) {
+			edges = append(edges, framework.CreateEdge(gw, route, "BHK_RoutesTo"))
 		}
 	}
 	return edges

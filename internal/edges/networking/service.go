@@ -6,6 +6,7 @@ import (
 
 	"bloodhound-kube/internal/edges/framework"
 	"bloodhound-kube/internal/model"
+	"bloodhound-kube/internal/nodes/workload"
 )
 
 type serviceRoutesToRule struct{}
@@ -29,12 +30,31 @@ func (r serviceRoutesToRule) Apply(ctx *framework.Context) []model.BloodHoundEdg
 			}
 			for _, pod := range podIndex {
 				if framework.LabelsMatchOnly(pod.LabelsMap, svc.SelectorMap) {
-					edges = append(edges, framework.CreateEdge(svc, pod, "BHK_RoutesTo"))
+					if podSelectedByNetworkPolicy(space, pod) {
+						edges = append(edges, framework.CreateEdgeWithProperties(svc, pod, "BHK_RoutesTo", map[string]any{
+							"networkPolicyRestricted": true,
+						}))
+					} else {
+						edges = append(edges, framework.CreateEdge(svc, pod, "BHK_RoutesTo"))
+					}
 				}
 			}
 		}
 	}
 	return edges
+}
+
+func podSelectedByNetworkPolicy(space *model.Namespace, pod *workload.Pod) bool {
+	for i := range space.NetworkPolicies {
+		np := &space.NetworkPolicies[i]
+		if len(np.PodSelectorLabels) == 0 {
+			return true
+		}
+		if framework.LabelsMatchOnly(pod.LabelsMap, np.PodSelectorLabels) {
+			return true
+		}
+	}
+	return false
 }
 
 type serviceEdgesRule struct{}

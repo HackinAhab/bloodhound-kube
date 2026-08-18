@@ -14,6 +14,8 @@ type Job struct {
 	EnvDefinitions []EnvDefinition
 }
 
+func (j *Job) GetSelectorLabels() map[string]string { return j.SelectorLabels }
+
 func BuildJobNode(obj runtime.Object) (BuildResult, bool) {
 	job, ok := obj.(*batchv1.Job)
 	if !ok || job == nil {

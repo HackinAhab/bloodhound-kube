@@ -7,11 +7,13 @@ import (
 	"bloodhound-kube/internal/nodes/networking"
 )
 
-type httpRouteEdgesRule struct{}
+type routeNode[P any] interface {
+	*P
+	nodefw.EdgeNode
+	GetBackendRefs() []networking.HTTPRouteBackendRef
+}
 
-func (r httpRouteEdgesRule) Name() string { return "httproutes" }
-
-func (r httpRouteEdgesRule) Apply(ctx *framework.Context) []model.BloodHoundEdge {
+func applyRouteRule[T any, P routeNode[T]](ctx *framework.Context, getRoutes func(*model.Namespace) []T) []model.BloodHoundEdge {
 	if ctx == nil || ctx.Core == nil {
 		return nil
 	}
@@ -20,75 +22,40 @@ func (r httpRouteEdgesRule) Apply(ctx *framework.Context) []model.BloodHoundEdge
 		if space == nil {
 			continue
 		}
-		for i := range space.HTTPRoutes {
-			route := &space.HTTPRoutes[i]
-			edges = append(edges, routeBackendsToServices(ctx, route, ns, route.BackendRefs)...)
+		for i := range getRoutes(space) {
+			route := P(&getRoutes(space)[i])
+			edges = append(edges, routeBackendsToServices(ctx, route, ns, route.GetBackendRefs())...)
 		}
 	}
 	return edges
+}
+
+type httpRouteEdgesRule struct{}
+
+func (r httpRouteEdgesRule) Name() string { return "httproutes" }
+func (r httpRouteEdgesRule) Apply(ctx *framework.Context) []model.BloodHoundEdge {
+	return applyRouteRule[networking.HTTPRoute, *networking.HTTPRoute](ctx, func(s *model.Namespace) []networking.HTTPRoute { return s.HTTPRoutes })
 }
 
 type grpcRouteEdgesRule struct{}
 
 func (r grpcRouteEdgesRule) Name() string { return "grpcroutes" }
-
 func (r grpcRouteEdgesRule) Apply(ctx *framework.Context) []model.BloodHoundEdge {
-	if ctx == nil || ctx.Core == nil {
-		return nil
-	}
-	var edges []model.BloodHoundEdge
-	for ns, space := range ctx.Core.Namespaces {
-		if space == nil {
-			continue
-		}
-		for i := range space.GRPCRoutes {
-			route := &space.GRPCRoutes[i]
-			edges = append(edges, routeBackendsToServices(ctx, route, ns, route.BackendRefs)...)
-		}
-	}
-	return edges
+	return applyRouteRule[networking.GRPCRoute, *networking.GRPCRoute](ctx, func(s *model.Namespace) []networking.GRPCRoute { return s.GRPCRoutes })
 }
 
 type tcpRouteEdgesRule struct{}
 
 func (r tcpRouteEdgesRule) Name() string { return "tcproutes" }
-
 func (r tcpRouteEdgesRule) Apply(ctx *framework.Context) []model.BloodHoundEdge {
-	if ctx == nil || ctx.Core == nil {
-		return nil
-	}
-	var edges []model.BloodHoundEdge
-	for ns, space := range ctx.Core.Namespaces {
-		if space == nil {
-			continue
-		}
-		for i := range space.TCPRoutes {
-			route := &space.TCPRoutes[i]
-			edges = append(edges, routeBackendsToServices(ctx, route, ns, route.BackendRefs)...)
-		}
-	}
-	return edges
+	return applyRouteRule[networking.TCPRoute, *networking.TCPRoute](ctx, func(s *model.Namespace) []networking.TCPRoute { return s.TCPRoutes })
 }
 
 type tlsRouteEdgesRule struct{}
 
 func (r tlsRouteEdgesRule) Name() string { return "tlsroutes" }
-
 func (r tlsRouteEdgesRule) Apply(ctx *framework.Context) []model.BloodHoundEdge {
-	if ctx == nil || ctx.Core == nil {
-		return nil
-	}
-	var edges []model.BloodHoundEdge
-	for ns, space := range ctx.Core.Namespaces {
-		if space == nil {
-			continue
-		}
-		for i := range space.TLSRoutes {
-			route := &space.TLSRoutes[i]
-			edges = append(edges, routeBackendsToServices(ctx, route, ns, route.BackendRefs)...)
-		}
-	}
-	return edges
+	return applyRouteRule[networking.TLSRoute, *networking.TLSRoute](ctx, func(s *model.Namespace) []networking.TLSRoute { return s.TLSRoutes })
 }
 
 func routeBackendsToServices(ctx *framework.Context, route nodefw.EdgeNode, routeNS string, backends []networking.HTTPRouteBackendRef) []model.BloodHoundEdge {

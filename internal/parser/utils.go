@@ -93,44 +93,28 @@ func SanitizeProperties(input map[string]any) map[string]any {
 	return result
 }
 
+func toAnySlice[T any](s []T) []any {
+	out := make([]any, len(s))
+	for i, v := range s {
+		out[i] = v
+	}
+	return out
+}
+
 func normalizeTypedArray(value any) []any {
 	switch v := value.(type) {
 	case []string:
-		out := make([]any, 0, len(v))
-		for _, item := range v {
-			out = append(out, item)
-		}
-		return out
+		return toAnySlice(v)
 	case []bool:
-		out := make([]any, 0, len(v))
-		for _, item := range v {
-			out = append(out, item)
-		}
-		return out
+		return toAnySlice(v)
 	case []int:
-		out := make([]any, 0, len(v))
-		for _, item := range v {
-			out = append(out, item)
-		}
-		return out
+		return toAnySlice(v)
 	case []int64:
-		out := make([]any, 0, len(v))
-		for _, item := range v {
-			out = append(out, item)
-		}
-		return out
+		return toAnySlice(v)
 	case []float64:
-		out := make([]any, 0, len(v))
-		for _, item := range v {
-			out = append(out, item)
-		}
-		return out
+		return toAnySlice(v)
 	case []float32:
-		out := make([]any, 0, len(v))
-		for _, item := range v {
-			out = append(out, item)
-		}
-		return out
+		return toAnySlice(v)
 	default:
 		return nil
 	}

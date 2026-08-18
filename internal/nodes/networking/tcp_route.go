@@ -16,6 +16,9 @@ type TCPRoute struct {
 	ParentGatewayRefs []ParentGatewayRef
 }
 
+func (r *TCPRoute) GetParentGatewayRefs() []ParentGatewayRef { return r.ParentGatewayRefs }
+func (r *TCPRoute) GetBackendRefs() []HTTPRouteBackendRef     { return r.BackendRefs }
+
 func BuildTCPRouteNode(obj runtime.Object) (BuildResult, bool) {
 	route, ok := obj.(*gatewayv1alpha2.TCPRoute)
 	if !ok || route == nil {

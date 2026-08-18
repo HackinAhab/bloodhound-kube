@@ -124,13 +124,11 @@ func extractContainersDetail(containers []corev1.Container, podSec *corev1.PodSe
 				SeLinuxOptions:         seLinuxRaw,
 				ReadOnlyRootFilesystem: readOnly,
 				Privileged:             privileged,
-				Raw:                    nil,
 			},
 			Env:          extractEnv(container.Env),
 			EnvFrom:      extractEnvFrom(container.EnvFrom),
 			HostPorts:    extractHostPorts(container.Ports),
 			VolumeMounts: extractVolumeMounts(container.VolumeMounts),
-			Raw:          nil,
 		}
 		results = append(results, result)
 	}
@@ -154,7 +152,6 @@ func extractInitContainersDetail(containers []corev1.Container) []Container {
 			Privileged: privileged,
 			Env:        extractEnv(container.Env),
 			EnvFrom:    extractEnvFrom(container.EnvFrom),
-			Raw:        nil,
 		}
 		results = append(results, result)
 	}
@@ -306,7 +303,6 @@ func extractHostPorts(ports []corev1.ContainerPort) []HostPort {
 			HostPort:      int(port.HostPort),
 			HostIP:        port.HostIP,
 			Protocol:      protocol,
-			Raw:           nil,
 		})
 	}
 	return results
@@ -322,7 +318,6 @@ func extractVolumeMounts(mounts []corev1.VolumeMount) []VolumeMount {
 			Name:      mount.Name,
 			MountPath: mount.MountPath,
 			ReadOnly:  mount.ReadOnly,
-			Raw:       nil,
 		})
 	}
 	return results

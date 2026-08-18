@@ -59,27 +59,13 @@ type CollectResponse struct {
 
 type CollectService struct{}
 
-type collectRuntime struct {
-	collector *collector.Collector
-	log       *utils.Logger
-}
-
 type collectDiscoveryPolicy struct {
 	explicitTypes       bool
 	allowlistEntries    []collector.AllowlistEntry
 	filteredResources   []collector.DiscoveryResource
-	filterSource        string
-	includeCRDs         bool
 	discoveryListOnly   bool
 	discoveredResources []collector.DiscoveryResource
 }
-
-type crdExclusionMode string
-
-const (
-	crdExclusionNone  crdExclusionMode = "none"
-	crdExclusionStrip crdExclusionMode = "strip-crds"
-)
 
 type collectScope string
 
@@ -110,15 +96,12 @@ func (s CollectService) Run(ctx context.Context, req CollectRequest, out io.Writ
 		return CollectResponse{}, err
 	}
 
-	c, err := collector.New(utils.ClientConfig{Kubeconfig: req.Kubeconfig, Server: req.Server, Token: req.Token, ClusterType: clusterTypeEnum}, log)
+	c, err := collector.New(utils.ClientConfig{Kubeconfig: req.Kubeconfig, Server: req.Server, Token: req.Token, ClusterType: clusterTypeEnum}, log, req.Redacted, req.PaginateLimit)
 	if err != nil {
 		return CollectResponse{}, fmt.Errorf("failed to create collector: %w", err)
 	}
-	c.SetRedacted(req.Redacted)
-	c.SetPaginateLimit(req.PaginateLimit)
-	runtime := collectRuntime{collector: c, log: log}
 
-	discoveryPolicy, err := resolveDiscoveryPolicy(ctx, req, runtime)
+	discoveryPolicy, err := resolveDiscoveryPolicy(ctx, req, c, log)
 	if err != nil {
 		return CollectResponse{}, err
 	}
@@ -212,7 +195,7 @@ func resolveClusterType(clusterType string) (utils.ClusterType, error) {
 	}
 }
 
-func resolveDiscoveryPolicy(ctx context.Context, req CollectRequest, runtime collectRuntime) (collectDiscoveryPolicy, error) {
+func resolveDiscoveryPolicy(ctx context.Context, req CollectRequest, c *collector.Collector, log *utils.Logger) (collectDiscoveryPolicy, error) {
 	policy := collectDiscoveryPolicy{}
 	policy.explicitTypes = len(req.ResourceTypes) > 0
 	scope, err := resolveCollectScope(req)
@@ -220,13 +203,12 @@ func resolveDiscoveryPolicy(ctx context.Context, req CollectRequest, runtime col
 		return policy, err
 	}
 
-	resources, err := collector.DiscoverResources(ctx, runtime.collector.GetClients(), runtime.log)
+	resources, err := c.Discover(ctx)
 	if err != nil {
 		return policy, fmt.Errorf("failed to discover resources: %w", err)
 	}
 	policy.discoveredResources = resources
 	policy.filteredResources = resources
-	policy.filterSource = "all"
 	policy.discoveryListOnly = req.DiscoveryList
 
 	if req.DiscoveryAllowlist != "" {
@@ -235,39 +217,29 @@ func resolveDiscoveryPolicy(ctx context.Context, req CollectRequest, runtime col
 			return policy, fmt.Errorf("failed to read allowlist file: %w", err)
 		}
 		policy.allowlistEntries = entries
-		runtime.log.Info("Using discovery allowlist file", "path", req.DiscoveryAllowlist, "entries", len(entries))
+		log.Info("Using discovery allowlist file", "path", req.DiscoveryAllowlist, "entries", len(entries))
 	}
 
 	if policy.explicitTypes {
 		return policy, nil
 	}
 
-	filtered, source, err := applyDiscoveryFilterByScope(resources, scope, policy.allowlistEntries)
+	filtered, err := applyDiscoveryFilterByScope(resources, scope, policy.allowlistEntries)
 	if err != nil {
 		return policy, err
 	}
 	policy.filteredResources = filtered
-	policy.filterSource = source
 
-	includeCRDs, err := shouldIncludeCRDs(req, filtered, runtime.log)
+	includeCRDs, err := shouldIncludeCRDs(req, filtered, log)
 	if err != nil {
 		return policy, err
 	}
-	policy.includeCRDs = includeCRDs
-	mode := decideCRDExclusionMode(includeCRDs)
-	if mode == crdExclusionNone {
+	if includeCRDs {
 		return policy, nil
 	}
 
 	policy.filteredResources = filterCRDResources(policy.filteredResources, false)
 	return policy, nil
-}
-
-func decideCRDExclusionMode(includeCRDs bool) crdExclusionMode {
-	if includeCRDs {
-		return crdExclusionNone
-	}
-	return crdExclusionStrip
 }
 
 func resolveCollectScope(req CollectRequest) (collectScope, error) {
@@ -292,34 +264,31 @@ func resolveCollectScope(req CollectRequest) (collectScope, error) {
 	}
 }
 
-func applyDiscoveryFilterByScope(resources []collector.DiscoveryResource, scope collectScope, allowlistEntries []collector.AllowlistEntry) ([]collector.DiscoveryResource, string, error) {
+func applyDiscoveryFilterByScope(resources []collector.DiscoveryResource, scope collectScope, allowlistEntries []collector.AllowlistEntry) ([]collector.DiscoveryResource, error) {
 	filtered := resources
-	source := string(scope)
 	switch scope {
 	case collectScopeAll:
 		filtered = resources
 	case collectScopeAllowlist:
 		defaults, err := collector.DefaultDiscoveryAllowlist()
 		if err != nil {
-			return nil, "", fmt.Errorf("failed to load default allowlist: %w", err)
+			return nil, fmt.Errorf("failed to load default allowlist: %w", err)
 		}
 		defaults = collector.MergeAllowlists(defaults, allowlistEntries)
 		filtered = collector.FilterDiscoveredResources(resources, defaults)
-		source = "default-allowlist+file"
 	case collectScopeCore:
 		defaults, err := collector.DefaultDiscoveryAllowlist()
 		if err != nil {
-			return nil, "", fmt.Errorf("failed to load default allowlist: %w", err)
+			return nil, fmt.Errorf("failed to load default allowlist: %w", err)
 		}
 		filtered = collector.FilterDiscoveredResources(resources, defaults)
-		source = "default-allowlist"
 	default:
-		return nil, "", fmt.Errorf("unsupported scope %q", scope)
+		return nil, fmt.Errorf("unsupported scope %q", scope)
 	}
 	if len(filtered) == 0 {
-		return nil, "", fmt.Errorf("no resources matched discovery filters (%s)", source)
+		return nil, fmt.Errorf("no resources matched discovery filters (%s)", scope)
 	}
-	return filtered, source, nil
+	return filtered, nil
 }
 
 func shouldIncludeCRDs(req CollectRequest, resources []collector.DiscoveryResource, log *utils.Logger) (bool, error) {
@@ -346,7 +315,7 @@ func resolveOutputAndCheckpoint(req CollectRequest) (outputCheckpointResolution,
 			outputDir, outputFilename := parseOutputPath(req.Output)
 			resolved.checkpointPath = collector.DefaultCheckpointPath(outputDir, outputFilename)
 		}
-		if !collector.CheckpointExists(resolved.checkpointPath) {
+		if _, err := os.Stat(resolved.checkpointPath); err != nil {
 			return resolved, fmt.Errorf("checkpoint file not found: %s", resolved.checkpointPath)
 		}
 		checkpoint, err := collector.LoadCheckpoint(resolved.checkpointPath)

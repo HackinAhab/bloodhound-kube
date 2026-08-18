@@ -16,6 +16,9 @@ type TLSRoute struct {
 	ParentGatewayRefs []ParentGatewayRef
 }
 
+func (r *TLSRoute) GetParentGatewayRefs() []ParentGatewayRef { return r.ParentGatewayRefs }
+func (r *TLSRoute) GetBackendRefs() []HTTPRouteBackendRef     { return r.BackendRefs }
+
 func BuildTLSRouteNode(obj runtime.Object) (BuildResult, bool) {
 	switch typed := obj.(type) {
 	case *gatewayv1.TLSRoute:

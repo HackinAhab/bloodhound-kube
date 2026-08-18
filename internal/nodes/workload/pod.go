@@ -13,7 +13,6 @@ type VolumeMount struct {
 	Name      string
 	MountPath string
 	ReadOnly  bool
-	Raw       map[string]any
 }
 
 type HostPort struct {
@@ -21,7 +20,6 @@ type HostPort struct {
 	HostPort      int
 	HostIP        string
 	Protocol      string
-	Raw           map[string]any
 }
 
 type NamedObjectRef struct {
@@ -31,7 +29,6 @@ type NamedObjectRef struct {
 type EnvFromSource struct {
 	SecretRef    *NamedObjectRef
 	ConfigMapRef *NamedObjectRef
-	Raw          map[string]any
 }
 
 type EnvVarValueRef struct {
@@ -69,7 +66,6 @@ type ContainerSecurityContext struct {
 	SeLinuxOptions         map[string]any
 	ReadOnlyRootFilesystem bool
 	Privileged             bool
-	Raw                    map[string]any
 }
 
 type Container struct {
@@ -85,7 +81,6 @@ type Container struct {
 	EnvFrom                []EnvFromSource
 	HostPorts              []HostPort
 	VolumeMounts           []VolumeMount
-	Raw                    map[string]any
 }
 
 type VolumeDetail struct {

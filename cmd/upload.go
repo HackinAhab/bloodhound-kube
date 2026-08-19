@@ -17,7 +17,6 @@ var (
 	uploadTokenKey           string
 	uploadInsecure           bool
 	uploadTimeout            int
-	uploadLogLevel           string
 	uploadReset              bool
 	uploadResetDB            bool
 	uploadCluster            string
@@ -46,18 +45,14 @@ Examples:
   # Enable OpenGraph extension management
   bloodhound-kube upload --enable-extension --token-id $BLOODHOUND_TOKEN_ID --token-key $BLOODHOUND_TOKEN_KEY`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		effectiveLogLevel := uploadLogLevel
-		if !cmd.Flags().Changed("log") && globalLogLevel != "" {
-			effectiveLogLevel = globalLogLevel
-		}
-		log, closeFn, err := buildLogger(effectiveLogLevel, true)
+		log, closeFn, err := buildLogger(globalLogLevel, true)
 		if err != nil {
 			return err
 		}
 		defer closeFn()
 		utils.SetDefaultLogger(log)
 
-		log.Debug("Starting upload command", "logLevel", effectiveLogLevel)
+		log.Debug("Starting upload command", "logLevel", globalLogLevel)
 
 		hasSchemaFlag := cmd.Flags().Changed("schema-file")
 		hasQueriesFlag := cmd.Flags().Changed("queries-file")
@@ -92,7 +87,6 @@ func init() {
 	uploadCmd.Flags().StringVar(&uploadTokenKey, "token-key", "", "API token key for authentication")
 	uploadCmd.Flags().BoolVar(&uploadInsecure, "insecure", true, "Skip TLS certificate verification")
 	uploadCmd.Flags().IntVar(&uploadTimeout, "timeout", 30, "Timeout in seconds for upload operations")
-	uploadCmd.Flags().StringVarP(&uploadLogLevel, "log", "l", "info", "Log level (trace, debug, info, warn, error)")
 	uploadCmd.Flags().BoolVar(&uploadReset, "reset", false, "Reset existing custom data before uploading")
 	uploadCmd.Flags().BoolVar(&uploadResetDB, "reset-db", false, "Reset the entire database before uploading")
 	uploadCmd.Flags().StringVar(&uploadCluster, "cluster", "default", "Cluster name to substitute in saved query filters")

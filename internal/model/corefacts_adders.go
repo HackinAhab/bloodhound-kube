@@ -6,6 +6,7 @@ import (
 	"bloodhound-kube/internal/nodes/addons/cilium"
 	"bloodhound-kube/internal/nodes/addons/externalsecrets"
 	"bloodhound-kube/internal/nodes/addons/istio"
+	"bloodhound-kube/internal/nodes/addons/route"
 	"bloodhound-kube/internal/nodes/addons/scc"
 	"bloodhound-kube/internal/nodes/mounts"
 	"bloodhound-kube/internal/nodes/networking"
@@ -95,6 +96,7 @@ func init() {
 		ns.CiliumNetworkPolicies = append(ns.CiliumNetworkPolicies, v)
 	})
 	registerNamespacedFactAdder(func(ns *Namespace, v networking.Ingress) { ns.Ingresses = append(ns.Ingresses, v) })
+	registerNamespacedFactAdder(func(ns *Namespace, v route.Route) { ns.Routes = append(ns.Routes, v) })
 	registerNamespacedFactAdder(func(ns *Namespace, v networking.Gateway) { ns.Gateways = append(ns.Gateways, v) })
 	registerNamespacedFactAdder(func(ns *Namespace, v networking.HTTPRoute) { ns.HTTPRoutes = append(ns.HTTPRoutes, v) })
 	registerNamespacedFactAdder(func(ns *Namespace, v networking.GRPCRoute) { ns.GRPCRoutes = append(ns.GRPCRoutes, v) })

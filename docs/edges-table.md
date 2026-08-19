@@ -70,6 +70,8 @@
 | mounts | `cluster` | `BHK_BoundTo` | PersistentVolume → PersistentVolumeClaim | PV's `claimRef` matches the PVC name and namespace |
 | networking | `ingress` | `BHK_RoutesTo` | Ingress → Service | Ingress backend ref names the service |
 | networking | `ingress` | `BHK_ExternalRoutesTo` | External → Ingress | Any Ingress exists and an External node is present |
+| networking | `route` | `BHK_RoutesTo` | Route → Service | Route's `spec.to`/`spec.alternateBackends` names the service |
+| networking | `route` | `BHK_ExternalRoutesTo` | External → Route | Any Route exists and an External node is present |
 | networking | `gateway` | `BHK_RoutesTo` | Gateway → HTTPRoute/GRPCRoute/TCPRoute/TLSRoute | Route's `parentRef` names the gateway (matched by name and namespace) |
 | networking | `gateway` | `BHK_ExternalRoutesTo` | External → Gateway | Any Gateway exists and an External node is present |
 | networking | `networkpolicy` | `BHK_AppliesTo` | NetworkPolicy → Pod | Pod labels satisfy the NetworkPolicy's `podSelector` |

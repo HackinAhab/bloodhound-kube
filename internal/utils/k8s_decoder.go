@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	routev1 "github.com/openshift/api/route/v1"
 	securityv1 "github.com/openshift/api/security/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -21,6 +22,7 @@ type DecodedResource struct {
 
 func init() {
 	_ = securityv1.AddToScheme(scheme.Scheme)
+	_ = routev1.Install(scheme.Scheme)
 	_ = gatewayv1.Install(scheme.Scheme)
 	_ = gatewayv1alpha2.Install(scheme.Scheme)
 	_ = gatewayv1beta1.Install(scheme.Scheme)

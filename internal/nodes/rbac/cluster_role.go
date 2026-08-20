@@ -10,6 +10,7 @@ import (
 type ClusterRole struct {
 	GraphNodeBase
 	PermsDisplay []string
+	Rules        []RbacRule
 }
 
 func BuildClusterRoleNode(obj runtime.Object) (BuildResult, bool) {
@@ -42,6 +43,7 @@ func BuildClusterRoleNode(obj runtime.Object) (BuildResult, bool) {
 		Data: ClusterRole{
 			GraphNodeBase: base,
 			PermsDisplay:  perms,
+			Rules:         parsedRBACRules,
 		},
 	}
 

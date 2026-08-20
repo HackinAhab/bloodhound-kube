@@ -200,6 +200,7 @@ func createNodesAndCoreFactsFromReader(reader io.Reader, parseUndefinedNodes boo
 
 	addAggregateNodes(&nodeList, coreFacts)
 	synthesizeUsersAndGroups(&nodeList, coreFacts)
+	enrichIdentityPermissions(nodeList, coreFacts)
 
 	external := platform.ExternalNode()
 	nodeList = append(nodeList, model.BloodHoundNode{

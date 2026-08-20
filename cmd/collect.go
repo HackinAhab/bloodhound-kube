@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"os"
+	"time"
 
 	"bloodhound-kube/internal/cli"
 	"bloodhound-kube/internal/utils"
@@ -54,9 +55,13 @@ Use --no-parse to write JSONL only.`,
 		utils.SetDefaultLogger(log)
 
 		if parseInputFile != "" {
+			outPath := output
+			if outPath == "" {
+				outPath = "bloodhound-kube-" + time.Now().Format("2006-01-02-150405") + ".json"
+			}
 			_, err = cli.ParseService{}.Run(cli.ParseRequest{
 				InputPath:           parseInputFile,
-				OutputPath:          parsedOutput,
+				OutputPath:          outPath,
 				ClusterName:         parseCluster,
 				ParseUndefinedNodes: parseUndefinedNodes,
 			}, os.Stdout, log)

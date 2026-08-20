@@ -10,6 +10,7 @@ import (
 type Role struct {
 	GraphNodeBase
 	PermsDisplay []string
+	Rules        []RbacRule
 }
 
 func BuildRoleNode(obj runtime.Object) (BuildResult, bool) {
@@ -44,6 +45,7 @@ func BuildRoleNode(obj runtime.Object) (BuildResult, bool) {
 		Data: Role{
 			GraphNodeBase: base,
 			PermsDisplay:  perms,
+			Rules:         parsedRBACRules,
 		},
 	}
 

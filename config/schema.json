@@ -2,7 +2,7 @@
   "schema": {
     "name": "BHK",
     "display_name": "Bloodhound-Kube",
-    "version": "v1.0.0",
+    "version": "v0.1.2",
     "namespace": "BHK"
   },
   "node_kinds": [
@@ -252,6 +252,14 @@
       "description": "Kubernetes Ingress exposing HTTP/HTTPS routes to services.",
       "is_display_kind": true,
       "icon": "signs-post",
+      "color": "#E11D48"
+    },
+    {
+      "name": "BHK_Route",
+      "display_name": "Route",
+      "description": "OpenShift Route exposing routes to services.",
+      "is_display_kind": true,
+      "icon": "route",
       "color": "#E11D48"
     },
     {

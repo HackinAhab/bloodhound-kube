@@ -5,6 +5,7 @@ import (
 
 	"bloodhound-kube/internal/edges/framework"
 	"bloodhound-kube/internal/model"
+	routenodes "bloodhound-kube/internal/nodes/addons/route"
 	nodefw "bloodhound-kube/internal/nodes/framework"
 	netnodes "bloodhound-kube/internal/nodes/networking"
 	"bloodhound-kube/internal/nodes/platform"
@@ -307,6 +308,67 @@ func TestIngressEdgesRuleNoExternalNoEdge(t *testing.T) {
 
 	ctx := framework.NewContext(core)
 	edges := ingressEdgesRule{}.Apply(ctx)
+	for _, e := range edges {
+		if e.Kind == "BHK_ExternalRoutesTo" {
+			t.Fatalf("unexpected ExternalRoutesTo edge when no External node is present: %+v", e)
+		}
+	}
+}
+
+// ---------------------------------------------------------------------------
+// routeEdgesRule (OpenShift Route)
+// ---------------------------------------------------------------------------
+
+func TestRouteEdgesRuleExternalToRoute(t *testing.T) {
+	core := newCore()
+	ns := ensureNamespace(core, "ns1")
+	ns.Routes = append(ns.Routes, routenodes.Route{
+		GraphNodeBase: base("BHK_Route", "ns1", "my-route"),
+	})
+	core.Cluster.External = append(core.Cluster.External, platform.ExternalCoreEntry())
+
+	ctx := framework.NewContext(core)
+	edges := routeEdgesRule{}.Apply(ctx)
+	externalID := nodefw.BuildID("BHK_External", "", "external")
+	routeID := nodefw.BuildID("BHK_Route", "ns1", "my-route")
+	if !hasEdge(edges, externalID, routeID, "BHK_ExternalRoutesTo") {
+		t.Fatalf("missing ExternalRoutesTo edge from External to Route")
+	}
+}
+
+func TestRouteEdgesRuleRoutesToService(t *testing.T) {
+	core := newCore()
+	ns := ensureNamespace(core, "ns1")
+	ns.Services = append(ns.Services, netnodes.Service{
+		GraphNodeBase: base("BHK_Service", "ns1", "backend-svc"),
+	})
+	ns.Routes = append(ns.Routes, routenodes.Route{
+		GraphNodeBase: base("BHK_Route", "ns1", "my-route"),
+		BackendRefs: []netnodes.HTTPRouteBackendRef{
+			{Namespace: "ns1", Name: "backend-svc"},
+		},
+	})
+	core.Cluster.External = append(core.Cluster.External, platform.ExternalCoreEntry())
+
+	ctx := framework.NewContext(core)
+	edges := routeEdgesRule{}.Apply(ctx)
+	routeID := nodefw.BuildID("BHK_Route", "ns1", "my-route")
+	svcID := nodefw.BuildID("BHK_Service", "ns1", "backend-svc")
+	if !hasEdge(edges, routeID, svcID, "BHK_RoutesTo") {
+		t.Fatalf("missing RoutesTo edge from Route to backend-svc")
+	}
+}
+
+func TestRouteEdgesRuleNoExternalNoEdge(t *testing.T) {
+	core := newCore()
+	ns := ensureNamespace(core, "ns1")
+	ns.Routes = append(ns.Routes, routenodes.Route{
+		GraphNodeBase: base("BHK_Route", "ns1", "my-route"),
+	})
+	// No external node.
+
+	ctx := framework.NewContext(core)
+	edges := routeEdgesRule{}.Apply(ctx)
 	for _, e := range edges {
 		if e.Kind == "BHK_ExternalRoutesTo" {
 			t.Fatalf("unexpected ExternalRoutesTo edge when no External node is present: %+v", e)

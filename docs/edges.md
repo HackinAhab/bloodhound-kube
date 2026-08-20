@@ -349,6 +349,18 @@ Maps traffic paths through Ingress objects. `BHK_ExternalRoutesTo` edges indicat
 
 ---
 
+### `route` — OpenShift Route Routing
+**File:** `route.go`
+
+Maps traffic paths through OpenShift Route objects. Routes are always externally exposed (they exist specifically to be admitted by a router with an external DNS entry), so `BHK_ExternalRoutesTo` is emitted for every Route, mirroring Ingress.
+
+| Edge | Source → Target | Trigger |
+|------|----------------|---------|
+| `BHK_RoutesTo` | Route → Service | Route's `spec.to` or `spec.alternateBackends` names the service |
+| `BHK_ExternalRoutesTo` | External → Route | Any Route exists and an External node is present |
+
+---
+
 ### `gateway` — Gateway API Routing
 **File:** `gateway.go`
 

@@ -13,7 +13,6 @@ import (
 var (
 	namespaces          string
 	allNamespaces       bool
-	logLevel            string
 	output              string
 	resourceTypes       []string
 	concurrency         int
@@ -47,11 +46,7 @@ var collectCmd = &cobra.Command{
 
 Use --no-parse to write JSONL only.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		effectiveLogLevel := logLevel
-		if !cmd.Flags().Changed("log") && globalLogLevel != "" {
-			effectiveLogLevel = globalLogLevel
-		}
-		log, closeFn, err := buildLogger(effectiveLogLevel, true)
+		log, closeFn, err := buildLogger(globalLogLevel, true)
 		if err != nil {
 			return err
 		}
@@ -102,24 +97,18 @@ Use --no-parse to write JSONL only.`,
 	},
 }
 
-func getAvailableResourcesHelp() string {
-	return "Resource types to collect (explicit override; accepts name, kind, shortnames, or API path)"
-}
-
 func init() {
 	addCollectFlags(collectCmd)
 	rootCmd.AddCommand(collectCmd)
 }
 
 func addCollectFlags(cmd *cobra.Command) {
-	resourceTypeHelp := getAvailableResourcesHelp()
 	cmd.Flags().StringVarP(&namespaces, "namespace", "n", "", "Kubernetes namespace(s) - comma-delimited for multiple (defaults to current context namespace)")
 	cmd.Flags().BoolVarP(&allNamespaces, "all-namespaces", "A", false, "Collect from all namespaces (cannot be used with -n)")
 	cmd.Flags().IntVarP(&concurrency, "concurrency", "c", 10, "Number of concurrent workers for streaming collection")
 	cmd.Flags().IntVar(&paginateLimit, "paginate-limit", 100, "List pagination limit per API call")
-	cmd.Flags().StringVarP(&logLevel, "log", "l", "info", "Log level (trace, debug, info, warn, error)")
 	cmd.Flags().StringVarP(&output, "output", "o", "", "Output file path (can be directory, filename, or full path). Defaults to bloodhound-kube-YYYY-MM-DD-HHMMSS.jsonl in current directory")
-	cmd.Flags().StringSliceVarP(&resourceTypes, "type", "t", []string{}, resourceTypeHelp)
+	cmd.Flags().StringSliceVarP(&resourceTypes, "type", "t", []string{}, "Resource types to collect (explicit override; accepts name, kind, shortnames, or API path)")
 	cmd.Flags().StringVar(&kubeconfig, "kubeconfig", "", "Path to kubeconfig file (overrides KUBECONFIG and ~/.kube/config)")
 	cmd.Flags().StringVarP(&server, "server", "s", "", "Kubernetes API server address (requires --token)")
 	cmd.Flags().StringVar(&token, "token", "", "Bearer token for authentication (requires --server)")

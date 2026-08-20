@@ -48,6 +48,7 @@
 | addons | `BHK_ClusterSecretStore` | `addons/external_secrets.go` | cluster | external-secrets operator |
 | addons | `BHK_ExternalSecret` | `addons/external_secrets.go` | namespace | external-secrets operator |
 | addons | `BHK_SecurityContextConstraint` | `addons/security_context_constraints.go` | cluster | OpenShift only; builder exists but not yet registered |
+| addons | `BHK_Route` | `addons/route/route.go` | namespace | OpenShift only (`route.openshift.io/v1`); backend refs from `spec.to`/`spec.alternateBackends` |
 | addons | `BHK_CiliumNetworkPolicy` | `addons/cilium/cilium_network_policy.go` | namespace | `cilium.io/v2`; unstructured, full spec fetch |
 | addons | `BHK_GlobalNetworkPolicy` | `addons/calico/calico_global_network_policy.go` | cluster | `projectcalico.org/v3` and `crd.projectcalico.org/v1`; both groups map to the same builder, deduped at parse time |
 | addons | `BHK_Certificate` | `addons/certmanager/cert_manager.go` | namespace | `cert-manager.io/v1` |

@@ -6,6 +6,7 @@ import (
 	"bloodhound-kube/internal/nodes/addons/cilium"
 	"bloodhound-kube/internal/nodes/addons/externalsecrets"
 	"bloodhound-kube/internal/nodes/addons/istio"
+	"bloodhound-kube/internal/nodes/addons/route"
 	"bloodhound-kube/internal/nodes/addons/scc"
 	"bloodhound-kube/internal/nodes/mounts"
 	"bloodhound-kube/internal/nodes/networking"
@@ -28,6 +29,7 @@ type Namespace struct {
 	NetworkPolicies        []networking.NetworkPolicy
 	CiliumNetworkPolicies  []cilium.CiliumNetworkPolicy
 	Ingresses              []networking.Ingress
+	Routes                 []route.Route
 	Gateways               []networking.Gateway
 	HTTPRoutes             []networking.HTTPRoute
 	GRPCRoutes             []networking.GRPCRoute

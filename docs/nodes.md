@@ -67,6 +67,7 @@ Nodes are organized by domain. Each domain has its own subdirectory under `inter
 | `BHK_ClusterSecretStore` | `addons/external_secrets.go` | cluster | external-secrets operator |
 | `BHK_ExternalSecret` | `addons/external_secrets.go` | namespace | external-secrets operator |
 | `BHK_SecurityContextConstraint` | `addons/security_context_constraints.go` | cluster | OpenShift only; builder implemented but not yet registered |
+| `BHK_Route` | `addons/route/route.go` | namespace | OpenShift only (`route.openshift.io/v1`); `urls` built from `spec.host`+`spec.path`, https when `spec.tls` set; backend refs from `spec.to`/`spec.alternateBackends` |
 | `BHK_CiliumNetworkPolicy` | `addons/cilium_network_policy.go` | namespace | `cilium.io/v2`; unstructured, full spec fetch |
 | `BHK_GlobalNetworkPolicy` | `addons/calico_global_network_policy.go` | cluster | `projectcalico.org/v3` (canonical) and `crd.projectcalico.org/v1` (internal CRD); both groups map to the same builder, deduped by node ID at parse time; unstructured, full spec fetch |
 | _(no node — `HostEndpoint`)_ | `addons/calico_host_endpoint.go` | cluster | `projectcalico.org/v3` and `crd.projectcalico.org/v1`; parsed into `CoreFacts` only, to resolve `BHK_GlobalNetworkPolicy` edges to `BHK_Node` — never rendered as a graph node (see "CoreEntry and CoreFacts" below) |

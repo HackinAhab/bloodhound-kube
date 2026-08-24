@@ -10,10 +10,6 @@ import (
 // SecurityContextConstraints (OpenShift) is not build-tag-gated — it's a
 // deliberate, always-on integration, unlike the other addon families.
 
-func Register() {
-	RegisterTyped(securityv1.SchemeGroupVersion.WithKind("SecurityContextConstraints"), BuildSecurityContextConstraintsNode)
-}
-
 type SecurityContextConstraints struct {
 	GraphNodeBase
 }

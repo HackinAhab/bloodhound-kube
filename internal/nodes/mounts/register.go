@@ -7,6 +7,25 @@ import (
 )
 
 func Register() {
-	framework.RegisterTyped(corev1.SchemeGroupVersion.WithKind("PersistentVolume"), BuildPVNode)
-	framework.RegisterTypedWithFetchMode(corev1.SchemeGroupVersion.WithKind("PersistentVolumeClaim"), BuildPVCNode, framework.FetchModeHintMetadata)
+	framework.RegisterResources(
+		framework.ResourceRegistration{
+			GVK:          corev1.SchemeGroupVersion.WithKind("PersistentVolume"),
+			TypedBuilder: BuildPVNode,
+		},
+		framework.ResourceRegistration{
+			GVK:          corev1.SchemeGroupVersion.WithKind("PersistentVolumeClaim"),
+			TypedBuilder: BuildPVCNode,
+			FetchMode:    framework.FetchModeHintMetadata,
+		},
+	)
+	framework.RegisterDefaultCollections(
+		framework.CollectionTarget{
+			Version:  "v1",
+			Resource: "persistentvolumes",
+		},
+		framework.CollectionTarget{
+			Version:  "v1",
+			Resource: "persistentvolumeclaims",
+		},
+	)
 }

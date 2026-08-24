@@ -317,12 +317,11 @@ func buildNodeFromMap(resource map[string]any, parseUndefinedNodes bool) (nodes.
 	if resource == nil {
 		return nodes.BuildResult{}, false, false, nil
 	}
-	result, ok := nodes.Build(resource)
-	if !ok {
-		if gvk, valid := gvkFromMap(resource); valid {
-			result, ok = nodes.BuildTypedFromMap(gvk, resource)
-		}
+	gvk, valid := gvkFromMap(resource)
+	if !valid {
+		return nodes.BuildResult{}, false, false, nil
 	}
+	result, ok := nodes.BuildTypedFromMap(gvk, resource)
 	if ok {
 		return result, true, false, nil
 	}

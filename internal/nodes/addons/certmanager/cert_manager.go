@@ -2,13 +2,9 @@
 
 package certmanager
 
-import . "bloodhound-kube/internal/nodes/framework"
-
-func Register() {
-	RegisterKind("Certificate", BuildCertificateNode)
-	RegisterKind("Issuer", BuildIssuerNode)
-	RegisterKind("ClusterIssuer", BuildClusterIssuerNode)
-}
+import (
+	. "bloodhound-kube/internal/nodes/framework"
+)
 
 func BuildCertificateNode(resource map[string]any) (BuildResult, bool) {
 	metadata := GetMap(resource, "metadata")

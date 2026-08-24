@@ -11,10 +11,6 @@ import (
 // Route (OpenShift route.openshift.io) is not build-tag-gated — it's a
 // deliberate, always-on integration, mirroring the addons/scc package.
 
-func Register() {
-	RegisterTyped(routev1.SchemeGroupVersion.WithKind("Route"), BuildRouteNode)
-}
-
 type Route struct {
 	GraphNodeBase
 	BackendRefs []networking.HTTPRouteBackendRef

@@ -8,13 +8,7 @@ import (
 	"strings"
 
 	. "bloodhound-kube/internal/nodes/framework"
-
-	"k8s.io/apimachinery/pkg/runtime/schema"
 )
-
-func Register() {
-	RegisterTypedFromMapWithFetchMode(schema.GroupVersionKind{Group: "cilium.io", Version: "v2", Kind: "CiliumNetworkPolicy"}, BuildCiliumNetworkPolicyNode, FetchModeHintFull)
-}
 
 func BuildCiliumNetworkPolicyNode(resource map[string]any) (BuildResult, bool) {
 	metadata := GetMap(resource, "metadata")

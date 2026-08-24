@@ -9,12 +9,77 @@ import (
 )
 
 func Register() {
-	framework.RegisterTyped(corev1.SchemeGroupVersion.WithKind("Pod"), BuildPodNode)
-	framework.RegisterTyped(appsv1.SchemeGroupVersion.WithKind("Deployment"), BuildDeploymentNode)
-	framework.RegisterTyped(appsv1.SchemeGroupVersion.WithKind("DaemonSet"), BuildDaemonSetNode)
-	framework.RegisterTyped(appsv1.SchemeGroupVersion.WithKind("StatefulSet"), BuildStatefulSetNode)
-	framework.RegisterTyped(batchv1.SchemeGroupVersion.WithKind("Job"), BuildJobNode)
-	framework.RegisterTyped(batchv1.SchemeGroupVersion.WithKind("CronJob"), BuildCronJobNode)
-	framework.RegisterTyped(corev1.SchemeGroupVersion.WithKind("ConfigMap"), BuildConfigMapNode)
-	framework.RegisterTyped(corev1.SchemeGroupVersion.WithKind("Secret"), BuildSecretNode)
+	framework.RegisterResources(
+		framework.ResourceRegistration{
+			GVK:          corev1.SchemeGroupVersion.WithKind("Pod"),
+			TypedBuilder: BuildPodNode,
+		},
+		framework.ResourceRegistration{
+			GVK:          appsv1.SchemeGroupVersion.WithKind("Deployment"),
+			TypedBuilder: BuildDeploymentNode,
+		},
+		framework.ResourceRegistration{
+			GVK:          appsv1.SchemeGroupVersion.WithKind("DaemonSet"),
+			TypedBuilder: BuildDaemonSetNode,
+		},
+		framework.ResourceRegistration{
+			GVK:          appsv1.SchemeGroupVersion.WithKind("StatefulSet"),
+			TypedBuilder: BuildStatefulSetNode,
+		},
+		framework.ResourceRegistration{
+			GVK:          batchv1.SchemeGroupVersion.WithKind("Job"),
+			TypedBuilder: BuildJobNode,
+		},
+		framework.ResourceRegistration{
+			GVK:          batchv1.SchemeGroupVersion.WithKind("CronJob"),
+			TypedBuilder: BuildCronJobNode,
+		},
+		framework.ResourceRegistration{
+			GVK:          corev1.SchemeGroupVersion.WithKind("ConfigMap"),
+			TypedBuilder: BuildConfigMapNode,
+		},
+		framework.ResourceRegistration{
+			GVK:          corev1.SchemeGroupVersion.WithKind("Secret"),
+			TypedBuilder: BuildSecretNode,
+		},
+	)
+	framework.RegisterDefaultCollections(
+		framework.CollectionTarget{
+			Version:  "v1",
+			Resource: "pods",
+		},
+		framework.CollectionTarget{
+			Group:    "apps",
+			Version:  "v1",
+			Resource: "deployments",
+		},
+		framework.CollectionTarget{
+			Group:    "apps",
+			Version:  "v1",
+			Resource: "daemonsets",
+		},
+		framework.CollectionTarget{
+			Group:    "apps",
+			Version:  "v1",
+			Resource: "statefulsets",
+		},
+		framework.CollectionTarget{
+			Group:    "batch",
+			Version:  "v1",
+			Resource: "jobs",
+		},
+		framework.CollectionTarget{
+			Group:    "batch",
+			Version:  "v1",
+			Resource: "cronjobs",
+		},
+		framework.CollectionTarget{
+			Version:  "v1",
+			Resource: "configmaps",
+		},
+		framework.CollectionTarget{
+			Version:  "v1",
+			Resource: "secrets",
+		},
+	)
 }

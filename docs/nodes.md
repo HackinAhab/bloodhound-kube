@@ -63,15 +63,15 @@ Nodes are organized by domain. Each domain has its own subdirectory under `inter
 
 | Kind | Go File | Scope | Notes |
 |------|---------|-------|-------|
-| `BHK_SecretStore` | `addons/external_secrets.go` | namespace | external-secrets operator |
-| `BHK_ClusterSecretStore` | `addons/external_secrets.go` | cluster | external-secrets operator |
-| `BHK_ExternalSecret` | `addons/external_secrets.go` | namespace | external-secrets operator |
-| `BHK_SecurityContextConstraint` | `addons/security_context_constraints.go` | cluster | OpenShift only; builder implemented but not yet registered |
+| `BHK_SecretStore` | `addons/externalsecrets/external_secrets.go` | namespace | external-secrets operator |
+| `BHK_ClusterSecretStore` | `addons/externalsecrets/external_secrets.go` | cluster | external-secrets operator |
+| `BHK_ExternalSecret` | `addons/externalsecrets/external_secrets.go` | namespace | external-secrets operator |
+| `BHK_SecurityContextConstraint` | `addons/scc/security_context_constraints.go` | cluster | OpenShift only |
 | `BHK_Route` | `addons/route/route.go` | namespace | OpenShift only (`route.openshift.io/v1`); `urls` built from `spec.host`+`spec.path`, https when `spec.tls` set; backend refs from `spec.to`/`spec.alternateBackends` |
-| `BHK_CiliumNetworkPolicy` | `addons/cilium_network_policy.go` | namespace | `cilium.io/v2`; unstructured, full spec fetch |
-| `BHK_GlobalNetworkPolicy` | `addons/calico_global_network_policy.go` | cluster | `projectcalico.org/v3` (canonical) and `crd.projectcalico.org/v1` (internal CRD); both groups map to the same builder, deduped by node ID at parse time; unstructured, full spec fetch |
-| _(no node — `HostEndpoint`)_ | `addons/calico_host_endpoint.go` | cluster | `projectcalico.org/v3` and `crd.projectcalico.org/v1`; parsed into `CoreFacts` only, to resolve `BHK_GlobalNetworkPolicy` edges to `BHK_Node` — never rendered as a graph node (see "CoreEntry and CoreFacts" below) |
-| `BHK_Certificate` | `addons/certmanager/cert_manager.go` | namespace | `cert-manager.io/v1`; unstructured, kind-name dispatch |
+| `BHK_CiliumNetworkPolicy` | `addons/cilium/cilium_network_policy.go` | namespace | `cilium.io/v2`; unstructured, full spec fetch |
+| `BHK_GlobalNetworkPolicy` | `addons/calico/global_network_policy.go` | cluster | `projectcalico.org/v3` (canonical) and `crd.projectcalico.org/v1` (internal CRD); both groups map to the same builder, deduped by node ID at parse time; unstructured, full spec fetch |
+| _(no node — `HostEndpoint`)_ | `addons/calico/host_endpoint.go` | cluster | `projectcalico.org/v3` and `crd.projectcalico.org/v1`; parsed into `CoreFacts` only, to resolve `BHK_GlobalNetworkPolicy` edges to `BHK_Node` — never rendered as a graph node (see "CoreEntry and CoreFacts" below) |
+| `BHK_Certificate` | `addons/certmanager/cert_manager.go` | namespace | `cert-manager.io/v1`; unstructured, GVK dispatch |
 | `BHK_Issuer` | `addons/certmanager/cert_manager.go` | namespace | `cert-manager.io/v1`; CA/Vault secret refs only (ACME/SelfSigned not parsed) |
 | `BHK_ClusterIssuer` | `addons/certmanager/cert_manager.go` | cluster | `cert-manager.io/v1`; CA/Vault secret refs only |
 | `BHK_IstioGateway` | `addons/istio/istio.go` | namespace | `networking.istio.io/v1` Gateway; named to avoid collision with Gateway API's `BHK_Gateway` |
@@ -239,25 +239,51 @@ func BuildMyKindNode(obj runtime.Object) (BuildResult, bool) {
 
 For CRDs or resources without a typed Go struct, use the map-based `Builder` signature instead (`func(resource map[string]any) (BuildResult, bool)`).
 
-### 2. Register the builder
+### 2. Register the resource descriptor
 
-In your domain's `register.go`, add a line inside `Register(reg *framework.Registry)`:
+In your domain's `register.go`, register the exact Kubernetes group, version, and kind. The parser dispatches only by GVK; kind-only registration is not supported. Each `ResourceRegistration` must set exactly one builder:
 
 ```go
-// For typed k8s objects (preferred):
-reg.RegisterTyped(corev1.SchemeGroupVersion.WithKind("MyKind"), BuildMyKindNode)
-
-// For metadata-only collection (saves bandwidth):
-reg.RegisterTypedWithFetchMode(gvk, BuildMyKindNode, framework.FetchModeHintMetadata)
-
-// For map-based builders (CRDs without typed structs):
-reg.RegisterTypedFromMap(gvk, BuildMyKindNode)
-
-// For kind-name dispatch only (no GVK, untyped):
-reg.Register("MyKind", BuildMyKindNode)
+func Register() {
+    framework.RegisterResources(
+        // Typed k8s objects are preferred when an API type is available.
+        framework.ResourceRegistration{
+            GVK:          corev1.SchemeGroupVersion.WithKind("MyKind"),
+            TypedBuilder: BuildMyKindNode,
+        },
+    )
+}
 ```
 
-### 3. Wire CoreFacts if edge rules need it
+For a CRD or another resource without a typed Go object, use `MapBuilder`. The registry converts the object to `map[string]any` before calling it:
+
+```go
+framework.ResourceRegistration{
+    GVK:        schema.GroupVersionKind{Group: "example.com", Version: "v1", Kind: "MyKind"},
+    MapBuilder: BuildMyKindNode,
+    FetchMode:  framework.FetchModeHintFull,
+},
+```
+
+Set `FetchMode` when collection must override its normal behavior. CRDs default to metadata-only collection, so builders or edge rules that read `spec` must use `framework.FetchModeHintFull`. Use `framework.FetchModeHintMetadata` when only metadata is needed and collecting the full object is unnecessary.
+
+### 3. Add a default collection target when appropriate
+
+`RegisterResources` enables parsing, but does not by itself add the resource to the curated default collection scope. Add a `CollectionTarget` in the same `Register()` function when the resource should be collected by default:
+
+```go
+framework.RegisterDefaultCollections(
+    framework.CollectionTarget{
+        Group:    "example.com",
+        Version:  "v1",
+        Resource: "mykinds", // Kubernetes API resource name, usually plural
+    },
+)
+```
+
+An empty `Resource` selects every resource in the group/version. Omit the collection target for supported resources that should only be collected through another scope or an explicit allowlist.
+
+### 4. Wire CoreFacts if edge rules need it
 
 If edge rules need to look up this node type:
 
@@ -281,7 +307,7 @@ registerNamespacedFactAdder(func(c *CoreFacts, v <domain>.MyKind) {
 
 Use `registerClusterFactAdder` for cluster-scoped types.
 
-### 4. Verify domain wiring
+### 5. Verify domain wiring
 
 Confirm `internal/nodes/node_registry.go` imports your domain package (each domain's `Register` is called from `ensureRegistered()`).
 
@@ -292,4 +318,3 @@ Confirm `internal/nodes/node_registry.go` imports your domain package (each doma
 The following are not currently implemented:
 
 - `ListenerSet` / `ListenerSetGroup` (Gateway API extension)
-- OpenShift `BHK_SecurityContextConstraint` node (builder exists in `addons/security_context_constraints.go` but is not yet registered)

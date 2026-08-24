@@ -19,8 +19,8 @@
         "program": "${workspaceFolder}/main.go",
         "args": [
             "report",
-            "-i", "output/debug.jsonl",
-            "-o", "output/debug-report",
+            "-i", "tmp/debug.jsonl",
+            "-o", "tmp/debug-report",
             "--report", "all"
         ],
         "cwd": "${workspaceFolder}",
@@ -33,7 +33,7 @@
         "program": "${workspaceFolder}/main.go",
         "args": [
             "collect",
-            "-o", "output/debug.jsonl"
+            "-o", "tmp/debug.jsonl"
         ],
         "cwd": "${workspaceFolder}",
     },
@@ -45,8 +45,8 @@
         "program": "${workspaceFolder}/main.go",
         "args": [
             "parse",
-            "-i","output/debug.jsonl",
-            "-o", "output/debug-parse.json"
+            "-i","tmp/debug.jsonl",
+            "-o", "tmp/debug-parse.json"
         ],
         "cwd": "${workspaceFolder}",
     }

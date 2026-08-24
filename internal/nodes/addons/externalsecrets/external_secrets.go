@@ -2,13 +2,9 @@
 
 package externalsecrets
 
-import . "bloodhound-kube/internal/nodes/framework"
-
-func Register() {
-	RegisterKind("SecretStore", BuildSecretStoreNode)
-	RegisterKind("ClusterSecretStore", BuildClusterSecretStoreNode)
-	RegisterKind("ExternalSecret", BuildExternalSecretNode)
-}
+import (
+	. "bloodhound-kube/internal/nodes/framework"
+)
 
 func BuildSecretStoreNode(resource map[string]any) (BuildResult, bool) {
 	metadata := GetMap(resource, "metadata")

@@ -9,13 +9,6 @@ import (
 	. "bloodhound-kube/internal/nodes/framework"
 )
 
-func Register() {
-	RegisterKind("Gateway", BuildIstioGatewayNode)
-	RegisterKind("VirtualService", BuildVirtualServiceNode)
-	RegisterKind("PeerAuthentication", BuildPeerAuthenticationNode)
-	RegisterKind("AuthorizationPolicy", BuildAuthorizationPolicyNode)
-}
-
 func BuildIstioGatewayNode(resource map[string]any) (BuildResult, bool) {
 	metadata := GetMap(resource, "metadata")
 	name := GetString(metadata, "name")

@@ -74,7 +74,7 @@ Common examples:
 # Default kubeconfig + current context namespace
 ./bloodhound-kube collect
 
-# Default scope is core (built-in allowlist)
+# Default scope is core (curated resource registrations)
 ./bloodhound-kube collect --scope core
 
 # Collect all discovered resources

@@ -8,7 +8,20 @@ import (
 )
 
 func Register() {
-	framework.RegisterKind("Namespace", BuildNamespaceNode)
-	framework.RegisterTypedFromMapWithFetchMode(corev1.SchemeGroupVersion.WithKind("Namespace"), BuildNamespaceNode, framework.FetchModeHintMetadata)
-	framework.RegisterTypedWithFetchMode(schema.GroupVersion{Group: "", Version: "v1"}.WithKind("Node"), BuildNodeNode, framework.FetchModeHintMetadata)
+	framework.RegisterResources(
+		framework.ResourceRegistration{
+			GVK:        corev1.SchemeGroupVersion.WithKind("Namespace"),
+			MapBuilder: BuildNamespaceNode,
+			FetchMode:  framework.FetchModeHintMetadata,
+		},
+		framework.ResourceRegistration{
+			GVK:          schema.GroupVersion{Group: "", Version: "v1"}.WithKind("Node"),
+			TypedBuilder: BuildNodeNode,
+			FetchMode:    framework.FetchModeHintMetadata,
+		},
+	)
+	framework.RegisterDefaultCollections(framework.CollectionTarget{
+		Version:  "v1",
+		Resource: "nodes",
+	})
 }

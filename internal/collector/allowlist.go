@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"strings"
+
+	"bloodhound-kube/internal/nodes"
 )
 
 type AllowlistEntry struct {
@@ -14,44 +16,20 @@ type AllowlistEntry struct {
 }
 
 var defaultAllowlist = []string{
-	"v1/secrets",
-	"v1/configmaps",
-	"v1/pods",
-	"v1/services",
-	"v1/nodes",
-	"v1/persistentvolumes",
-	"v1/persistentvolumeclaims",
-	"v1/serviceaccounts",
-	"apps/v1/deployments",
-	"apps/v1/daemonsets",
-	"apps/v1/statefulsets",
-	"batch/v1/cronjobs",
-	"batch/v1/jobs",
-	"networking.k8s.io/v1/ingresses",
-	"networking.k8s.io/v1/networkpolicies",
-	"gateway.networking.k8s.io/v1",
-	"gateway.networking.k8s.io/v1alpha2/grpcroutes",
-	"gateway.networking.k8s.io/v1alpha2/tcproutes",
-	"gateway.networking.k8s.io/v1alpha2/tlsroutes",
-	"gateway.networking.k8s.io/v1beta1/gateways",
 	"apiextensions.k8s.io/v1/customresourcedefinitions",
-	"rbac.authorization.k8s.io/v1/roles",
-	"rbac.authorization.k8s.io/v1/clusterroles",
-	"rbac.authorization.k8s.io/v1/rolebindings",
-	"rbac.authorization.k8s.io/v1/clusterrolebindings",
-	"route.openshift.io/v1/routes",
 	"project.openshift.io/v1/projects",
 	"image.openshift.io/v1/imagestreams",
 }
 
-// addonAllowlist holds discovery entries for build-tag-gated addon families.
-// Each gated family file (allowlist_calico.go, allowlist_cilium.go) appends to
-// it from an init(); when tagged out its entries are absent, so a build that
-// excludes an addon won't request its CRDs.
-var addonAllowlist []string
-
 func DefaultDiscoveryAllowlist() ([]AllowlistEntry, error) {
-	return ParseAllowlistEntries(append(append([]string{}, defaultAllowlist...), addonAllowlist...))
+	allowlist, err := ParseAllowlistEntries(defaultAllowlist)
+	if err != nil {
+		return nil, err
+	}
+	for _, target := range nodes.DefaultCollectionTargets() {
+		allowlist = append(allowlist, AllowlistEntry{Group: target.Group, Version: target.Version, Resource: target.Resource})
+	}
+	return MergeAllowlists(nil, allowlist), nil
 }
 
 func MergeAllowlists(base []AllowlistEntry, extra []AllowlistEntry) []AllowlistEntry {

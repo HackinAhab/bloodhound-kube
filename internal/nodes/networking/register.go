@@ -13,25 +13,103 @@ import (
 )
 
 func Register() {
-	framework.RegisterTyped(corev1.SchemeGroupVersion.WithKind("Service"), BuildServiceNode)
-	framework.RegisterTyped(networkingv1.SchemeGroupVersion.WithKind("Ingress"), BuildIngressNode)
-	framework.RegisterTyped(networkingv1.SchemeGroupVersion.WithKind("NetworkPolicy"), BuildNetworkPolicyNode)
+	framework.RegisterResources(
+		framework.ResourceRegistration{
+			GVK:          corev1.SchemeGroupVersion.WithKind("Service"),
+			TypedBuilder: BuildServiceNode,
+		},
+		framework.ResourceRegistration{
+			GVK:          networkingv1.SchemeGroupVersion.WithKind("Ingress"),
+			TypedBuilder: BuildIngressNode,
+		},
+		framework.ResourceRegistration{
+			GVK:          networkingv1.SchemeGroupVersion.WithKind("NetworkPolicy"),
+			TypedBuilder: BuildNetworkPolicyNode,
+		},
 
-	// Gateway API resources are served via CRDs, which default to metadata-only
-	// collection (discovery.defaultFetchModeForResource). Their node builders and
-	// edge rules read .spec (parentRefs, backendRefs, listeners), so they must be
-	// fetched in full or the spec is dropped and no Gateway->Route->Service edges form.
-	framework.RegisterTypedWithFetchMode(schema.GroupVersion{Group: gatewayv1.GroupVersion.Group, Version: gatewayv1.GroupVersion.Version}.WithKind("Gateway"), BuildGatewayNode, framework.FetchModeHintFull)
-	framework.RegisterTypedWithFetchMode(schema.GroupVersion{Group: gatewayv1beta1.GroupVersion.Group, Version: gatewayv1beta1.GroupVersion.Version}.WithKind("Gateway"), BuildGatewayNode, framework.FetchModeHintFull)
-
-	framework.RegisterTypedWithFetchMode(schema.GroupVersion{Group: gatewayv1.GroupVersion.Group, Version: gatewayv1.GroupVersion.Version}.WithKind("HTTPRoute"), BuildHTTPRouteNode, framework.FetchModeHintFull)
-	framework.RegisterTypedWithFetchMode(schema.GroupVersion{Group: gatewayv1beta1.GroupVersion.Group, Version: gatewayv1beta1.GroupVersion.Version}.WithKind("HTTPRoute"), BuildHTTPRouteNode, framework.FetchModeHintFull)
-
-	framework.RegisterTypedWithFetchMode(schema.GroupVersion{Group: gatewayv1.GroupVersion.Group, Version: gatewayv1.GroupVersion.Version}.WithKind("GRPCRoute"), BuildGRPCRouteNode, framework.FetchModeHintFull)
-	framework.RegisterTypedWithFetchMode(schema.GroupVersion{Group: gatewayv1alpha2.GroupVersion.Group, Version: gatewayv1alpha2.GroupVersion.Version}.WithKind("GRPCRoute"), BuildGRPCRouteNode, framework.FetchModeHintFull)
-
-	framework.RegisterTypedWithFetchMode(schema.GroupVersion{Group: gatewayv1alpha2.GroupVersion.Group, Version: gatewayv1alpha2.GroupVersion.Version}.WithKind("TCPRoute"), BuildTCPRouteNode, framework.FetchModeHintFull)
-
-	framework.RegisterTypedWithFetchMode(schema.GroupVersion{Group: gatewayv1.GroupVersion.Group, Version: gatewayv1.GroupVersion.Version}.WithKind("TLSRoute"), BuildTLSRouteNode, framework.FetchModeHintFull)
-	framework.RegisterTypedWithFetchMode(schema.GroupVersion{Group: gatewayv1alpha2.GroupVersion.Group, Version: gatewayv1alpha2.GroupVersion.Version}.WithKind("TLSRoute"), BuildTLSRouteNode, framework.FetchModeHintFull)
+		framework.ResourceRegistration{
+			GVK:          schema.GroupVersion{Group: gatewayv1.GroupVersion.Group, Version: gatewayv1.GroupVersion.Version}.WithKind("Gateway"),
+			TypedBuilder: BuildGatewayNode,
+			FetchMode:    framework.FetchModeHintFull,
+		},
+		framework.ResourceRegistration{
+			GVK:          schema.GroupVersion{Group: gatewayv1beta1.GroupVersion.Group, Version: gatewayv1beta1.GroupVersion.Version}.WithKind("Gateway"),
+			TypedBuilder: BuildGatewayNode,
+			FetchMode:    framework.FetchModeHintFull,
+		},
+		framework.ResourceRegistration{
+			GVK:          schema.GroupVersion{Group: gatewayv1.GroupVersion.Group, Version: gatewayv1.GroupVersion.Version}.WithKind("HTTPRoute"),
+			TypedBuilder: BuildHTTPRouteNode,
+			FetchMode:    framework.FetchModeHintFull,
+		},
+		framework.ResourceRegistration{
+			GVK:          schema.GroupVersion{Group: gatewayv1beta1.GroupVersion.Group, Version: gatewayv1beta1.GroupVersion.Version}.WithKind("HTTPRoute"),
+			TypedBuilder: BuildHTTPRouteNode,
+			FetchMode:    framework.FetchModeHintFull,
+		},
+		framework.ResourceRegistration{
+			GVK:          schema.GroupVersion{Group: gatewayv1.GroupVersion.Group, Version: gatewayv1.GroupVersion.Version}.WithKind("GRPCRoute"),
+			TypedBuilder: BuildGRPCRouteNode,
+			FetchMode:    framework.FetchModeHintFull,
+		},
+		framework.ResourceRegistration{
+			GVK:          schema.GroupVersion{Group: gatewayv1alpha2.GroupVersion.Group, Version: gatewayv1alpha2.GroupVersion.Version}.WithKind("GRPCRoute"),
+			TypedBuilder: BuildGRPCRouteNode,
+			FetchMode:    framework.FetchModeHintFull,
+		},
+		framework.ResourceRegistration{
+			GVK:          schema.GroupVersion{Group: gatewayv1alpha2.GroupVersion.Group, Version: gatewayv1alpha2.GroupVersion.Version}.WithKind("TCPRoute"),
+			TypedBuilder: BuildTCPRouteNode,
+			FetchMode:    framework.FetchModeHintFull,
+		},
+		framework.ResourceRegistration{
+			GVK:          schema.GroupVersion{Group: gatewayv1.GroupVersion.Group, Version: gatewayv1.GroupVersion.Version}.WithKind("TLSRoute"),
+			TypedBuilder: BuildTLSRouteNode,
+			FetchMode:    framework.FetchModeHintFull},
+		framework.ResourceRegistration{
+			GVK:          schema.GroupVersion{Group: gatewayv1alpha2.GroupVersion.Group, Version: gatewayv1alpha2.GroupVersion.Version}.WithKind("TLSRoute"),
+			TypedBuilder: BuildTLSRouteNode,
+			FetchMode:    framework.FetchModeHintFull,
+		},
+	)
+	framework.RegisterDefaultCollections(
+		framework.CollectionTarget{
+			Version:  "v1",
+			Resource: "services",
+		},
+		framework.CollectionTarget{
+			Group:    "networking.k8s.io",
+			Version:  "v1",
+			Resource: "ingresses",
+		},
+		framework.CollectionTarget{
+			Group:    "networking.k8s.io",
+			Version:  "v1",
+			Resource: "networkpolicies",
+		},
+		framework.CollectionTarget{
+			Group:   gatewayv1.GroupVersion.Group,
+			Version: gatewayv1.GroupVersion.Version,
+		},
+		framework.CollectionTarget{
+			Group:    gatewayv1beta1.GroupVersion.Group,
+			Version:  gatewayv1beta1.GroupVersion.Version,
+			Resource: "gateways",
+		},
+		framework.CollectionTarget{
+			Group:    gatewayv1alpha2.GroupVersion.Group,
+			Version:  gatewayv1alpha2.GroupVersion.Version,
+			Resource: "grpcroutes",
+		},
+		framework.CollectionTarget{
+			Group:    gatewayv1alpha2.GroupVersion.Group,
+			Version:  gatewayv1alpha2.GroupVersion.Version,
+			Resource: "tcproutes",
+		},
+		framework.CollectionTarget{
+			Group:    gatewayv1alpha2.GroupVersion.Group,
+			Version:  gatewayv1alpha2.GroupVersion.Version,
+			Resource: "tlsroutes",
+		},
+	)
 }

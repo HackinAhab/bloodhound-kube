@@ -33,6 +33,23 @@ type Builder func(resource map[string]any) (BuildResult, bool)
 
 type TypedBuilder func(obj runtime.Object) (BuildResult, bool)
 
+// ResourceRegistration describes one supported Kubernetes resource for parser
+// dispatch and fetch policy.
+type ResourceRegistration struct {
+	GVK          schema.GroupVersionKind
+	TypedBuilder TypedBuilder
+	MapBuilder   Builder
+	FetchMode    FetchModeHint
+}
+
+// CollectionTarget declares a resource selected by the default collection
+// scope. An empty Resource selects every resource in the group/version.
+type CollectionTarget struct {
+	Group    string
+	Version  string
+	Resource string
+}
+
 type FetchModeHint string
 
 const (
@@ -40,53 +57,56 @@ const (
 	FetchModeHintMetadata FetchModeHint = "metadata"
 )
 
-var builders = map[string]Builder{}
 var typedBuilders = map[string]TypedBuilder{}
-var builderSources = map[string]string{}
 var typedBuilderSources = map[string]string{}
 var typedBuilderFetchModeHints = map[string]FetchModeHint{}
+var defaultCollectionTargets []CollectionTarget
 var registrationConflicts int
 
-func RegisterKind(kind string, builder Builder) {
-	source := callerSource(1)
-	if existing, ok := builderSources[kind]; ok {
+func RegisterResources(resources ...ResourceRegistration) {
+	for _, resource := range resources {
+		registerResource(resource)
+	}
+}
+
+func RegisterDefaultCollections(targets ...CollectionTarget) {
+	defaultCollectionTargets = append(defaultCollectionTargets, targets...)
+}
+
+func registerResource(resource ResourceRegistration) {
+	if resource.GVK.Kind == "" {
 		registrationConflicts++
-		registryLogger().Error("Duplicate node builder registration", "kind", kind, "existing", existing, "new", source)
+		registryLogger().Error("Invalid node resource registration", "reason", "missing kind")
 		return
 	}
-	builders[kind] = builder
-	builderSources[kind] = source
-}
+	if (resource.TypedBuilder == nil) == (resource.MapBuilder == nil) {
+		registrationConflicts++
+		registryLogger().Error("Invalid node resource registration", "gvk", GVKKey(resource.GVK), "reason", "exactly one builder is required")
+		return
+	}
+	builder := resource.TypedBuilder
+	if resource.MapBuilder != nil {
+		builder = func(obj runtime.Object) (BuildResult, bool) {
+			mapped, err := runtime.DefaultUnstructuredConverter.ToUnstructured(obj)
+			if err != nil {
+				return BuildResult{}, false
+			}
+			return resource.MapBuilder(mapped)
+		}
+	}
 
-func RegisterTyped(gvk schema.GroupVersionKind, builder TypedBuilder) {
-	registerTypedWithMode(gvk, builder, "")
-}
-
-func RegisterTypedWithFetchMode(gvk schema.GroupVersionKind, builder TypedBuilder, mode FetchModeHint) {
-	registerTypedWithMode(gvk, builder, mode)
-}
-
-func registerTypedWithMode(gvk schema.GroupVersionKind, builder TypedBuilder, mode FetchModeHint) {
-	key := GVKKey(gvk)
-	source := callerSource(1)
+	key := GVKKey(resource.GVK)
+	source := callerSource(2)
 	if existing, ok := typedBuilderSources[key]; ok {
 		registrationConflicts++
-		registryLogger().Error("Duplicate typed node builder registration", "gvk", key, "existing", existing, "new", source)
+		registryLogger().Error("Duplicate node resource registration", "gvk", key, "existing", existing, "new", source)
 		return
 	}
 	typedBuilders[key] = builder
 	typedBuilderSources[key] = source
-	if mode != "" {
-		typedBuilderFetchModeHints[key] = mode
+	if resource.FetchMode != "" {
+		typedBuilderFetchModeHints[key] = resource.FetchMode
 	}
-}
-
-func Build(resource map[string]any) (BuildResult, bool) {
-	kind, _ := resource["kind"].(string)
-	if builder, ok := builders[kind]; ok {
-		return builder(resource)
-	}
-	return BuildResult{}, false
 }
 
 func BuildTyped(gvk schema.GroupVersionKind, obj runtime.Object) (BuildResult, bool) {
@@ -112,23 +132,19 @@ func GVKKey(gvk schema.GroupVersionKind) string {
 	return gvk.Group + "/" + gvk.Version + "/" + gvk.Kind
 }
 
-func RegisterTypedFromMapWithFetchMode(gvk schema.GroupVersionKind, builder Builder, mode FetchModeHint) {
-	RegisterTypedWithFetchMode(gvk, func(obj runtime.Object) (BuildResult, bool) {
-		resource, err := runtime.DefaultUnstructuredConverter.ToUnstructured(obj)
-		if err != nil {
-			return BuildResult{}, false
-		}
-		return builder(resource)
-	}, mode)
-}
-
 func LogRegistrationSummary() {
-	registryLogger().Info("Node registration summary", "builders", len(builders), "typed_builders", len(typedBuilders), "conflicts", registrationConflicts)
+	registryLogger().Info("Node registration summary", "resources", len(typedBuilders), "conflicts", registrationConflicts)
 }
 
 func TypedFetchModeHint(gvk schema.GroupVersionKind) (FetchModeHint, bool) {
 	mode, ok := typedBuilderFetchModeHints[GVKKey(gvk)]
 	return mode, ok
+}
+
+func DefaultCollectionTargets() []CollectionTarget {
+	targets := make([]CollectionTarget, len(defaultCollectionTargets))
+	copy(targets, defaultCollectionTargets)
+	return targets
 }
 
 func callerSource(skip int) string {

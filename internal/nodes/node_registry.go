@@ -21,6 +21,8 @@ type BuildResult = framework.BuildResult
 type Builder = framework.Builder
 type TypedBuilder = framework.TypedBuilder
 type FetchModeHint = framework.FetchModeHint
+type ResourceRegistration = framework.ResourceRegistration
+type CollectionTarget = framework.CollectionTarget
 
 const (
 	FetchModeHintFull     = framework.FetchModeHintFull
@@ -46,27 +48,6 @@ func ensureRegistered() {
 	})
 }
 
-func Register(kind string, builder Builder) {
-	framework.RegisterKind(kind, builder)
-}
-
-func RegisterTyped(gvk schema.GroupVersionKind, builder TypedBuilder) {
-	framework.RegisterTyped(gvk, builder)
-}
-
-func RegisterTypedWithFetchMode(gvk schema.GroupVersionKind, builder TypedBuilder, mode FetchModeHint) {
-	framework.RegisterTypedWithFetchMode(gvk, builder, mode)
-}
-
-func RegisterTypedFromMapWithFetchMode(gvk schema.GroupVersionKind, builder Builder, mode FetchModeHint) {
-	framework.RegisterTypedFromMapWithFetchMode(gvk, builder, mode)
-}
-
-func Build(resource map[string]any) (BuildResult, bool) {
-	ensureRegistered()
-	return framework.Build(resource)
-}
-
 func BuildTyped(gvk schema.GroupVersionKind, obj runtime.Object) (BuildResult, bool) {
 	ensureRegistered()
 	return framework.BuildTyped(gvk, obj)
@@ -84,4 +65,9 @@ func GVKKey(gvk schema.GroupVersionKind) string {
 func TypedFetchModeHint(gvk schema.GroupVersionKind) (FetchModeHint, bool) {
 	ensureRegistered()
 	return framework.TypedFetchModeHint(gvk)
+}
+
+func DefaultCollectionTargets() []CollectionTarget {
+	ensureRegistered()
+	return framework.DefaultCollectionTargets()
 }

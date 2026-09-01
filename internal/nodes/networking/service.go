@@ -2,6 +2,7 @@ package networking
 
 import (
 	. "bloodhound-kube/internal/nodes/framework"
+	"fmt"
 	"sort"
 
 	corev1 "k8s.io/api/core/v1"
@@ -34,6 +35,7 @@ func BuildServiceNode(obj runtime.Object) (BuildResult, bool) {
 
 	serviceType := string(svc.Spec.Type)
 	externalIPs := extractServiceExternalIPs(svc)
+	ports := extractServicePorts(svc)
 
 	properties := map[string]any{
 		"name":        name,
@@ -44,6 +46,7 @@ func BuildServiceNode(obj runtime.Object) (BuildResult, bool) {
 		"serviceType": serviceType,
 		"clusterIP":   svc.Spec.ClusterIP,
 		"externalIPs": externalIPs,
+		"ports":       ports,
 	}
 
 	base := NewGraphNodeBase("BHK_Service", namespace, name, labelsMap, annotationsMap)
@@ -63,6 +66,23 @@ func BuildServiceNode(obj runtime.Object) (BuildResult, bool) {
 		Node: NewNodeResult(base, properties),
 		Core: []CoreEntry{core},
 	}, true
+}
+
+func extractServicePorts(svc *corev1.Service) []string {
+	results := make([]string, 0, len(svc.Spec.Ports))
+	for _, p := range svc.Spec.Ports {
+		proto := string(p.Protocol)
+		if proto == "" {
+			proto = "TCP"
+		}
+		entry := fmt.Sprintf("%d/%s", p.Port, proto)
+		if p.NodePort != 0 {
+			entry += fmt.Sprintf(" (nodePort %d)", p.NodePort)
+		}
+		results = append(results, entry)
+	}
+	sort.Strings(results)
+	return results
 }
 
 func extractServiceExternalIPs(svc *corev1.Service) []string {

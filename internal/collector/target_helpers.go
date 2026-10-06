@@ -28,14 +28,3 @@ func normalizeTypeKey(value string) string {
 	}
 	return b.String()
 }
-
-func mapStringToAny(input map[string]string) map[string]any {
-	if len(input) == 0 {
-		return map[string]any{}
-	}
-	output := make(map[string]any, len(input))
-	for key, value := range input {
-		output[key] = value
-	}
-	return output
-}

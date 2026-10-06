@@ -2,6 +2,7 @@ package collector
 
 import (
 	"bloodhound-kube/internal/utils"
+	"bloodhound-kube/internal/nodes/framework"
 	"context"
 	"crypto/rand"
 	"fmt"
@@ -275,8 +276,8 @@ func buildMetadataResources(list *metav1.PartialObjectMetadataList, fallbackKind
 				"namespace":       item.Namespace,
 				"uid":             string(item.UID),
 				"resourceVersion": item.ResourceVersion,
-				"labels":          mapStringToAny(item.Labels),
-				"annotations":     mapStringToAny(item.Annotations),
+				"labels":          framework.StringMapToAnyMap(item.Labels),
+				"annotations":     framework.StringMapToAnyMap(item.Annotations),
 			},
 		})
 	}

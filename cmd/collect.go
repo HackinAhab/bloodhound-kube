@@ -1,14 +1,17 @@
 package cmd
 
 import (
-	"context"
+	"fmt"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"bloodhound-kube/internal/cli"
 	"bloodhound-kube/internal/utils"
 
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 )
 
 var (
@@ -22,7 +25,8 @@ var (
 	server              string
 	token               string
 	clusterType         string
-	resume              bool
+	resume              string
+	kubeContext         string
 	checkpointFile      string
 	redacted            bool
 	fetchModeFull       bool
@@ -47,6 +51,16 @@ var collectCmd = &cobra.Command{
 
 Use --no-parse to write JSONL only.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
+		if resume != "" && (parseInputFile != "" || cmd.Flags().Changed("checkpoint-file")) {
+			return fmt.Errorf("--resume <checkpoint> cannot be combined with --parse or --checkpoint-file")
+		}
+		if cmd.Flags().Changed("resume") && resume == "" {
+			return fmt.Errorf("--resume requires a checkpoint path")
+		}
+		explicitFlags := make(map[string]bool)
+		cmd.Flags().Visit(func(flag *pflag.Flag) { explicitFlags[flag.Name] = true })
+		ctx, stop := signal.NotifyContext(cmd.Context(), os.Interrupt, syscall.SIGTERM)
+		defer stop()
 		log, closeFn, err := buildLogger(globalLogLevel, true)
 		if err != nil {
 			return err
@@ -68,7 +82,11 @@ Use --no-parse to write JSONL only.`,
 			return err
 		}
 
-		_, err = cli.PipelineService{}.Run(context.Background(), cli.PipelineRequest{
+		checkpoint := checkpointFile
+		if resume != "" {
+			checkpoint = resume
+		}
+		_, err = cli.PipelineService{}.Run(ctx, cli.PipelineRequest{
 			Collect: cli.CollectRequest{
 				Namespaces:         namespaces,
 				AllNamespaces:      allNamespaces,
@@ -77,11 +95,13 @@ Use --no-parse to write JSONL only.`,
 				Concurrency:        concurrency,
 				PaginateLimit:      paginateLimit,
 				Kubeconfig:         kubeconfig,
+				Context:            kubeContext,
 				Server:             server,
 				Token:              token,
 				ClusterType:        clusterType,
-				Resume:             resume,
-				CheckpointFile:     checkpointFile,
+				Resume:             resume != "",
+				CheckpointFile:     checkpoint,
+				ExplicitFlags:      explicitFlags,
 				Redacted:           redacted,
 				FetchModeFull:      fetchModeFull,
 				DiscoveryList:      discoveryList,
@@ -115,10 +135,11 @@ func addCollectFlags(cmd *cobra.Command) {
 	cmd.Flags().StringVarP(&output, "output", "o", "", "Output file path (can be directory, filename, or full path). Defaults to bloodhound-kube-YYYY-MM-DD-HHMMSS.jsonl in current directory")
 	cmd.Flags().StringSliceVarP(&resourceTypes, "type", "t", []string{}, "Resource types to collect (explicit override; accepts name, kind, shortnames, or API path)")
 	cmd.Flags().StringVar(&kubeconfig, "kubeconfig", "", "Path to kubeconfig file (overrides KUBECONFIG and ~/.kube/config)")
+	cmd.Flags().StringVar(&kubeContext, "context", "", "Kubeconfig context (defaults to current context; restored on resume)")
 	cmd.Flags().StringVarP(&server, "server", "s", "", "Kubernetes API server address (requires --token)")
 	cmd.Flags().StringVar(&token, "token", "", "Bearer token for authentication (requires --server)")
 	cmd.Flags().StringVarP(&clusterType, "cluster-type", "T", "auto", "Cluster type: kubernetes, openshift, or auto (auto-detect)")
-	cmd.Flags().BoolVar(&resume, "resume", false, "Resume from previous interrupted collection")
+	cmd.Flags().StringVar(&resume, "resume", "", "Resume the saved collection and output settings from this checkpoint path")
 	cmd.Flags().StringVar(&checkpointFile, "checkpoint-file", "", "Path to checkpoint file (auto-generated if not specified)")
 	cmd.Flags().BoolVar(&redacted, "redacted", false, "Omit secret values during collection")
 	cmd.Flags().BoolVar(&discoveryList, "discovery-list", false, "List discovered API resources and exit")

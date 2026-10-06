@@ -5,22 +5,10 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"os"
 )
 
 // JSONLHandler receives a trimmed JSON line and its 1-based line number.
 type JSONLHandler func(line int, raw []byte) error
-
-// ReadJSONLFile reads a JSONL file and invokes handler for each line.
-func ReadJSONLFile(path string, handler JSONLHandler) error {
-	file, err := os.Open(path)
-	if err != nil {
-		return fmt.Errorf("failed to open JSONL file: %w", err)
-	}
-	defer file.Close()
-
-	return ReadJSONL(file, handler)
-}
 
 // ReadJSONL reads JSONL data from a reader and invokes handler for each line.
 func ReadJSONL(reader io.Reader, handler JSONLHandler) error {

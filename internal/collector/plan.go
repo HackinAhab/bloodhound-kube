@@ -9,17 +9,17 @@ import (
 )
 
 type CollectionTarget struct {
-	Name          string
-	Kind          string
-	ShortNames    []string
-	APIPath       string
-	Group         string
-	Version       string
-	GroupVersion  string
-	Resource      string
-	Namespaced    bool
-	ClusterScoped bool
-	FetchMode     FetchMode
+	Name          string    `json:"name"`
+	Kind          string    `json:"kind"`
+	ShortNames    []string  `json:"short_names,omitempty"`
+	APIPath       string    `json:"api_path"`
+	Group         string    `json:"group"`
+	Version       string    `json:"version"`
+	GroupVersion  string    `json:"group_version"`
+	Resource      string    `json:"resource"`
+	Namespaced    bool      `json:"namespaced"`
+	ClusterScoped bool      `json:"cluster_scoped"`
+	FetchMode     FetchMode `json:"fetch_mode"`
 }
 
 type CollectionPlan struct {

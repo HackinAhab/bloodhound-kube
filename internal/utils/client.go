@@ -15,6 +15,7 @@ import (
 	"k8s.io/client-go/metadata"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 	"k8s.io/client-go/util/homedir"
 )
 
@@ -28,12 +29,16 @@ const (
 
 type ClientConfig struct {
 	Kubeconfig  string
+	Context     string
 	Server      string
 	Token       string
 	ClusterType ClusterType
 }
 
 type Clients struct {
+	APIServer     string
+	Kubeconfig    string
+	Context       string
 	Kubernetes    *kubernetes.Clientset
 	ApiExtensions *apiextensionsclientset.Clientset
 	Dynamic       dynamic.Interface
@@ -60,18 +65,26 @@ func NewClient(cfg ClientConfig) (*Clients, error) {
 				Insecure: true,
 			},
 		}
-	} else if cfg.Kubeconfig != "" {
-		kubeconfigPath := expandTildeInPath(cfg.Kubeconfig)
-		config, err = clientcmd.BuildConfigFromFlags("", kubeconfigPath)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create kubernetes config from kubeconfig %q: %w", kubeconfigPath, err)
-		}
 	} else {
-		config, err = rest.InClusterConfig()
-		if err != nil {
-			config, err = discoverKubeconfig()
+		if cfg.Kubeconfig == "" && cfg.Context == "" {
+			config, err = rest.InClusterConfig()
+		}
+		if config == nil {
+			cfg.Kubeconfig, err = KubeconfigPath(cfg.Kubeconfig)
 			if err != nil {
 				return nil, err
+			}
+			loading := clientcmd.NewDefaultClientConfigLoadingRules()
+			loading.ExplicitPath = cfg.Kubeconfig
+			clientConfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(loading, &clientcmd.ConfigOverrides{CurrentContext: cfg.Context})
+			raw, err := clientConfig.RawConfig()
+			if err != nil {
+				return nil, fmt.Errorf("failed to load kubeconfig: %w", err)
+			}
+			cfg.Context, _ = KubeconfigIdentity(&raw, cfg.Context)
+			config, err = clientConfig.ClientConfig()
+			if err != nil {
+				return nil, fmt.Errorf("failed to create kubernetes config: %w", err)
 			}
 		}
 	}
@@ -105,6 +118,9 @@ func NewClient(cfg ClientConfig) (*Clients, error) {
 	}
 
 	return &Clients{
+		APIServer:     config.Host,
+		Kubeconfig:    cfg.Kubeconfig,
+		Context:       cfg.Context,
 		Kubernetes:    clientset,
 		ApiExtensions: apiExtensionsClient,
 		Dynamic:       dynamicClient,
@@ -130,39 +146,36 @@ func expandTildeInPath(path string) string {
 	return path
 }
 
-func discoverKubeconfig() (*rest.Config, error) {
-	kubeConfigEnv := os.Getenv("KUBECONFIG")
-	if kubeConfigEnv != "" {
-		// TODO: Interactive config selection if multiple paths are provided in KUBECONFIG.
-		parts := filepath.SplitList(kubeConfigEnv)
-		var chosen string
-		for _, p := range parts {
-			if p == "" {
-				continue
-			}
-			chosen = expandTildeInPath(p)
-			break
-		}
+// ExpandTildeInPath resolves a leading home-directory reference.
+func ExpandTildeInPath(path string) string { return expandTildeInPath(path) }
 
-		if chosen != "" {
-			config, err := clientcmd.BuildConfigFromFlags("", chosen)
-			if err != nil {
-				return nil, fmt.Errorf("failed to create kubernetes config from KUBECONFIG %q: %w", chosen, err)
+// KubeconfigPath selects the same local config file for queued and active clusters.
+func KubeconfigPath(path string) (string, error) {
+	if path == "" {
+		for _, p := range filepath.SplitList(os.Getenv("KUBECONFIG")) {
+			if p != "" {
+				path = p
+				break
 			}
-			return config, nil
+		}
+		if path == "" {
+			path = filepath.Join(homedir.HomeDir(), ".kube", "config")
 		}
 	}
+	return filepath.Abs(expandTildeInPath(path))
+}
 
-	if hd := homedir.HomeDir(); hd != "" {
-		defaultKube := filepath.Join(hd, ".kube", "config")
-		config, err := clientcmd.BuildConfigFromFlags("", defaultKube)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create kubernetes config from default kubeconfig %q: %w", defaultKube, err)
-		}
-		return config, nil
+// KubeconfigIdentity pins the selected context and its API server without connecting.
+func KubeconfigIdentity(config *clientcmdapi.Config, contextName string) (string, string) {
+	if contextName == "" {
+		contextName = config.CurrentContext
 	}
-
-	return nil, fmt.Errorf("unable to find kubeconfig file")
+	if context := config.Contexts[contextName]; context != nil {
+		if cluster := config.Clusters[context.Cluster]; cluster != nil {
+			return contextName, cluster.Server
+		}
+	}
+	return contextName, ""
 }
 
 func detectClusterType(clientset *kubernetes.Clientset, requestedType ClusterType) (*ClusterInfo, ClusterType, error) {
@@ -241,8 +254,7 @@ func (c *Clients) GetClusterVersion() *version.Info {
 	return c.ClusterInfo.Version
 }
 
-// GetCurrentContextNamespace returns the namespace from the current kubeconfig context
-func GetCurrentContextNamespace(kubeconfigPath string) (string, error) {
+func GetContextNamespace(kubeconfigPath, contextName string) (string, error) {
 	// Create loading rules - if kubeconfigPath is empty, it will use the default loading rules
 	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
 	if kubeconfigPath != "" {
@@ -258,6 +270,9 @@ func GetCurrentContextNamespace(kubeconfigPath string) (string, error) {
 	}
 
 	currentContext := config.CurrentContext
+	if contextName != "" {
+		currentContext = contextName
+	}
 	if currentContext == "" {
 		return "default", nil
 	}
@@ -280,7 +295,7 @@ func GetCurrentContextNamespace(kubeconfigPath string) (string, error) {
 func ParseNamespaces(namespacesStr string, kubeconfigPath string) ([]string, error) {
 	if namespacesStr == "" {
 		// Get current context namespace
-		currentNS, err := GetCurrentContextNamespace(kubeconfigPath)
+		currentNS, err := GetContextNamespace(kubeconfigPath, "")
 		if err != nil {
 			return []string{"default"}, nil
 		}

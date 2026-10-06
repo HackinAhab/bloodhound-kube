@@ -2,8 +2,6 @@ package cli
 
 import (
 	"context"
-	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -127,20 +125,13 @@ func TestResolveOutputAndCheckpoint(t *testing.T) {
 }
 
 func TestResolveOutputAndCheckpointResume(t *testing.T) {
-	tmpDir := t.TempDir()
-	checkpointPath := filepath.Join(tmpDir, ".resume.checkpoint.json")
-	content := fmt.Sprintf(`{"version":"1.0","timestamp":"%s","cluster":{"type":"kubernetes","platform":"kubernetes"},"collection_id":"id","output_file":"existing.jsonl","completed_jobs":[],"failed_jobs":[],"total_jobs":1,"jobs_remaining":1}`,
-		"2026-01-01T00:00:00Z")
-	if err := os.WriteFile(checkpointPath, []byte(content), 0644); err != nil {
-		t.Fatalf("failed to seed checkpoint: %v", err)
-	}
-
+	cp, checkpointPath := seedResumeCheckpoint(t)
 	res, err := resolveOutputAndCheckpoint(CollectRequest{Resume: true, CheckpointFile: checkpointPath})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if res.filename != "existing.jsonl" {
-		t.Fatalf("expected resume filename existing.jsonl, got %q", res.filename)
+	if filepath.Join(res.outputDir, res.filename) != cp.OutputFile {
+		t.Fatalf("original output path not restored: %+v", res)
 	}
 }
 

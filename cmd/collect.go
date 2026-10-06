@@ -51,8 +51,8 @@ var collectCmd = &cobra.Command{
 
 Use --no-parse to write JSONL only.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		if resume != "" && (parseInputFile != "" || clustersConfig != "" || cmd.Flags().Changed("checkpoint-file")) {
-			return fmt.Errorf("--resume <checkpoint> cannot be combined with --parse, --clusters-config or --checkpoint-file")
+		if resume != "" && (parseInputFile != "" || cmd.Flags().Changed("checkpoint-file")) {
+			return fmt.Errorf("--resume <checkpoint> cannot be combined with --parse or --checkpoint-file")
 		}
 		if cmd.Flags().Changed("resume") && resume == "" {
 			return fmt.Errorf("--resume requires a checkpoint path")

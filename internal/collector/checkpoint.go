@@ -3,7 +3,6 @@ package collector
 import (
 	"bloodhound-kube/internal/utils"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -26,6 +25,11 @@ type Checkpoint struct {
 	Namespaces    []string           `json:"namespaces"`
 	OutputOffset  int64              `json:"output_offset"`
 	APIServer     string             `json:"api_server"`
+	Phase         string             `json:"phase,omitempty"`
+	Artifact      string             `json:"artifact,omitempty"`
+	NodeCount     int                `json:"node_count,omitempty"`
+	EdgeCount     int                `json:"edge_count,omitempty"`
+	Retain        bool               `json:"-"`
 }
 
 type ClusterInfo struct {
@@ -61,6 +65,7 @@ func NewCheckpoint(collectionID, outputFile string, clusterType utils.ClusterTyp
 
 	return &Checkpoint{
 		Version:       "2.0",
+		Phase:         "collecting",
 		Timestamp:     time.Now().Format(time.RFC3339),
 		Cluster:       cluster,
 		CollectionID:  collectionID,
@@ -123,32 +128,10 @@ func (c *Checkpoint) Save(checkpointFile string) error {
 		return fmt.Errorf("failed to marshal checkpoint: %w", err)
 	}
 
-	dir := filepath.Dir(checkpointFile)
-	if err := os.MkdirAll(dir, 0755); err != nil {
-		return fmt.Errorf("failed to create checkpoint directory: %w", err)
+	if err := utils.AtomicWriteFile(checkpointFile, data, 0600); err != nil {
+		return fmt.Errorf("failed to persist checkpoint: %w", err)
 	}
-
-	tempFile := checkpointFile + ".tmp"
-	f, err := os.OpenFile(tempFile, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0600)
-	if err != nil {
-		return fmt.Errorf("failed to write checkpoint temp file: %w", err)
-	}
-	_, writeErr := f.Write(data)
-	if writeErr == nil {
-		writeErr = f.Sync()
-	}
-	closeErr := f.Close()
-	if writeErr != nil || closeErr != nil {
-		os.Remove(tempFile)
-		return fmt.Errorf("failed to persist checkpoint: %w", errors.Join(writeErr, closeErr))
-	}
-
-	if err := os.Rename(tempFile, checkpointFile); err != nil {
-		os.Remove(tempFile)
-		return fmt.Errorf("failed to move checkpoint file: %w", err)
-	}
-
-	return utils.SyncDirectory(dir)
+	return nil
 }
 
 // ValidateResume rejects checkpoints that cannot reproduce the original run.
@@ -195,6 +178,15 @@ func (c *Checkpoint) ValidateResume() error {
 	}
 	if total != c.TotalJobs || total-len(completed) != c.JobsRemaining {
 		return fmt.Errorf("checkpoint progress does not match its saved plan")
+	}
+	switch c.Phase {
+	case "", "collecting": // Empty phase is supported for earlier version 2.0 files.
+	case "collected", "parsed", "complete":
+		if c.JobsRemaining != 0 {
+			return fmt.Errorf("checkpoint pipeline phase conflicts with unfinished collection jobs")
+		}
+	default:
+		return fmt.Errorf("invalid checkpoint pipeline phase %q", c.Phase)
 	}
 	return nil
 }

@@ -1,4 +1,4 @@
-# clusters.example.yaml — reference config for multi-cluster collection
+# clusters.example.yml — reference config for multi-cluster collection
 #
 # Usage:
 #   bloodhound-kube collect --clusters-config clusters.yaml
@@ -40,6 +40,8 @@ clusters:
   - name: local
 
   # kubeconfig-based auth with an explicit kubeconfig path.
+  # Uses this file's current context and authentication (including exec plugins).
+  # There is no awsProfile or context field in this YAML. See docs/aws-profiles.md for setup commands.
   - name: prod-us-east
     kubeconfig: ~/.kube/prod-us-east
     clusterType: kubernetes

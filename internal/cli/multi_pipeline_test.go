@@ -15,6 +15,7 @@ import (
 
 	"bloodhound-kube/internal/multicluster"
 	"bloodhound-kube/internal/utils"
+	"gopkg.in/yaml.v3"
 )
 
 func TestRunMultiPipeline_ConfigLoadFailure(t *testing.T) {
@@ -105,17 +106,16 @@ clusters:
 	outer := PipelineRequest{
 		ClustersConfigPath: path,
 		Collect: CollectRequest{
-			Resume:         true,
-			CheckpointFile: "/tmp/ckpt",
+			CheckpointFile: filepath.Join(t.TempDir(), "run.json"),
 			FetchModeFull:  true,
 		},
 	}
 	_, _ = runMultiPipeline(context.Background(), outer, log)
 
-	if !captured.Collect.Resume {
-		t.Error("Resume flag not passed through")
+	if captured.Collect.Resume {
+		t.Error("new cluster unexpectedly resumed")
 	}
-	if captured.Collect.CheckpointFile != "/tmp/ckpt.c1" {
+	if captured.Collect.CheckpointFile != strings.TrimSuffix(outer.Collect.CheckpointFile, ".json")+".c1.json" {
 		t.Errorf("CheckpointFile not isolated by cluster: %q", captured.Collect.CheckpointFile)
 	}
 	if !captured.Collect.FetchModeFull {
@@ -174,10 +174,7 @@ func TestBuildClusterPipelineRequest_OutputPath(t *testing.T) {
 	entry.OutputDir = tmpDir
 
 	outer := PipelineRequest{ParseEnabled: true}
-	req, err := buildClusterPipelineRequest(entry, outer, "2024-01-15-120000")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
+	req := buildClusterPipelineRequest(entry, outer, "2024-01-15-120000")
 	if !strings.Contains(req.Collect.Output, "mycluster") {
 		t.Errorf("expected cluster name in output path, got %q", req.Collect.Output)
 	}
@@ -197,10 +194,7 @@ func TestBuildClusterPipelineRequest_ExplicitOutputFile(t *testing.T) {
 	entry := testEntry("c1")
 	entry.OutputFile = explicitPath
 
-	req, err := buildClusterPipelineRequest(entry, PipelineRequest{}, "2024-01-15-120000")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
+	req := buildClusterPipelineRequest(entry, PipelineRequest{}, "2024-01-15-120000")
 	if req.Collect.Output != explicitPath {
 		t.Errorf("expected explicit output path, got %q", req.Collect.Output)
 	}
@@ -211,10 +205,7 @@ func TestResolveClusterOutputPath_FallsBackToOuterDir(t *testing.T) {
 	entry := testEntry("mycluster")
 	outer := PipelineRequest{Collect: CollectRequest{Output: tmpDir}}
 
-	got, err := resolveClusterOutputPath(entry, outer, "2024-01-15-120000")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
+	got := resolveClusterOutputPath(entry, outer, "2024-01-15-120000")
 	if filepath.Dir(got) != tmpDir {
 		t.Errorf("expected output in %q, got %q", tmpDir, got)
 	}
@@ -223,7 +214,18 @@ func TestResolveClusterOutputPath_FallsBackToOuterDir(t *testing.T) {
 func writeMultiClusterYAML(t *testing.T, content string) string {
 	t.Helper()
 	path := filepath.Join(t.TempDir(), "clusters.yaml")
-	if err := os.WriteFile(path, []byte(content), 0600); err != nil {
+	var cfg multicluster.Config
+	if err := yaml.Unmarshal([]byte(content), &cfg); err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Defaults.OutputDir == "" {
+		cfg.Defaults.OutputDir = t.TempDir()
+	}
+	data, err := yaml.Marshal(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, data, 0600); err != nil {
 		t.Fatalf("failed to write clusters yaml: %v", err)
 	}
 	return path

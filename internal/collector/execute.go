@@ -83,7 +83,7 @@ func RunCollectionWithCheckpoint(ctx context.Context, c *Collector, w *utils.Asy
 		if err := ctx.Err(); err != nil {
 			return time.Since(startTime), counts, 0, []error{err}
 		}
-		if err := RemoveCheckpoint(checkpointFile); err != nil {
+		if err := finishCollectionCheckpoint(checkpoint, checkpointFile); err != nil {
 			return time.Since(startTime), counts, 0, []error{&CheckpointCommitError{err}}
 		}
 		return time.Since(startTime), counts, 0, nil
@@ -160,12 +160,23 @@ func RunCollectionWithCheckpoint(ctx context.Context, c *Collector, w *utils.Asy
 	}
 	completed, total, _ := checkpoint.GetProgress()
 	if len(errors) == 0 && completed == total {
-		if err := RemoveCheckpoint(checkpointFile); err != nil {
+		if err := finishCollectionCheckpoint(checkpoint, checkpointFile); err != nil {
 			errors = append(errors, &CheckpointCommitError{err})
 		}
 	}
 
 	return time.Since(startTime), counts, totalCollected, errors
+}
+
+func finishCollectionCheckpoint(cp *Checkpoint, path string) error {
+	cp.Phase = "collected"
+	if err := cp.Save(path); err != nil {
+		return err
+	}
+	if !cp.Retain {
+		return RemoveCheckpoint(path)
+	}
+	return nil
 }
 
 func checkpointWorker(ctx context.Context, c *Collector, jobs <-chan CollectionJob, results chan<- CollectionResult, log *utils.Logger) {

@@ -15,6 +15,7 @@ import (
 	"k8s.io/client-go/metadata"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 	"k8s.io/client-go/util/homedir"
 )
 
@@ -69,19 +70,7 @@ func NewClient(cfg ClientConfig) (*Clients, error) {
 			config, err = rest.InClusterConfig()
 		}
 		if config == nil {
-			path := cfg.Kubeconfig
-			if path == "" {
-				for _, p := range filepath.SplitList(os.Getenv("KUBECONFIG")) {
-					if p != "" {
-						path = p
-						break
-					}
-				}
-				if path == "" {
-					path = filepath.Join(homedir.HomeDir(), ".kube", "config")
-				}
-			}
-			cfg.Kubeconfig, err = filepath.Abs(expandTildeInPath(path))
+			cfg.Kubeconfig, err = KubeconfigPath(cfg.Kubeconfig)
 			if err != nil {
 				return nil, err
 			}
@@ -92,9 +81,7 @@ func NewClient(cfg ClientConfig) (*Clients, error) {
 			if err != nil {
 				return nil, fmt.Errorf("failed to load kubeconfig: %w", err)
 			}
-			if cfg.Context == "" {
-				cfg.Context = raw.CurrentContext
-			}
+			cfg.Context, _ = KubeconfigIdentity(&raw, cfg.Context)
 			config, err = clientConfig.ClientConfig()
 			if err != nil {
 				return nil, fmt.Errorf("failed to create kubernetes config: %w", err)
@@ -157,6 +144,38 @@ func expandTildeInPath(path string) string {
 		}
 	}
 	return path
+}
+
+// ExpandTildeInPath resolves a leading home-directory reference.
+func ExpandTildeInPath(path string) string { return expandTildeInPath(path) }
+
+// KubeconfigPath selects the same local config file for queued and active clusters.
+func KubeconfigPath(path string) (string, error) {
+	if path == "" {
+		for _, p := range filepath.SplitList(os.Getenv("KUBECONFIG")) {
+			if p != "" {
+				path = p
+				break
+			}
+		}
+		if path == "" {
+			path = filepath.Join(homedir.HomeDir(), ".kube", "config")
+		}
+	}
+	return filepath.Abs(expandTildeInPath(path))
+}
+
+// KubeconfigIdentity pins the selected context and its API server without connecting.
+func KubeconfigIdentity(config *clientcmdapi.Config, contextName string) (string, string) {
+	if contextName == "" {
+		contextName = config.CurrentContext
+	}
+	if context := config.Contexts[contextName]; context != nil {
+		if cluster := config.Clusters[context.Cluster]; cluster != nil {
+			return contextName, cluster.Server
+		}
+	}
+	return contextName, ""
 }
 
 func discoverKubeconfig() (*rest.Config, error) {

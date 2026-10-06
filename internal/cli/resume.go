@@ -65,12 +65,13 @@ func restoreCollectRequest(incoming CollectRequest, cp *collector.Checkpoint) (C
 		saved.Kubeconfig, saved.Context = "", ""
 	}
 	saved.Token = incoming.Token
-	if saved.Server != "" && saved.Token == "" {
+	if saved.Server != "" && saved.Token == "" && cp.JobsRemaining > 0 && (cp.Phase == "" || cp.Phase == "collecting") {
 		return incoming, fmt.Errorf("this run used token authentication; supply a fresh --token when resuming (tokens are not stored in checkpoints)")
 	}
 	saved.Resume, saved.CheckpointFile = true, incoming.CheckpointFile
 	saved.ExplicitFlags = incoming.ExplicitFlags
 	saved.PipelineSettings = incoming.PipelineSettings
+	saved.RetainCheckpoint = incoming.RetainCheckpoint
 	return saved, nil
 }
 

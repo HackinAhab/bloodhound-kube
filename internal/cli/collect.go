@@ -42,6 +42,7 @@ type CollectRequest struct {
 	PaginateLimit      int
 	Kubeconfig         string
 	Context            string
+	ExpectedAPIServer  string
 	Server             string
 	Token              string `json:"-"`
 	ClusterType        string
@@ -56,10 +57,12 @@ type CollectRequest struct {
 	NamespaceFlagSet   bool
 	ExplicitFlags      map[string]bool `json:"-"`
 	PipelineSettings   json.RawMessage `json:"-"`
+	RetainCheckpoint   bool            `json:"-"`
 }
 
 type CollectResponse struct {
-	OutputPath string
+	OutputPath     string
+	CheckpointPath string
 }
 
 type CollectService struct{}
@@ -117,6 +120,9 @@ func (s CollectService) Run(ctx context.Context, req CollectRequest, out io.Writ
 	}
 
 	server, effectiveKubeconfig, effectiveContext := c.Connection()
+	if req.ExpectedAPIServer != "" && req.ExpectedAPIServer != server {
+		return CollectResponse{}, fmt.Errorf("saved cluster API server %q does not match connected server %q", req.ExpectedAPIServer, server)
+	}
 	var targets []collector.CollectionTarget
 	var namespacesToCollect []string
 	if req.Resume {
@@ -182,17 +188,12 @@ func (s CollectService) Run(ctx context.Context, req CollectRequest, out io.Writ
 			return CollectResponse{}, err
 		}
 		req.Output = outputPath
-		req.Kubeconfig, req.Context = effectiveKubeconfig, effectiveContext
 		req.ClusterType = string(c.GetClusterType())
 		// Save resolved namespaces as well as the original namespace intent.
 		if !req.AllNamespaces {
 			req.Namespaces = strings.Join(namespacesToCollect, ",")
 		}
 		existingCheckpoint = c.CreateCheckpoint(outputPath, targets, namespacesToCollect)
-		existingCheckpoint.Settings, err = json.Marshal(req)
-		if err != nil {
-			return CollectResponse{}, err
-		}
 		existingCheckpoint.Pipeline = req.PipelineSettings
 		if len(existingCheckpoint.Pipeline) == 0 {
 			// Direct CollectService callers produce JSONL without a parse pipeline.
@@ -202,7 +203,13 @@ func (s CollectService) Run(ctx context.Context, req CollectRequest, out io.Writ
 			}
 		}
 	}
+	req.Kubeconfig, req.Context = effectiveKubeconfig, effectiveContext
+	existingCheckpoint.Settings, err = json.Marshal(req)
+	if err != nil {
+		return CollectResponse{}, err
+	}
 
+	existingCheckpoint.Retain = req.RetainCheckpoint
 	var asyncWriter *utils.AsyncWriter
 	if req.Resume {
 		asyncWriter, err = utils.NewAsyncWriterAppend(outputDir, filename, log)
@@ -238,16 +245,16 @@ func (s CollectService) Run(ctx context.Context, req CollectRequest, out io.Writ
 	if len(collectionErrors) > 0 {
 		fmt.Fprintf(out, "Collection unfinished. Resume with: bloodhound-kube collect --resume %q\n", checkpointPath)
 		if ctx.Err() != nil {
-			return CollectResponse{OutputPath: outputPath}, ctx.Err()
+			return CollectResponse{OutputPath: outputPath, CheckpointPath: checkpointPath}, ctx.Err()
 		}
 		var commitErr *collector.CheckpointCommitError
 		if joined := errors.Join(collectionErrors...); errors.As(joined, &commitErr) {
-			return CollectResponse{OutputPath: outputPath}, joined
+			return CollectResponse{OutputPath: outputPath, CheckpointPath: checkpointPath}, joined
 		}
-		return CollectResponse{OutputPath: outputPath}, &PartialCollectionError{Count: len(collectionErrors)}
+		return CollectResponse{OutputPath: outputPath, CheckpointPath: checkpointPath}, &PartialCollectionError{Count: len(collectionErrors)}
 	}
 
-	return CollectResponse{OutputPath: outputPath}, nil
+	return CollectResponse{OutputPath: outputPath, CheckpointPath: checkpointPath}, nil
 }
 
 func validateCollectRequest(req CollectRequest) error {

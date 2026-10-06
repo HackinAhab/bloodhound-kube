@@ -114,6 +114,44 @@ Common examples:
 ./bloodhound-kube collect -C clusters.yaml --no-parse
 ```
 
+### Checkpoints and resuming
+
+Every collection creates a checkpoint beside its JSONL output, for example
+`results/.run.checkpoint.json` for `results/run.jsonl`. The tool prints the path
+and a copyable resume command. Successful collections remove their checkpoint;
+interrupted collections and collections with failed jobs keep it.
+
+```bash
+# Start a collection
+./bloodhound-kube collect -A --redacted --scope all --accept-crds -o results/run.jsonl
+
+# Continue after interruption, restoring the original settings
+./bloodhound-kube collect --resume results/.run.checkpoint.json
+
+# Optionally tune performance while resuming
+./bloodhound-kube collect --resume results/.run.checkpoint.json --concurrency 20 --paginate-limit 250
+```
+
+Resume restores the exact resource targets and namespaces, redaction and fetch
+mode, kubeconfig/context, JSONL output location, and parsing/ZIP settings. It
+retries unfinished and failed jobs without repeating discovery or CRD prompts.
+Conflicting scope or output flags are rejected; concurrency, pagination and
+credentials can be refreshed. `--context` selects a kubeconfig context, which is
+pinned in the checkpoint even if the kubeconfig's current context later changes.
+The connected API server must match the saved server.
+
+Bearer tokens are not stored. A collection started with `--server`/`--token`
+requires a fresh `--token` on resume; the server address is restored automatically.
+The original JSONL file must still exist. Output written after the last durable
+checkpoint is discarded before unfinished jobs are retried. Ctrl+C and SIGTERM
+stop collection gracefully and retain committed progress.
+
+`--checkpoint-file PATH` selects a custom checkpoint location for a new run.
+Use `--resume PATH` instead of the previous `--resume --checkpoint-file PATH`
+syntax. Version 1.0 checkpoints cannot restore the original settings and are
+rejected with an explanation; start a new collection to create a version 2.0
+checkpoint.
+
 ### Multi-cluster collection
 
 Pass `--clusters-config` (or `-C`) to collect from multiple clusters in a single run. Each cluster's output lands in a separate JSONL file (and `.json` if parse is enabled). On partial failure the tool continues, reports per-cluster status, and exits non-zero.
@@ -150,7 +188,11 @@ See [`clusters.example.yaml`](./clusters.example.yaml) for a fully annotated ref
 
 **Per-cluster fields** override the corresponding `defaults` value. Boolean fields (`allNamespaces`, `redacted`, `acceptCRDs`) use three-state semantics: explicit `true`/`false` overrides the default; omitted inherits it.
 
-`--no-parse`, `--resume`, `--checkpoint-file`, `--fetch-mode-full`, and `--zip` apply globally to all clusters.
+`--no-parse`, `--fetch-mode-full`, and `--zip` apply globally to all clusters.
+Each cluster has its own checkpoint. A custom `--checkpoint-file` base path gets
+a cluster-name suffix (for example `run.checkpoint.prod.json`). Resume one cluster
+with `--resume <its-checkpoint>` and omit `--clusters-config`; its saved collection
+and pipeline settings are restored automatically.
 
 **Concurrent collection**: by default clusters are collected sequentially. Use `defaults.clusterConcurrency: N` in the YAML or `--cluster-concurrency N` on the CLI (CLI takes precedence) to run up to N cluster pipelines in parallel. The CLI flag defaults to `0` (defers to YAML; falls back to `1`).
 

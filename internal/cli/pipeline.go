@@ -3,6 +3,7 @@ package cli
 import (
 	"archive/zip"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -24,7 +25,7 @@ type PipelineRequest struct {
 	ClustersConfigPath  string
 	ZipOutput           bool
 	ClusterConcurrency  int
-	Out                 io.Writer
+	Out                 io.Writer `json:"-"`
 }
 
 type PipelineResponse struct {
@@ -38,6 +39,13 @@ type PipelineResponse struct {
 type PipelineService struct{}
 
 func (s PipelineService) Run(ctx context.Context, req PipelineRequest, log *utils.Logger) (PipelineResponse, error) {
+	if req.Collect.Resume {
+		var err error
+		req, err = restorePipelineRequest(req)
+		if err != nil {
+			return PipelineResponse{}, err
+		}
+	}
 	if req.ClustersConfigPath != "" {
 		return runMultiPipeline(ctx, req, log)
 	}
@@ -50,8 +58,28 @@ func runSinglePipeline(ctx context.Context, req PipelineRequest, log *utils.Logg
 	if out == nil {
 		out = os.Stdout
 	}
+	// Store output behavior separately from the resolved collection settings.
+	settings := req
+	if settings.ParsedOutputPath != "" {
+		path, err := filepath.Abs(settings.ParsedOutputPath)
+		if err != nil {
+			return PipelineResponse{}, err
+		}
+		if strings.HasSuffix(settings.ParsedOutputPath, "/") || settings.ParsedOutputPath == "." || settings.ParsedOutputPath == ".." {
+			path += "/"
+		}
+		settings.ParsedOutputPath = path
+	}
+	settings.Collect = CollectRequest{}
+	settings.ClustersConfigPath = ""
+	var settingsErr error
+	req.Collect.PipelineSettings, settingsErr = json.Marshal(settings)
+	if settingsErr != nil {
+		return PipelineResponse{}, settingsErr
+	}
 
 	collectResp, err := CollectService{}.Run(ctx, req.Collect, out, log)
+	collectionErr := err
 	if err != nil {
 		var partialErr *PartialCollectionError
 		if errors.As(err, &partialErr) && collectResp.OutputPath != "" {
@@ -68,7 +96,7 @@ func runSinglePipeline(ctx context.Context, req PipelineRequest, log *utils.Logg
 		return PipelineResponse{
 			JSONLPath: jsonlPath,
 			Duration:  time.Since(start),
-		}, nil
+		}, collectionErr
 	}
 
 	parsedPath := resolveParsedOutputPath(jsonlPath, req.ParsedOutputPath)
@@ -98,7 +126,7 @@ func runSinglePipeline(ctx context.Context, req PipelineRequest, log *utils.Logg
 		NodeCount:  parseResp.NodeCount,
 		EdgeCount:  parseResp.EdgeCount,
 		Duration:   time.Since(start),
-	}, nil
+	}, collectionErr
 }
 
 func zipParsedOutput(jsonPath string) (string, error) {

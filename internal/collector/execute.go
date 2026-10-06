@@ -5,7 +5,6 @@ import (
 	"context"
 	"crypto/rand"
 	"fmt"
-	"maps"
 	"strings"
 	"sync"
 	"time"
@@ -30,12 +29,21 @@ type CollectionResult struct {
 	Error     error
 }
 
+// CheckpointCommitError stops the pipeline when output/progress cannot be committed.
+type CheckpointCommitError struct{ Err error }
+
+func (e *CheckpointCommitError) Error() string {
+	return "failed to commit collection progress: " + e.Err.Error()
+}
+func (e *CheckpointCommitError) Unwrap() error { return e.Err }
+
 func RunCollectionWithCheckpoint(ctx context.Context, c *Collector, w *utils.AsyncWriter, targets []CollectionTarget, namespacesToCollect []string, filename string, concurrency int, log *utils.Logger, existingCheckpoint *Checkpoint, checkpointFile string) (time.Duration, map[string]int, int, []error) {
 	startTime := time.Now()
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
 	counts := make(map[string]int)
 	totalCollected := 0
 	errors := make([]error, 0)
-	var statsMu sync.Mutex
 
 	clusterJobs := make([]CollectionJob, 0)
 	namespacedJobs := make([]CollectionJob, 0)
@@ -56,6 +64,11 @@ func RunCollectionWithCheckpoint(ctx context.Context, c *Collector, w *utils.Asy
 	} else {
 		collectionID := generateCollectionID()
 		checkpoint = NewCheckpoint(collectionID, filename, c.GetClusterType(), c.clients.ClusterInfo, len(allJobs))
+		checkpoint.Targets = targets
+		checkpoint.Namespaces = namespacesToCollect
+	}
+	if err := checkpoint.Save(checkpointFile); err != nil {
+		return time.Since(startTime), counts, 0, []error{&CheckpointCommitError{err}}
 	}
 
 	pendingJobs := make([]CollectionJob, 0, len(allJobs))
@@ -67,7 +80,13 @@ func RunCollectionWithCheckpoint(ctx context.Context, c *Collector, w *utils.Asy
 
 	log.Info("Collection plan", "total_jobs", len(allJobs), "completed_jobs", len(checkpoint.CompletedJobs), "pending_jobs", len(pendingJobs))
 	if len(pendingJobs) == 0 {
-		return time.Since(startTime), map[string]int{}, 0, nil
+		if err := ctx.Err(); err != nil {
+			return time.Since(startTime), counts, 0, []error{err}
+		}
+		if err := RemoveCheckpoint(checkpointFile); err != nil {
+			return time.Since(startTime), counts, 0, []error{&CheckpointCommitError{err}}
+		}
+		return time.Since(startTime), counts, 0, nil
 	}
 
 	checkpoint.JobsRemaining = len(pendingJobs)
@@ -86,100 +105,67 @@ func RunCollectionWithCheckpoint(ctx context.Context, c *Collector, w *utils.Asy
 		})
 	}
 
-	writerDone := make(chan struct{})
-	go func() {
-		defer close(writerDone)
-		batchBuffer := make([]any, 0, 100)
-		recordError := func(err error) {
-			statsMu.Lock()
-			errors = append(errors, err)
-			statsMu.Unlock()
-		}
-		recordCount := func(resourceType string, count int) {
-			statsMu.Lock()
-			counts[resourceType] += count
-			totalCollected += count
-			statsMu.Unlock()
-		}
-		flushBatch := func() {
-			if len(batchBuffer) == 0 {
-				return
-			}
-			if err := w.WriteJSONLBatch(batchBuffer); err != nil {
-				log.Error("Failed to write batch", "size", len(batchBuffer), "error", err)
-				recordError(err)
-			}
-			for _, item := range batchBuffer {
-				if res, ok := item.(map[string]any); ok {
-					recordCount(resourceKind(res), 1)
-				}
-			}
-			batchBuffer = batchBuffer[:0]
-		}
-
-		checkpointTicker := time.NewTicker(5 * time.Second)
-		flushTicker := time.NewTicker(50 * time.Millisecond)
-		defer checkpointTicker.Stop()
-		defer flushTicker.Stop()
-
-		for {
-			select {
-			case result, ok := <-results:
-				if !ok {
-					flushBatch()
-					return
-				}
-				if result.Error != nil {
-					checkpoint.AddFailedJob(result.JobType, result.Namespace, result.Error.Error())
-					recordError(result.Error)
-					continue
-				}
-				checkpoint.AddCompletedJob(result.JobType, result.Namespace, len(result.Resources), result.Duration)
-				for _, resource := range result.Resources {
-					batchBuffer = append(batchBuffer, resource)
-					if len(batchBuffer) >= 100 {
-						flushBatch()
-					}
-				}
-			case <-checkpointTicker.C:
-				if err := checkpoint.Save(checkpointFile); err != nil {
-					log.Error("Failed to save checkpoint", "error", err)
-				}
-			case <-flushTicker.C:
-				flushBatch()
-			}
-		}
-	}()
-
 	for _, job := range pendingJobs {
 		jobs <- job
 	}
 	close(jobs)
-	wg.Wait()
-	close(results)
-	<-writerDone
-
-	if err := w.Flush(); err != nil {
-		log.Error("Failed final flush", "error", err)
+	go func() {
+		wg.Wait()
+		close(results)
+	}()
+	commitFailed := false
+	for result := range results {
+		if commitFailed {
+			continue // Drain workers after cancellation without advancing progress.
+		}
+		if result.Error != nil {
+			checkpoint.AddFailedJob(result.JobType, result.Namespace, result.Error.Error())
+			errors = append(errors, result.Error)
+		} else {
+			batch := make([]any, len(result.Resources))
+			for i, resource := range result.Resources {
+				batch[i] = resource
+			}
+			if err := w.WriteJSONLBatch(batch); err != nil {
+				errors = append(errors, &CheckpointCommitError{err})
+				commitFailed = true
+				cancel()
+				continue
+			}
+			offset, err := w.Commit()
+			if err != nil {
+				errors = append(errors, &CheckpointCommitError{err})
+				commitFailed = true
+				cancel()
+				continue
+			}
+			checkpoint.OutputOffset = offset
+			checkpoint.AddCompletedJob(result.JobType, result.Namespace, len(result.Resources), result.Duration)
+		}
+		if err := checkpoint.Save(checkpointFile); err != nil {
+			errors = append(errors, &CheckpointCommitError{err})
+			commitFailed = true
+			cancel()
+			continue
+		}
+		if result.Error == nil {
+			for _, resource := range result.Resources {
+				counts[resourceKind(resource)]++
+				totalCollected++
+			}
+		}
 	}
-	if err := checkpoint.Save(checkpointFile); err != nil {
-		log.Error("Failed to save final checkpoint", "error", err)
+	if err := ctx.Err(); err != nil {
+		errors = append(errors, err)
 	}
-
-	statsMu.Lock()
-	finalCounts := make(map[string]int, len(counts))
-	maps.Copy(finalCounts, counts)
-	finalTotal := totalCollected
-	finalErrors := append([]error(nil), errors...)
-	statsMu.Unlock()
 	completed, total, _ := checkpoint.GetProgress()
-	if len(finalErrors) == 0 && completed == total {
+	if len(errors) == 0 && completed == total {
 		if err := RemoveCheckpoint(checkpointFile); err != nil {
-			log.Warn("Failed to remove checkpoint file after successful collection", "checkpoint_file", checkpointFile, "error", err)
+			errors = append(errors, &CheckpointCommitError{err})
 		}
 	}
 
-	return time.Since(startTime), finalCounts, finalTotal, finalErrors
+	return time.Since(startTime), counts, totalCollected, errors
 }
 
 func checkpointWorker(ctx context.Context, c *Collector, jobs <-chan CollectionJob, results chan<- CollectionResult, log *utils.Logger) {

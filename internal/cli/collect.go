@@ -3,6 +3,8 @@ package cli
 import (
 	"bufio"
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"maps"
@@ -39,8 +41,9 @@ type CollectRequest struct {
 	Concurrency        int
 	PaginateLimit      int
 	Kubeconfig         string
+	Context            string
 	Server             string
-	Token              string
+	Token              string `json:"-"`
 	ClusterType        string
 	Resume             bool
 	CheckpointFile     string
@@ -51,6 +54,8 @@ type CollectRequest struct {
 	DiscoveryAllowlist string
 	Scope              string
 	NamespaceFlagSet   bool
+	ExplicitFlags      map[string]bool `json:"-"`
+	PipelineSettings   json.RawMessage `json:"-"`
 }
 
 type CollectResponse struct {
@@ -87,6 +92,16 @@ func (s CollectService) Run(ctx context.Context, req CollectRequest, out io.Writ
 	if out == nil {
 		out = os.Stdout
 	}
+	outputResolution, err := resolveOutputAndCheckpoint(req)
+	if err != nil {
+		return CollectResponse{}, err
+	}
+	if req.Resume {
+		req, err = restoreCollectRequest(req, outputResolution.checkpoint)
+		if err != nil {
+			return CollectResponse{}, err
+		}
+	}
 	if err := validateCollectRequest(req); err != nil {
 		return CollectResponse{}, err
 	}
@@ -96,51 +111,97 @@ func (s CollectService) Run(ctx context.Context, req CollectRequest, out io.Writ
 		return CollectResponse{}, err
 	}
 
-	c, err := collector.New(utils.ClientConfig{Kubeconfig: req.Kubeconfig, Server: req.Server, Token: req.Token, ClusterType: clusterTypeEnum}, log, req.Redacted, req.PaginateLimit)
+	c, err := collector.New(utils.ClientConfig{Kubeconfig: req.Kubeconfig, Context: req.Context, Server: req.Server, Token: req.Token, ClusterType: clusterTypeEnum}, log, req.Redacted, req.PaginateLimit)
 	if err != nil {
 		return CollectResponse{}, fmt.Errorf("failed to create collector: %w", err)
 	}
 
-	discoveryPolicy, err := resolveDiscoveryPolicy(ctx, req, c, log)
-	if err != nil {
-		return CollectResponse{}, err
-	}
-	if discoveryPolicy.discoveryListOnly {
-		printDiscoveryTable(discoveryPolicy.discoveredResources)
-		return CollectResponse{}, nil
-	}
-
-	collectionsCfg, err := collector.BuildCollectionsConfigFromDiscovery(discoveryPolicy.filteredResources)
-	if err != nil {
-		return CollectResponse{}, fmt.Errorf("failed to build collections from discovery: %w", err)
-	}
-	if req.FetchModeFull {
-		overrideCollectionsFetchMode(collectionsCfg, collector.FetchModeFull)
-	}
-	plan := collector.NewCollectionPlan(collectionsCfg)
-	targets, err := plan.TargetsForTypes(req.ResourceTypes)
-	if err != nil {
-		return CollectResponse{}, err
-	}
-
-	outputResolution, err := resolveOutputAndCheckpoint(req)
-	if err != nil {
-		return CollectResponse{}, err
-	}
-
+	server, effectiveKubeconfig, effectiveContext := c.Connection()
+	var targets []collector.CollectionTarget
 	var namespacesToCollect []string
-	if req.AllNamespaces {
-		namespacesToCollect, err = c.ListNamespaces(ctx)
+	if req.Resume {
+		if server != outputResolution.checkpoint.APIServer {
+			return CollectResponse{}, fmt.Errorf("resume cluster mismatch: saved API server %q, connected to %q", outputResolution.checkpoint.APIServer, server)
+		}
+		targets = outputResolution.checkpoint.Targets
+		namespacesToCollect = outputResolution.checkpoint.Namespaces
 	} else {
-		namespacesToCollect, err = utils.ParseNamespaces(req.Namespaces, req.Kubeconfig)
-	}
-	if err != nil {
-		return CollectResponse{}, err
+		discoveryPolicy, err := resolveDiscoveryPolicy(ctx, req, c, log)
+		if err != nil {
+			return CollectResponse{}, err
+		}
+		if discoveryPolicy.discoveryListOnly {
+			printDiscoveryTable(discoveryPolicy.discoveredResources)
+			return CollectResponse{}, nil
+		}
+
+		collectionsCfg, err := collector.BuildCollectionsConfigFromDiscovery(discoveryPolicy.filteredResources)
+		if err != nil {
+			return CollectResponse{}, fmt.Errorf("failed to build collections from discovery: %w", err)
+		}
+		if req.FetchModeFull {
+			overrideCollectionsFetchMode(collectionsCfg, collector.FetchModeFull)
+		}
+		plan := collector.NewCollectionPlan(collectionsCfg)
+		targets, err = plan.TargetsForTypes(req.ResourceTypes)
+		if err != nil {
+			return CollectResponse{}, err
+		}
+
+		if req.AllNamespaces {
+			namespacesToCollect, err = c.ListNamespaces(ctx)
+		} else {
+			if req.Namespaces == "" && effectiveKubeconfig != "" {
+				req.Namespaces, err = utils.GetContextNamespace(effectiveKubeconfig, effectiveContext)
+				if err != nil {
+					return CollectResponse{}, err
+				}
+			}
+			namespacesToCollect, err = utils.ParseNamespaces(req.Namespaces, effectiveKubeconfig)
+		}
+		if err != nil {
+			return CollectResponse{}, err
+		}
+		seen := make(map[string]bool)
+		unique := namespacesToCollect[:0]
+		for _, ns := range namespacesToCollect {
+			if !seen[ns] {
+				unique = append(unique, ns)
+				seen[ns] = true
+			}
+		}
+		namespacesToCollect = unique
 	}
 
 	outputDir, filename := outputResolution.outputDir, outputResolution.filename
 	checkpointPath := outputResolution.checkpointPath
 	existingCheckpoint := outputResolution.checkpoint
+	if existingCheckpoint == nil {
+		outputPath, err := filepath.Abs(filepath.Join(outputDir, filename))
+		if err != nil {
+			return CollectResponse{}, err
+		}
+		req.Output = outputPath
+		req.Kubeconfig, req.Context = effectiveKubeconfig, effectiveContext
+		req.ClusterType = string(c.GetClusterType())
+		// Save resolved namespaces as well as the original namespace intent.
+		if !req.AllNamespaces {
+			req.Namespaces = strings.Join(namespacesToCollect, ",")
+		}
+		existingCheckpoint = c.CreateCheckpoint(outputPath, targets, namespacesToCollect)
+		existingCheckpoint.Settings, err = json.Marshal(req)
+		if err != nil {
+			return CollectResponse{}, err
+		}
+		existingCheckpoint.Pipeline = req.PipelineSettings
+		if len(existingCheckpoint.Pipeline) == 0 {
+			// Direct CollectService callers produce JSONL without a parse pipeline.
+			existingCheckpoint.Pipeline, err = json.Marshal(PipelineRequest{ParseEnabled: false})
+			if err != nil {
+				return CollectResponse{}, err
+			}
+		}
+	}
 
 	var asyncWriter *utils.AsyncWriter
 	if req.Resume {
@@ -152,10 +213,19 @@ func (s CollectService) Run(ctx context.Context, req CollectRequest, out io.Writ
 		return CollectResponse{}, fmt.Errorf("failed to create async writer: %w", err)
 	}
 	defer asyncWriter.Close()
+	if req.Resume {
+		if err := asyncWriter.Restore(existingCheckpoint.OutputOffset); err != nil {
+			return CollectResponse{}, fmt.Errorf("cannot restore output: %w", err)
+		}
+	}
+	fmt.Fprintf(out, "Checkpoint: %s\nResume with: bloodhound-kube collect --resume %q\n", checkpointPath, checkpointPath)
 
-	duration, counts, totalCollected, errors := collector.RunCollectionWithCheckpoint(ctx, c, asyncWriter, targets, namespacesToCollect, filename, req.Concurrency, log, existingCheckpoint, checkpointPath)
+	duration, counts, totalCollected, collectionErrors := collector.RunCollectionWithCheckpoint(ctx, c, asyncWriter, targets, namespacesToCollect, filename, req.Concurrency, log, existingCheckpoint, checkpointPath)
 
-	scopeMsg := fmt.Sprintf("from namespace %s", namespacesToCollect[0])
+	scopeMsg := "from cluster scope"
+	if len(namespacesToCollect) > 0 {
+		scopeMsg = fmt.Sprintf("from namespace %s", namespacesToCollect[0])
+	}
 	if len(namespacesToCollect) > 1 {
 		scopeMsg = fmt.Sprintf("from all namespaces (%d namespaces)", len(namespacesToCollect))
 	}
@@ -165,8 +235,16 @@ func (s CollectService) Run(ctx context.Context, req CollectRequest, out io.Writ
 		fmt.Fprintf(out, "  - %s: %d\n", resourceType, counts[resourceType])
 	}
 	outputPath := filepath.Join(outputDir, filename)
-	if len(errors) > 0 {
-		return CollectResponse{OutputPath: outputPath}, &PartialCollectionError{Count: len(errors)}
+	if len(collectionErrors) > 0 {
+		fmt.Fprintf(out, "Collection unfinished. Resume with: bloodhound-kube collect --resume %q\n", checkpointPath)
+		if ctx.Err() != nil {
+			return CollectResponse{OutputPath: outputPath}, ctx.Err()
+		}
+		var commitErr *collector.CheckpointCommitError
+		if joined := errors.Join(collectionErrors...); errors.As(joined, &commitErr) {
+			return CollectResponse{OutputPath: outputPath}, joined
+		}
+		return CollectResponse{OutputPath: outputPath}, &PartialCollectionError{Count: len(collectionErrors)}
 	}
 
 	return CollectResponse{OutputPath: outputPath}, nil
@@ -312,8 +390,7 @@ func resolveOutputAndCheckpoint(req CollectRequest) (outputCheckpointResolution,
 	resolved.checkpointPath = req.CheckpointFile
 	if req.Resume {
 		if resolved.checkpointPath == "" {
-			outputDir, outputFilename := parseOutputPath(req.Output)
-			resolved.checkpointPath = collector.DefaultCheckpointPath(outputDir, outputFilename)
+			return resolved, fmt.Errorf("--resume requires a checkpoint path")
 		}
 		if _, err := os.Stat(resolved.checkpointPath); err != nil {
 			return resolved, fmt.Errorf("checkpoint file not found: %s", resolved.checkpointPath)
@@ -323,17 +400,45 @@ func resolveOutputAndCheckpoint(req CollectRequest) (outputCheckpointResolution,
 			return resolved, fmt.Errorf("failed to load checkpoint: %w", err)
 		}
 		resolved.checkpoint = checkpoint
+		if err := checkpoint.ValidateResume(); err != nil {
+			return resolved, err
+		}
+		info, err := os.Stat(checkpoint.OutputFile)
+		if err != nil {
+			return resolved, fmt.Errorf("cannot resume without original output file %q: %w", checkpoint.OutputFile, err)
+		}
+		if !info.Mode().IsRegular() || info.Size() < checkpoint.OutputOffset {
+			return resolved, fmt.Errorf("output file does not contain checkpoint's committed byte position %d", checkpoint.OutputOffset)
+		}
 		resolved.resumeFilename = checkpoint.OutputFile
 	}
 
 	if req.Resume && resolved.resumeFilename != "" {
-		resolved.outputDir, _ = parseOutputPath(req.Output)
-		resolved.filename = resolved.resumeFilename
+		resolved.outputDir = filepath.Dir(resolved.resumeFilename)
+		resolved.filename = filepath.Base(resolved.resumeFilename)
 	} else {
 		resolved.outputDir, resolved.filename = parseOutputPath(req.Output)
 	}
 	if resolved.checkpointPath == "" {
 		resolved.checkpointPath = collector.DefaultCheckpointPath(resolved.outputDir, resolved.filename)
+	}
+	checkpointAbs, err := filepath.Abs(resolved.checkpointPath)
+	if err != nil {
+		return resolved, err
+	}
+	outputAbs, err := filepath.Abs(filepath.Join(resolved.outputDir, resolved.filename))
+	if err != nil {
+		return resolved, err
+	}
+	if checkpointAbs == outputAbs {
+		return resolved, fmt.Errorf("checkpoint and output file must have different paths")
+	}
+	if !req.Resume && !req.DiscoveryList {
+		if _, err := os.Stat(resolved.checkpointPath); err == nil {
+			return resolved, fmt.Errorf("checkpoint already exists: %s; continue it with --resume %q", resolved.checkpointPath, resolved.checkpointPath)
+		} else if !os.IsNotExist(err) {
+			return resolved, err
+		}
 	}
 	return resolved, nil
 }

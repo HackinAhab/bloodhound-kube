@@ -5,8 +5,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 	"text/tabwriter"
 	"time"
 
@@ -150,6 +152,12 @@ func buildClusterPipelineRequest(entry multicluster.ClusterEntry, outer Pipeline
 	if outer.ParseEnabled {
 		parsedPath = resolveParsedOutputPath(jsonlPath, "")
 	}
+	checkpointPath := outer.Collect.CheckpointFile
+	if checkpointPath != "" {
+		// A custom base checkpoint path still gets a distinct file per cluster.
+		name := url.QueryEscape(entry.Name)
+		checkpointPath = strings.TrimSuffix(checkpointPath, filepath.Ext(checkpointPath)) + "." + name + filepath.Ext(checkpointPath)
+	}
 
 	return PipelineRequest{
 		Collect: CollectRequest{
@@ -169,7 +177,7 @@ func buildClusterPipelineRequest(entry multicluster.ClusterEntry, outer Pipeline
 			Output:             jsonlPath,
 			// global passthrough fields
 			Resume:         outer.Collect.Resume,
-			CheckpointFile: outer.Collect.CheckpointFile,
+			CheckpointFile: checkpointPath,
 			FetchModeFull:  outer.Collect.FetchModeFull,
 			ResourceTypes:  outer.Collect.ResourceTypes,
 			DiscoveryList:  outer.Collect.DiscoveryList,

@@ -105,9 +105,9 @@ clusters:
 	outer := PipelineRequest{
 		ClustersConfigPath: path,
 		Collect: CollectRequest{
-			Resume:        true,
+			Resume:         true,
 			CheckpointFile: "/tmp/ckpt",
-			FetchModeFull: true,
+			FetchModeFull:  true,
 		},
 	}
 	_, _ = runMultiPipeline(context.Background(), outer, log)
@@ -115,8 +115,8 @@ clusters:
 	if !captured.Collect.Resume {
 		t.Error("Resume flag not passed through")
 	}
-	if captured.Collect.CheckpointFile != "/tmp/ckpt" {
-		t.Errorf("CheckpointFile not passed through: %q", captured.Collect.CheckpointFile)
+	if captured.Collect.CheckpointFile != "/tmp/ckpt.c1" {
+		t.Errorf("CheckpointFile not isolated by cluster: %q", captured.Collect.CheckpointFile)
 	}
 	if !captured.Collect.FetchModeFull {
 		t.Error("FetchModeFull not passed through")

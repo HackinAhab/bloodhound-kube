@@ -178,41 +178,6 @@ func KubeconfigIdentity(config *clientcmdapi.Config, contextName string) (string
 	return contextName, ""
 }
 
-func discoverKubeconfig() (*rest.Config, error) {
-	kubeConfigEnv := os.Getenv("KUBECONFIG")
-	if kubeConfigEnv != "" {
-		// TODO: Interactive config selection if multiple paths are provided in KUBECONFIG.
-		parts := filepath.SplitList(kubeConfigEnv)
-		var chosen string
-		for _, p := range parts {
-			if p == "" {
-				continue
-			}
-			chosen = expandTildeInPath(p)
-			break
-		}
-
-		if chosen != "" {
-			config, err := clientcmd.BuildConfigFromFlags("", chosen)
-			if err != nil {
-				return nil, fmt.Errorf("failed to create kubernetes config from KUBECONFIG %q: %w", chosen, err)
-			}
-			return config, nil
-		}
-	}
-
-	if hd := homedir.HomeDir(); hd != "" {
-		defaultKube := filepath.Join(hd, ".kube", "config")
-		config, err := clientcmd.BuildConfigFromFlags("", defaultKube)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create kubernetes config from default kubeconfig %q: %w", defaultKube, err)
-		}
-		return config, nil
-	}
-
-	return nil, fmt.Errorf("unable to find kubeconfig file")
-}
-
 func detectClusterType(clientset *kubernetes.Clientset, requestedType ClusterType) (*ClusterInfo, ClusterType, error) {
 
 	discoveryClient := clientset.Discovery()
@@ -289,11 +254,6 @@ func (c *Clients) GetClusterVersion() *version.Info {
 	return c.ClusterInfo.Version
 }
 
-// GetCurrentContextNamespace returns the namespace from the current kubeconfig context
-func GetCurrentContextNamespace(kubeconfigPath string) (string, error) {
-	return GetContextNamespace(kubeconfigPath, "")
-}
-
 func GetContextNamespace(kubeconfigPath, contextName string) (string, error) {
 	// Create loading rules - if kubeconfigPath is empty, it will use the default loading rules
 	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
@@ -335,7 +295,7 @@ func GetContextNamespace(kubeconfigPath, contextName string) (string, error) {
 func ParseNamespaces(namespacesStr string, kubeconfigPath string) ([]string, error) {
 	if namespacesStr == "" {
 		// Get current context namespace
-		currentNS, err := GetCurrentContextNamespace(kubeconfigPath)
+		currentNS, err := GetContextNamespace(kubeconfigPath, "")
 		if err != nil {
 			return []string{"default"}, nil
 		}

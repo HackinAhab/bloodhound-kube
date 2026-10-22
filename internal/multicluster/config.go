@@ -20,6 +20,7 @@ type ClusterDefaults struct {
 	ClusterType        string `yaml:"clusterType"`
 	OutputDir          string `yaml:"outputDir"`
 	ClusterConcurrency int    `yaml:"clusterConcurrency"`
+	Context            string `yaml:"context"`
 }
 
 // ClusterEntry describes a single cluster target. Boolean fields use pointers
@@ -27,6 +28,7 @@ type ClusterDefaults struct {
 type ClusterEntry struct {
 	Name               string `yaml:"name"`
 	Kubeconfig         string `yaml:"kubeconfig"`
+	Context            string `yaml:"context"`
 	Server             string `yaml:"server"`
 	Token              string `yaml:"token"`
 	ClusterType        string `yaml:"clusterType"`

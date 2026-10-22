@@ -60,6 +60,24 @@ func (c *Collector) GetPlatform() string {
 	return c.clients.GetPlatform()
 }
 
+func (c *Collector) Connection() (server, kubeconfig, context string) {
+	return c.clients.APIServer, c.clients.Kubeconfig, c.clients.Context
+}
+
+func (c *Collector) CreateCheckpoint(output string, targets []CollectionTarget, namespaces []string) *Checkpoint {
+	total := 0
+	for _, target := range targets {
+		if target.ClusterScoped {
+			total++
+		} else {
+			total += len(namespaces)
+		}
+	}
+	cp := NewCheckpoint(generateCollectionID(), output, c.GetClusterType(), c.clients.ClusterInfo, total)
+	cp.Targets, cp.Namespaces, cp.APIServer = targets, namespaces, c.clients.APIServer
+	return cp
+}
+
 func (c *Collector) GetClusterType() utils.ClusterType {
 	return c.clients.ClusterType
 }

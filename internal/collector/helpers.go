@@ -15,12 +15,6 @@ import (
 
 // CertificateInfo represents parsed certificate metadata
 
-var commonSensitiveKeys = []string{
-	"tls.key", "ca.key", "key.pem", "private.key", "server.key", "client.key",
-	"tls-key", "ca-key", "private-key", "server-key", "client-key",
-	"password", "token", "secret", "api-key", "apikey", "auth",
-}
-
 var commonCertificateKeys = []string{
 	"tls.crt", "ca.crt", "cert.pem", "certificate.pem", "client.crt", "server.crt",
 	"tls-cert", "ca-cert", "certificate", "cert", "ca", "client-cert", "server-cert",
@@ -148,18 +142,6 @@ func extractCertificatesFromSecret(data map[string][]byte) map[string]Certificat
 	}
 
 	return certificates
-}
-
-// isSensitiveKey returns true if the key often contains sensitive data that should be redacted
-func isSensitiveKey(key string) bool {
-
-	keyLower := strings.ToLower(key)
-	for _, sensitive := range commonSensitiveKeys {
-		if strings.Contains(keyLower, sensitive) {
-			return true
-		}
-	}
-	return false
 }
 
 func annotationsCleaner(annotations map[string]string) map[string]string {
@@ -293,22 +275,19 @@ func redactEnvLiteralValues(obj map[string]any, resourcePlural string) {
 	}
 }
 
-func redactEnvInPodSpec(podSpec map[string]any) int {
+func redactEnvInPodSpec(podSpec map[string]any) {
 	if podSpec == nil {
-		return 0
+		return
 	}
-	count := 0
-	count += redactEnvInContainers(podSpec["containers"])
-	count += redactEnvInContainers(podSpec["initContainers"])
-	return count
+	redactEnvInContainers(podSpec["containers"])
+	redactEnvInContainers(podSpec["initContainers"])
 }
 
-func redactEnvInContainers(raw any) int {
+func redactEnvInContainers(raw any) {
 	containers, ok := raw.([]any)
 	if !ok {
-		return 0
+		return
 	}
-	count := 0
 	for _, c := range containers {
 		container, ok := c.(map[string]any)
 		if !ok || container == nil {
@@ -325,11 +304,9 @@ func redactEnvInContainers(raw any) int {
 			}
 			if _, hasValue := envEntry["value"]; hasValue {
 				envEntry["value"] = ""
-				count++
 			}
 		}
 	}
-	return count
 }
 
 // applyCollectionHelpers applies common cleaning/enrichment to a collected object

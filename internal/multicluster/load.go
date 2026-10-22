@@ -25,7 +25,7 @@ func LoadConfig(path string) (*Config, error) {
 // a referenced env var is unset or empty.
 func ExpandEnvVars(cfg *Config) error {
 	for i := range cfg.Clusters {
-		expanded, err := expandToken(cfg.Clusters[i].Name, cfg.Clusters[i].Token)
+		expanded, err := ExpandToken(cfg.Clusters[i].Name, cfg.Clusters[i].Token)
 		if err != nil {
 			return err
 		}
@@ -34,7 +34,8 @@ func ExpandEnvVars(cfg *Config) error {
 	return nil
 }
 
-func expandToken(clusterName, token string) (string, error) {
+// ExpandToken expands environment references in one cluster's token.
+func ExpandToken(clusterName, token string) (string, error) {
 	if token == "" || !strings.Contains(token, "${") {
 		return token, nil
 	}
@@ -119,6 +120,9 @@ func ApplyDefaults(cfg *Config) []ClusterEntry {
 	d := cfg.Defaults
 	out := make([]ClusterEntry, len(cfg.Clusters))
 	for i, e := range cfg.Clusters {
+		if e.Context == "" {
+			e.Context = d.Context
+		}
 		if e.ClusterType == "" {
 			e.ClusterType = d.ClusterType
 		}

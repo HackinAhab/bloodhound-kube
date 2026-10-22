@@ -34,7 +34,7 @@ func newAsyncWriter(outputPath, filename string, log *Logger, appendMode bool) (
 	var err error
 
 	if appendMode {
-		file, err = os.OpenFile(filePath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+		file, err = os.OpenFile(filePath, os.O_WRONLY|os.O_APPEND, 0644)
 		if err != nil {
 			return nil, fmt.Errorf("failed to open output file for append: %w", err)
 		}
@@ -45,6 +45,16 @@ func newAsyncWriter(outputPath, filename string, log *Logger, appendMode bool) (
 			return nil, fmt.Errorf("failed to create output file: %w", err)
 		}
 		log.Info("Created output file", "path", filePath)
+		// Persist the new file and its directory entry even when the checkpoint
+		// lives in another directory and collection stops before its first job.
+		if err := file.Sync(); err != nil {
+			file.Close()
+			return nil, fmt.Errorf("failed to persist output file: %w", err)
+		}
+		if err := SyncDirectory(outputPath); err != nil {
+			file.Close()
+			return nil, fmt.Errorf("failed to persist output directory: %w", err)
+		}
 	}
 
 	writer := bufio.NewWriter(file)
@@ -74,6 +84,36 @@ func (w *AsyncWriter) WriteJSONLBatch(data []any) error {
 func (w *AsyncWriter) Flush() error {
 	w.logger.Debug("Flushing writer buffer")
 	return w.writer.Flush()
+}
+
+// Commit makes output durable before its byte position is checkpointed.
+func (w *AsyncWriter) Commit() (int64, error) {
+	if err := w.writer.Flush(); err != nil {
+		return 0, err
+	}
+	if err := w.file.Sync(); err != nil {
+		return 0, err
+	}
+	info, err := w.file.Stat()
+	if err != nil {
+		return 0, err
+	}
+	return info.Size(), nil
+}
+
+// Restore discards output written after the last committed checkpoint.
+func (w *AsyncWriter) Restore(offset int64) error {
+	info, err := w.file.Stat()
+	if err != nil {
+		return err
+	}
+	if offset < 0 || info.Size() < offset {
+		return fmt.Errorf("output file is shorter than checkpoint position %d", offset)
+	}
+	if err := w.file.Truncate(offset); err != nil {
+		return err
+	}
+	return w.file.Sync()
 }
 
 func (w *AsyncWriter) Close() error {

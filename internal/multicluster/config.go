@@ -21,6 +21,13 @@ type ClusterDefaults struct {
 	OutputDir          string `yaml:"outputDir"`
 	ClusterConcurrency int    `yaml:"clusterConcurrency"`
 	Context            string `yaml:"context"`
+
+	// DiscoveryAllowlistEntries is an inline alternative to DiscoveryAllowlist.
+	DiscoveryAllowlistEntries []string `yaml:"discoveryAllowlistEntries"`
+	// CACert and InsecureSkipTLSVerify only apply to server+token clusters.
+	CACert                string `yaml:"caCert"`
+	InsecureSkipTLSVerify *bool  `yaml:"insecureSkipTLSVerify"`
+	ParseUndefinedNodes   bool   `yaml:"parseUndefinedNodes"`
 }
 
 // ClusterEntry describes a single cluster target. Boolean fields use pointers
@@ -42,4 +49,9 @@ type ClusterEntry struct {
 	DiscoveryAllowlist string `yaml:"discoveryAllowlist"`
 	OutputFile         string `yaml:"outputFile"`
 	OutputDir          string `yaml:"outputDir"`
+
+	DiscoveryAllowlistEntries []string `yaml:"discoveryAllowlistEntries"`
+	CACert                    string   `yaml:"caCert"`
+	InsecureSkipTLSVerify     *bool    `yaml:"insecureSkipTLSVerify"`
+	ParseUndefinedNodes       *bool    `yaml:"parseUndefinedNodes"`
 }

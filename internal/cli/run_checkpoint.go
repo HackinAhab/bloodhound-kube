@@ -196,6 +196,12 @@ func createMultiRun(req PipelineRequest) (*multiRunCheckpoint, string, error) {
 				return nil, "", err
 			}
 		}
+		if child.Collect.CACert != "" {
+			child.Collect.CACert, err = absoluteReference(child.Collect.CACert)
+			if err != nil {
+				return nil, "", err
+			}
+		}
 		for _, path := range clusterRunPaths(child) {
 			if paths[path] {
 				return nil, "", fmt.Errorf("clusters have overlapping checkpoint/output paths: %s", path)
@@ -270,6 +276,21 @@ func resolveRunCredentials(c runCluster, configPath string, override bool) (Coll
 			found = true
 			if entry.Server != "" && entry.Server != collect.Server {
 				return collect, fmt.Errorf("credentials config changes saved API server for %q", c.Name)
+			}
+			if override && collect.Server != "" {
+				insecure := entry.InsecureSkipTLSVerify != nil && *entry.InsecureSkipTLSVerify
+				if entry.CACert != "" || insecure {
+					ca := ""
+					if entry.CACert != "" {
+						ca, err = absoluteReference(entry.CACert)
+						if err != nil {
+							return collect, err
+						}
+					}
+					if ca != collect.CACert || insecure != collect.InsecureSkipTLSVerify {
+						return collect, fmt.Errorf("credentials config changes saved TLS settings for %q", c.Name)
+					}
+				}
 			}
 			if override && entry.Kubeconfig != "" {
 				if collect.Server != "" {

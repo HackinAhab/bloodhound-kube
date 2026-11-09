@@ -1,9 +1,13 @@
 package multicluster
 
 import (
+	"crypto/x509"
 	"fmt"
 	"os"
 	"strings"
+
+	"bloodhound-kube/internal/collector"
+	"bloodhound-kube/internal/utils"
 
 	"gopkg.in/yaml.v3"
 )
@@ -81,6 +85,18 @@ func Validate(cfg *Config) error {
 			}
 			seenOutputFile[e.OutputFile] = true
 		}
+		if err := validateEntryTLS(e, cfg.Defaults); err != nil {
+			return err
+		}
+		if _, err := collector.ParseAllowlistEntries(e.DiscoveryAllowlistEntries); err != nil {
+			return fmt.Errorf("cluster %q: discoveryAllowlistEntries: %w", e.Name, err)
+		}
+	}
+	if _, err := collector.ParseAllowlistEntries(cfg.Defaults.DiscoveryAllowlistEntries); err != nil {
+		return fmt.Errorf("defaults: discoveryAllowlistEntries: %w", err)
+	}
+	if d := cfg.Defaults; d.CACert != "" && d.InsecureSkipTLSVerify != nil && *d.InsecureSkipTLSVerify {
+		return fmt.Errorf("defaults: caCert and insecureSkipTLSVerify: true are mutually exclusive")
 	}
 
 	// Reject interactive CRD discovery in multi-cluster mode.
@@ -93,7 +109,8 @@ func Validate(cfg *Config) error {
 			if effectiveAllowlist == "" {
 				effectiveAllowlist = cfg.Defaults.DiscoveryAllowlist
 			}
-			if !effectiveAcceptCRDs && effectiveAllowlist == "" {
+			hasInline := len(e.DiscoveryAllowlistEntries) > 0 || len(cfg.Defaults.DiscoveryAllowlistEntries) > 0
+			if !effectiveAcceptCRDs && effectiveAllowlist == "" && !hasInline {
 				effectiveScope := strings.TrimSpace(strings.ToLower(e.Scope))
 				if effectiveScope == "" {
 					effectiveScope = strings.TrimSpace(strings.ToLower(cfg.Defaults.Scope))
@@ -147,6 +164,22 @@ func ApplyDefaults(cfg *Config) []ClusterEntry {
 		if e.AcceptCRDs == nil {
 			e.AcceptCRDs = boolPtr(d.AcceptCRDs)
 		}
+		if len(e.DiscoveryAllowlistEntries) == 0 {
+			e.DiscoveryAllowlistEntries = d.DiscoveryAllowlistEntries
+		}
+		if e.ParseUndefinedNodes == nil {
+			e.ParseUndefinedNodes = boolPtr(d.ParseUndefinedNodes)
+		}
+		// TLS settings are only meaningful for server+token clusters. Inherit
+		// each default only when the entry has not chosen the opposing option.
+		if e.Server != "" {
+			if e.CACert == "" && (e.InsecureSkipTLSVerify == nil || !*e.InsecureSkipTLSVerify) {
+				e.CACert = d.CACert
+			}
+			if e.InsecureSkipTLSVerify == nil && e.CACert == "" {
+				e.InsecureSkipTLSVerify = d.InsecureSkipTLSVerify
+			}
+		}
 		if e.Concurrency == 0 {
 			e.Concurrency = d.Concurrency
 		}
@@ -159,3 +192,33 @@ func ApplyDefaults(cfg *Config) []ClusterEntry {
 }
 
 func boolPtr(b bool) *bool { return &b }
+
+// validateEntryTLS checks caCert/insecureSkipTLSVerify for one cluster entry.
+// The effective CA (entry, else default) must be a readable PEM bundle.
+func validateEntryTLS(e ClusterEntry, d ClusterDefaults) error {
+	insecure := e.InsecureSkipTLSVerify != nil && *e.InsecureSkipTLSVerify
+	if e.CACert != "" && insecure {
+		return fmt.Errorf("cluster %q: caCert and insecureSkipTLSVerify: true are mutually exclusive", e.Name)
+	}
+	if e.Server == "" {
+		if e.CACert != "" || e.InsecureSkipTLSVerify != nil {
+			return fmt.Errorf("cluster %q: caCert and insecureSkipTLSVerify require server and token; kubeconfig clusters take TLS settings from the kubeconfig", e.Name)
+		}
+		return nil
+	}
+	ca := e.CACert
+	if ca == "" && !insecure {
+		ca = d.CACert
+	}
+	if ca == "" {
+		return nil
+	}
+	pem, err := os.ReadFile(utils.ExpandTildeInPath(ca))
+	if err != nil {
+		return fmt.Errorf("cluster %q: caCert: %w", e.Name, err)
+	}
+	if !x509.NewCertPool().AppendCertsFromPEM(pem) {
+		return fmt.Errorf("cluster %q: caCert %q contains no valid PEM certificates", e.Name, ca)
+	}
+	return nil
+}

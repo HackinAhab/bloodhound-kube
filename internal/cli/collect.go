@@ -53,11 +53,16 @@ type CollectRequest struct {
 	DiscoveryList      bool
 	DiscoveryAccept    bool
 	DiscoveryAllowlist string
-	Scope              string
-	NamespaceFlagSet   bool
-	ExplicitFlags      map[string]bool `json:"-"`
-	PipelineSettings   json.RawMessage `json:"-"`
-	RetainCheckpoint   bool            `json:"-"`
+	// DiscoveryAllowlistEntries are inline allowlist entries (YAML only);
+	// they combine with the file given by DiscoveryAllowlist.
+	DiscoveryAllowlistEntries []string
+	CACert                    string
+	InsecureSkipTLSVerify     bool
+	Scope                     string
+	NamespaceFlagSet          bool
+	ExplicitFlags             map[string]bool `json:"-"`
+	PipelineSettings          json.RawMessage `json:"-"`
+	RetainCheckpoint          bool            `json:"-"`
 }
 
 type CollectResponse struct {
@@ -114,7 +119,11 @@ func (s CollectService) Run(ctx context.Context, req CollectRequest, out io.Writ
 		return CollectResponse{}, err
 	}
 
-	c, err := collector.New(utils.ClientConfig{Kubeconfig: req.Kubeconfig, Context: req.Context, Server: req.Server, Token: req.Token, ClusterType: clusterTypeEnum}, log, req.Redacted, req.PaginateLimit)
+	if req.Server != "" && req.CACert == "" && !req.InsecureSkipTLSVerify {
+		log.Warn("Token authentication is not verifying the API server certificate; set caCert (or insecureSkipTLSVerify: true to silence this)", "server", req.Server)
+	}
+
+	c, err := collector.New(utils.ClientConfig{Kubeconfig: req.Kubeconfig, Context: req.Context, Server: req.Server, Token: req.Token, ClusterType: clusterTypeEnum, CAFile: req.CACert, InsecureSkipTLSVerify: req.InsecureSkipTLSVerify}, log, req.Redacted, req.PaginateLimit)
 	if err != nil {
 		return CollectResponse{}, fmt.Errorf("failed to create collector: %w", err)
 	}
@@ -304,6 +313,14 @@ func resolveDiscoveryPolicy(ctx context.Context, req CollectRequest, c *collecto
 		policy.allowlistEntries = entries
 		log.Info("Using discovery allowlist file", "path", req.DiscoveryAllowlist, "entries", len(entries))
 	}
+	if len(req.DiscoveryAllowlistEntries) > 0 {
+		inline, err := collector.ParseAllowlistEntries(req.DiscoveryAllowlistEntries)
+		if err != nil {
+			return policy, fmt.Errorf("invalid inline allowlist: %w", err)
+		}
+		policy.allowlistEntries = collector.MergeAllowlists(policy.allowlistEntries, inline)
+		log.Info("Using inline discovery allowlist", "entries", len(inline))
+	}
 
 	if policy.explicitTypes {
 		return policy, nil
@@ -333,15 +350,16 @@ func resolveCollectScope(req CollectRequest) (collectScope, error) {
 		scope = string(collectScopeCore)
 	}
 
-	if scope == string(collectScopeCore) && req.DiscoveryAllowlist != "" {
+	hasAllowlist := req.DiscoveryAllowlist != "" || len(req.DiscoveryAllowlistEntries) > 0
+	if scope == string(collectScopeCore) && hasAllowlist {
 		scope = string(collectScopeAllowlist)
 	}
 
 	s := collectScope(scope)
 	switch s {
 	case collectScopeCore, collectScopeAll, collectScopeAllowlist:
-		if s == collectScopeAllowlist && strings.TrimSpace(req.DiscoveryAllowlist) == "" {
-			return "", fmt.Errorf("--scope allowlist requires --discovery-allowlist")
+		if s == collectScopeAllowlist && !hasAllowlist {
+			return "", fmt.Errorf("--scope allowlist requires --discovery-allowlist (or discoveryAllowlistEntries in a clusters config)")
 		}
 		return s, nil
 	default:

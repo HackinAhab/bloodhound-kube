@@ -146,6 +146,8 @@ func TestResolveCollectScope(t *testing.T) {
 		{name: "explicit all", req: CollectRequest{Scope: "all"}, want: collectScopeAll},
 		{name: "explicit allowlist with file", req: CollectRequest{Scope: "allowlist", DiscoveryAllowlist: "x"}, want: collectScopeAllowlist},
 		{name: "legacy allowlist implies allowlist scope", req: CollectRequest{DiscoveryAllowlist: "x"}, want: collectScopeAllowlist},
+		{name: "inline entries imply allowlist scope", req: CollectRequest{DiscoveryAllowlistEntries: []string{"apps/*"}}, want: collectScopeAllowlist},
+		{name: "explicit allowlist with inline entries", req: CollectRequest{Scope: "allowlist", DiscoveryAllowlistEntries: []string{"apps/*"}}, want: collectScopeAllowlist},
 		{name: "allowlist scope missing file", req: CollectRequest{Scope: "allowlist"}, wantErr: true},
 		{name: "invalid scope", req: CollectRequest{Scope: "weird"}, wantErr: true},
 	}

@@ -43,6 +43,8 @@ func buildClusterPipelineRequest(entry multicluster.ClusterEntry, outer Pipeline
 	allNS := entry.AllNamespaces != nil && *entry.AllNamespaces
 	redacted := entry.Redacted != nil && *entry.Redacted
 	acceptCRDs := entry.AcceptCRDs != nil && *entry.AcceptCRDs
+	insecureTLS := entry.InsecureSkipTLSVerify != nil && *entry.InsecureSkipTLSVerify
+	parseUndefined := outer.ParseUndefinedNodes || (entry.ParseUndefinedNodes != nil && *entry.ParseUndefinedNodes)
 	jsonlPath := resolveClusterOutputPath(entry, outer, runTimestamp)
 	parsedPath := ""
 	if outer.ParseEnabled {
@@ -58,13 +60,15 @@ func buildClusterPipelineRequest(entry multicluster.ClusterEntry, outer Pipeline
 			Kubeconfig: entry.Kubeconfig, Context: entry.Context, Server: entry.Server, Token: entry.Token,
 			ClusterType: entry.ClusterType, Namespaces: entry.Namespace, NamespaceFlagSet: entry.Namespace != "",
 			AllNamespaces: allNS, Scope: entry.Scope, DiscoveryAllowlist: entry.DiscoveryAllowlist,
+			DiscoveryAllowlistEntries: entry.DiscoveryAllowlistEntries,
+			CACert:                    entry.CACert, InsecureSkipTLSVerify: insecureTLS,
 			DiscoveryAccept: acceptCRDs, Redacted: redacted, Concurrency: entry.Concurrency,
 			PaginateLimit: entry.PaginateLimit, Output: jsonlPath,
 			Resume: outer.Collect.Resume, CheckpointFile: checkpointPath,
 			FetchModeFull: outer.Collect.FetchModeFull, ResourceTypes: outer.Collect.ResourceTypes,
 			DiscoveryList: outer.Collect.DiscoveryList,
 		},
-		ParseEnabled: outer.ParseEnabled, ParseUndefinedNodes: outer.ParseUndefinedNodes,
+		ParseEnabled: outer.ParseEnabled, ParseUndefinedNodes: parseUndefined,
 		ClusterName: entry.Name, ParsedOutputPath: parsedPath, ZipOutput: outer.ZipOutput,
 	}
 }

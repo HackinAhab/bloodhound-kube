@@ -1,10 +1,19 @@
 package multicluster
 
 import (
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/pem"
+	"math/big"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestLoadConfig(t *testing.T) {
@@ -50,8 +59,8 @@ func TestValidate(t *testing.T) {
 			wantErr: "at least one cluster",
 		},
 		{
-			name: "missing name",
-			cfg: Config{Clusters: []ClusterEntry{{}}},
+			name:    "missing name",
+			cfg:     Config{Clusters: []ClusterEntry{{}}},
 			wantErr: "must have a name",
 		},
 		{
@@ -92,7 +101,7 @@ func TestValidate(t *testing.T) {
 		},
 		{
 			name: "valid minimal",
-			cfg: Config{Clusters: []ClusterEntry{{Name: "dev"}}},
+			cfg:  Config{Clusters: []ClusterEntry{{Name: "dev"}}},
 		},
 		{
 			name: "valid server+token",
@@ -525,3 +534,126 @@ func TestValidate_InteractiveCRDs(t *testing.T) {
 	}
 }
 
+func writeTestCA(t *testing.T) string {
+	t.Helper()
+	tmpl := &x509.Certificate{SerialNumber: big.NewInt(1), Subject: pkix.Name{CommonName: "t"}, NotBefore: time.Now(), NotAfter: time.Now().Add(time.Hour), IsCA: true, BasicConstraintsValid: true}
+	key, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	der, err := x509.CreateCertificate(rand.Reader, tmpl, tmpl, &key.PublicKey, key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	p := filepath.Join(t.TempDir(), "ca.pem")
+	if err := os.WriteFile(p, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der}), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	return p
+}
+
+func TestApplyDefaults_ParseUndefinedNodes(t *testing.T) {
+	f := false
+	cfg := &Config{
+		Defaults: ClusterDefaults{ParseUndefinedNodes: true},
+		Clusters: []ClusterEntry{{Name: "inherit"}, {Name: "override", ParseUndefinedNodes: &f}},
+	}
+	got := ApplyDefaults(cfg)
+	if !*got[0].ParseUndefinedNodes || *got[1].ParseUndefinedNodes {
+		t.Errorf("want inherit=true override=false, got %v %v", *got[0].ParseUndefinedNodes, *got[1].ParseUndefinedNodes)
+	}
+}
+
+func TestInlineAllowlist_ReplaceSemantics(t *testing.T) {
+	cfg := &Config{
+		Defaults: ClusterDefaults{DiscoveryAllowlistEntries: []string{"apps/*"}},
+		Clusters: []ClusterEntry{{Name: "inherit"}, {Name: "own", DiscoveryAllowlistEntries: []string{"batch/*"}}},
+	}
+	got := ApplyDefaults(cfg)
+	if !reflect.DeepEqual(got[0].DiscoveryAllowlistEntries, []string{"apps/*"}) {
+		t.Errorf("inherit: got %v", got[0].DiscoveryAllowlistEntries)
+	}
+	if !reflect.DeepEqual(got[1].DiscoveryAllowlistEntries, []string{"batch/*"}) {
+		t.Errorf("own list must replace default, got %v", got[1].DiscoveryAllowlistEntries)
+	}
+}
+
+func TestValidate_InlineAllowlist(t *testing.T) {
+	bad := &Config{Clusters: []ClusterEntry{{Name: "a", DiscoveryAllowlistEntries: []string{"a/b/c/d"}}}}
+	if err := Validate(bad); err == nil {
+		t.Error("expected invalid inline entry to be rejected")
+	}
+	badDefault := &Config{Defaults: ClusterDefaults{DiscoveryAllowlistEntries: []string{"a/b/c/d"}}, Clusters: []ClusterEntry{{Name: "a"}}}
+	if err := Validate(badDefault); err == nil {
+		t.Error("expected invalid default inline entry to be rejected")
+	}
+}
+
+// An inline allowlist satisfies the non-interactive CRD requirement.
+func TestValidate_InlineAllowlistSatisfiesCRDGate(t *testing.T) {
+	entries := []string{"cert-manager.io/*"}
+	cfg := &Config{
+		Defaults: ClusterDefaults{Scope: "all"},
+		Clusters: []ClusterEntry{{Name: "a", DiscoveryAllowlistEntries: entries}, {Name: "b", DiscoveryAllowlistEntries: entries}},
+	}
+	if err := Validate(cfg); err != nil {
+		t.Errorf("unexpected: %v", err)
+	}
+	cfg.Clusters[1].DiscoveryAllowlistEntries = nil
+	if err := Validate(cfg); err == nil {
+		t.Error("cluster without allowlist/acceptCRDs and scope all must still fail")
+	}
+	cfg.Defaults.DiscoveryAllowlistEntries = entries
+	if err := Validate(cfg); err != nil {
+		t.Errorf("default inline list should satisfy gate: %v", err)
+	}
+}
+
+func TestValidate_TLS(t *testing.T) {
+	ca := writeTestCA(t)
+	tr := true
+	notPEM := filepath.Join(t.TempDir(), "bad.pem")
+	_ = os.WriteFile(notPEM, []byte("nope"), 0o600)
+	tok := ClusterEntry{Name: "t", Server: "https://x", Token: "tok"}
+	tests := []struct {
+		name    string
+		mutate  func(e *ClusterEntry)
+		wantErr bool
+	}{
+		{"ca ok", func(e *ClusterEntry) { e.CACert = ca }, false},
+		{"insecure ok", func(e *ClusterEntry) { e.InsecureSkipTLSVerify = &tr }, false},
+		{"both", func(e *ClusterEntry) { e.CACert, e.InsecureSkipTLSVerify = ca, &tr }, true},
+		{"missing file", func(e *ClusterEntry) { e.CACert = "/nonexistent/ca.pem" }, true},
+		{"not pem", func(e *ClusterEntry) { e.CACert = notPEM }, true},
+		{"kubeconfig cluster", func(e *ClusterEntry) { e.Server, e.Token, e.Kubeconfig, e.CACert = "", "", "~/.kube/c", ca }, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			e := tok
+			tt.mutate(&e)
+			err := Validate(&Config{Clusters: []ClusterEntry{e}})
+			if (err != nil) != tt.wantErr {
+				t.Errorf("err=%v wantErr=%v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestApplyDefaults_TLS(t *testing.T) {
+	tr := true
+	cfg := &Config{
+		Defaults: ClusterDefaults{CACert: "/ca.pem"},
+		Clusters: []ClusterEntry{
+			{Name: "inherit", Server: "https://x", Token: "t"},
+			{Name: "optout", Server: "https://x", Token: "t", InsecureSkipTLSVerify: &tr},
+			{Name: "kube", Kubeconfig: "~/.kube/c"},
+		},
+	}
+	got := ApplyDefaults(cfg)
+	if got[0].CACert != "/ca.pem" {
+		t.Errorf("token cluster should inherit default CA, got %q", got[0].CACert)
+	}
+	if got[1].CACert != "" || !*got[1].InsecureSkipTLSVerify {
+		t.Errorf("explicit insecure must not inherit CA: %+v", got[1])
+	}
+	if got[2].CACert != "" {
+		t.Errorf("kubeconfig cluster must not inherit CA, got %q", got[2].CACert)
+	}
+}

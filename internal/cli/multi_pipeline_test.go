@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -513,5 +514,50 @@ clusters:
 	ts1 := ts(capturedPaths[1])
 	if ts0 != ts1 {
 		t.Errorf("cluster output paths use different timestamps: %q vs %q", capturedPaths[0], capturedPaths[1])
+	}
+}
+
+func TestBuildClusterPipelineRequest_YAMLOptions(t *testing.T) {
+	tr, fl := true, false
+	entry := multicluster.ClusterEntry{
+		Name: "c1", Server: "https://x", Token: "t",
+		DiscoveryAllowlistEntries: []string{"apps/*"}, CACert: "/ca.pem",
+		InsecureSkipTLSVerify: &fl, ParseUndefinedNodes: &tr,
+	}
+	got := buildClusterPipelineRequest(entry, PipelineRequest{}, "ts")
+	if !reflect.DeepEqual(got.Collect.DiscoveryAllowlistEntries, []string{"apps/*"}) || got.Collect.CACert != "/ca.pem" || got.Collect.InsecureSkipTLSVerify {
+		t.Errorf("collect options not passed: %+v", got.Collect)
+	}
+	if !got.ParseUndefinedNodes {
+		t.Error("YAML parseUndefinedNodes not applied")
+	}
+
+	// CLI flag forces true even when YAML says false.
+	entry.ParseUndefinedNodes = &fl
+	if got := buildClusterPipelineRequest(entry, PipelineRequest{ParseUndefinedNodes: true}, "ts"); !got.ParseUndefinedNodes {
+		t.Error("CLI --parse-undefined-nodes must win over YAML false")
+	}
+	if got := buildClusterPipelineRequest(entry, PipelineRequest{}, "ts"); got.ParseUndefinedNodes {
+		t.Error("YAML false with no CLI flag must stay false")
+	}
+}
+
+func TestResolveRunCredentials_RejectsTLSChange(t *testing.T) {
+	cfgPath := filepath.Join(t.TempDir(), "c.yml")
+	write := func(extra string) {
+		y := "clusters:\n  - name: s\n    server: https://x\n    token: tok\n" + extra
+		if err := os.WriteFile(cfgPath, []byte(y), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	run := runCluster{Name: "s", Request: PipelineRequest{Collect: CollectRequest{Server: "https://x", CACert: "/saved/ca.pem"}}}
+
+	write("    insecureSkipTLSVerify: true\n")
+	if _, err := resolveRunCredentials(run, cfgPath, true); err == nil {
+		t.Error("expected TLS change to be rejected")
+	}
+	write("")
+	if _, err := resolveRunCredentials(run, cfgPath, true); err != nil {
+		t.Errorf("config without TLS settings should be allowed: %v", err)
 	}
 }

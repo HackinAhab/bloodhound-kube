@@ -33,6 +33,11 @@ type ClientConfig struct {
 	Server      string
 	Token       string
 	ClusterType ClusterType
+	// CAFile and InsecureSkipTLSVerify apply to server+token auth only.
+	// With neither set the connection stays unverified (legacy default) and a
+	// warning is logged; ponytail: flip the default to verified in a later release.
+	CAFile                string
+	InsecureSkipTLSVerify bool
 }
 
 type Clients struct {
@@ -58,13 +63,7 @@ func NewClient(cfg ClientConfig) (*Clients, error) {
 	var err error
 
 	if cfg.Server != "" && cfg.Token != "" {
-		config = &rest.Config{
-			Host:        cfg.Server,
-			BearerToken: cfg.Token,
-			TLSClientConfig: rest.TLSClientConfig{
-				Insecure: true,
-			},
-		}
+		config = tokenRestConfig(cfg)
 	} else {
 		if cfg.Kubeconfig == "" && cfg.Context == "" {
 			config, err = rest.InClusterConfig()
@@ -128,6 +127,16 @@ func NewClient(cfg ClientConfig) (*Clients, error) {
 		ClusterType:   detectedType,
 		ClusterInfo:   clusterInfo,
 	}, nil
+}
+
+// tokenRestConfig builds the rest config for server+token auth. A CA file turns
+// on verification; otherwise TLS verification is skipped (legacy default).
+func tokenRestConfig(cfg ClientConfig) *rest.Config {
+	tls := rest.TLSClientConfig{Insecure: true}
+	if cfg.CAFile != "" && !cfg.InsecureSkipTLSVerify {
+		tls = rest.TLSClientConfig{CAFile: expandTildeInPath(cfg.CAFile)}
+	}
+	return &rest.Config{Host: cfg.Server, BearerToken: cfg.Token, TLSClientConfig: tls}
 }
 
 // TODO: Make these client config parameters configurable

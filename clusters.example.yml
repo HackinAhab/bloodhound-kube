@@ -22,14 +22,38 @@ defaults:
   # Auto-accept CRD discovery without prompting
   acceptCRDs: false
 
-  # Concurrent collection workers
+  # Per-cluster concurrent collection workers
   concurrency: 10
 
   # Kubernetes list pagination limit
   paginateLimit: 100
 
+  # Number of clusters to collect in parallel (0 => sequential).
+  # Total concurrent API requests ≈ clusterConcurrency × concurrency.
+  clusterConcurrency: 1
+
   # kubernetes | openshift | auto
   clusterType: auto
+
+  # Inline discovery allowlist (same entry format as an allowlist file; see
+  # below). Combines with discoveryAllowlist. A cluster's own list REPLACES
+  # this one rather than adding to it.
+  # discoveryAllowlistEntries: [cert-manager.io/*, apps/v1/deployments]
+
+  # TLS for server+token clusters only (kubeconfig clusters use their kubeconfig).
+  # caCert: PEM CA bundle used to verify the API server.
+  # insecureSkipTLSVerify: true skips verification explicitly.
+  # With neither set, verification is currently skipped and a warning is logged;
+  # a future release will verify by default.
+  # caCert: ./ca.pem
+  # insecureSkipTLSVerify: false
+
+  # Create generic nodes for resource kinds without a dedicated builder.
+  # The --parse-undefined-nodes CLI flag forces this on for every cluster.
+  parseUndefinedNodes: false
+
+  # kubeconfig context to use when an entry sets no context of its own.
+  # context: ""
 
   # Output directory for per-cluster JSONL (and .json) files.
   # Each cluster gets its own file: <name>-<timestamp>.jsonl
@@ -39,14 +63,17 @@ clusters:
   # Minimal entry — relies entirely on defaults and current kubeconfig context.
   - name: local
 
-  # kubeconfig-based auth with an explicit kubeconfig path.
-  # Uses this file's current context and authentication (including exec plugins).
-  # There is no awsProfile or context field in this YAML. See docs/aws-profiles.md for setup commands.
+  # kubeconfig-based auth with an explicit kubeconfig path and a named context.
+  # context selects which context in the kubeconfig to use (defaults to current).
+  # Uses this file's authentication (including exec plugins).
+  # There is no awsProfile field in this YAML. See docs/aws-profiles.md for setup commands.
   - name: prod-us-east
     kubeconfig: ~/.kube/prod-us-east
+    context: prod-us-east-admin
     clusterType: kubernetes
     scope: core
     redacted: true
+    paginateLimit: 250
 
   # Direct API access — token is read from an environment variable.
   # ${VAR} references are expanded at runtime; an unset var is an error.
@@ -55,6 +82,11 @@ clusters:
     token: ${STAGING_TOKEN}
     namespace: prod,monitoring
     concurrency: 20
+    # Recommended: verify the API server certificate. The file must exist (checked
+    # at startup; relative paths resolve from the working directory).
+    # caCert: ./staging-ca.pem
+    # Or opt out explicitly (exclusive with caCert):
+    # insecureSkipTLSVerify: true
 
   # Allowlist scope — collect core resources plus those listed in a file.
   # Each line in the allowlist is a resource identifier:
@@ -65,7 +97,17 @@ clusters:
     discoveryAllowlist: ./allowlists/shared.txt
     acceptCRDs: true
 
+  # Inline allowlist — no separate file needed.
+  - name: platform
+    kubeconfig: ~/.kube/platform
+    scope: allowlist
+    discoveryAllowlistEntries:
+      - cert-manager.io/*
+      - external-secrets.io/v1beta1/externalsecrets
+    parseUndefinedNodes: true
+
   # Explicit output path for this cluster (overrides outputDir).
+  # outputDir may also be set per cluster to override the defaults block.
   - name: dr-west
     kubeconfig: ~/.kube/dr-west
     outputFile: /var/data/dr-west.jsonl
